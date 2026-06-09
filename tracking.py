@@ -16,3 +16,4 @@ def new_func(c, d):
         return c * d
     
 print(new_func(np.array([2,3,4]), np.array([2,3,4])))
+print(myfunc(2,-3))
