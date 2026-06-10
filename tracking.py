@@ -55,6 +55,9 @@ def plot_matrix_heat_map(sim_matrix, matrix_type):
 def KNN(x, hit_coords, n, t1l, t2l):
     nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(hit_coords)
     distances, indices = nbrs.kneighbors(hit_coords)
+    knn_matrix = nbrs.kneighbors_graph(hit_coords).toarray()
+    plot_matrix_heat_map(knn_matrix, 'KNN matrix')
+    
     distances = distances[:,1:]
     indices = indices[:,1:]
 
