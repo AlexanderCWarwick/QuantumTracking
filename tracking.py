@@ -19,6 +19,10 @@ def construct_toytracks(x,N,sigma,intsec):
     if not intsec:
         while True:
             m2, c2 = generate_lineparams(*lims)
+            
+            while np.isclose(m1, m2, rtol=1e-8):
+                m2, _ = generate_lineparams(*lims)
+                
             x_int = (c1 - c2) / (m2 - m1)
             if x_int > 1 or x_int < 0:
                 break 
@@ -43,8 +47,8 @@ def plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma, intse
 def get_distmatrix(hit_coords): 
     return cdist(hit_coords, hit_coords)
 
-def construct_RBFmatrix(hit_coords, sigma):                                                #Radial Basis Function type similarity matrix. [D]_ij = d(i,j) for normal euclid norm    
-    return np.exp(-(get_distmatrix(hit_coords))**2 / (2*(sigma)**2))  
+def construct_RBFmatrix(hit_coords, sigma_rbf):                                                #Radial Basis Function type similarity matrix. [D]_ij = d(i,j) for normal euclid norm    
+    return np.exp(-(get_distmatrix(hit_coords))**2 / (2*(sigma_rbf)**2))  
     
 def plot_matrix_heat_map(sim_matrix, matrix_type):
     plt.imshow(sim_matrix, cmap='viridis')
@@ -56,39 +60,58 @@ def KNN(x, hit_coords, n, t1l, t2l):
     nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(hit_coords)
     distances, indices = nbrs.kneighbors(hit_coords)
     knn_matrix = nbrs.kneighbors_graph(hit_coords).toarray()
-    plot_matrix_heat_map(knn_matrix, 'KNN matrix')
     
     distances = distances[:,1:]
     indices = indices[:,1:]
 
-    G = nx.Graph()
+    H = nx.Graph()
     pos = {i: tuple(hit_coords[i]) for i in range(len(hit_coords))}
-
+    
+    '''
+    Weighted Graph calculated using the a simple reciprocal type similarity.
+    G = nx.Graph()
     edges = []
 
     for i in range(len(hit_coords)):
         for j, d in zip(indices[i], distances[i]):
-            edges.append((i, j, d))
+            weight = 1 / (1 + d)
+            edges.append((i, j, weight))
             
     G.add_weighted_edges_from(edges)  
+    nx.draw(G,pos=pos,with_labels=True,node_size=200) #node_color=np.concatenate([t1l, t2l]))
+    
+    plt.show()
+    '''
+    
+    for i in range(len(hit_coords)):
+        for j in indices[i]:
+            H.add_edge(i,j)
+    
     for detector_x in x:
         plt.axvline(detector_x,linestyle='--',alpha=0.2) 
     plt.title(f'{n} NN Undirected Graph')
-
-    nx.draw(G,pos=pos) #node_color=np.concatenate([t1l, t2l]))
+    
+    nx.draw(H,pos=pos, with_labels=True,node_size=200)   
+    plt.show()
+    
+    return knn_matrix
     
 Num_hits = 6
 x = np.linspace(0,1,Num_hits)
-sigma_noise = 0.01
-intsec = True
+sigma_noise = 1e-2
+sigma_rbf = 0.5
+intsection_allow = False
+nearneighb_n = 3
 
-track1, track1_labels, track2, track2_labels = construct_toytracks(x, Num_hits, sigma_noise, intsec)
-plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma_noise, intsec)
+track1, track1_labels, track2, track2_labels = construct_toytracks(x, Num_hits, sigma_noise, intsection_allow)
+plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma_noise, intsection_allow)
 
 hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track1, track2])])
-RBF_matrix = construct_RBFmatrix(hit_coords, 0.5)
 
+RBF_matrix = construct_RBFmatrix(hit_coords, sigma_rbf)
 plot_matrix_heat_map(RBF_matrix, 'Radial Basis Function')
-#plot_matrix_heat_map(get_distmatrix(hit_coords), 'Distance matrix')
-KNN(x, hit_coords, 3, track1_labels, track2_labels)
 
+#plot_matrix_heat_map(get_distmatrix(hit_coords), 'Distance matrix')
+
+KNN_matrix = KNN(x, hit_coords, nearneighb_n, track1_labels, track2_labels)
+plot_matrix_heat_map(KNN_matrix, f'{nearneighb_n} NearestNeighbour')
