@@ -42,6 +42,7 @@ def plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma, intse
     plt.xlim(-0.1, 1.1)
     plt.title(f'Two track plot with intersection={intsec}. Noise standev.={sigma}')
     plt.grid(axis='x')
+    plt.savefig('plots/Toytracks.png')
     plt.show()
     
 def get_distmatrix(hit_coords): 
@@ -54,6 +55,7 @@ def plot_matrix_heat_map(sim_matrix, matrix_type):
     plt.imshow(sim_matrix, cmap='viridis')
     plt.title(f'{matrix_type} Heat map')
     plt.colorbar()
+    plt.savefig(f'plots/{matrix_type}_heat_map.png')
     plt.show()
     
 def KNN(x, hit_coords, n, t1l, t2l):
