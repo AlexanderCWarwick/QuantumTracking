@@ -75,12 +75,12 @@ def KNN(x, hit_coords, n, t1l, t2l):
         plt.axvline(detector_x,linestyle='--',alpha=0.2) 
     plt.title(f'{n} NN Undirected Graph')
 
-    nx.draw(G,pos=pos, node_color=np.concatenate([t1l, t2l]))
+    nx.draw(G,pos=pos) #node_color=np.concatenate([t1l, t2l]))
     
 Num_hits = 6
 x = np.linspace(0,1,Num_hits)
 sigma_noise = 0.01
-intsec = False
+intsec = True
 
 track1, track1_labels, track2, track2_labels = construct_toytracks(x, Num_hits, sigma_noise, intsec)
 plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma_noise, intsec)
@@ -89,6 +89,6 @@ hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track1, tra
 RBF_matrix = construct_RBFmatrix(hit_coords, 0.5)
 
 plot_matrix_heat_map(RBF_matrix, 'Radial Basis Function')
-plot_matrix_heat_map(get_distmatrix(hit_coords), 'Distance matrix')
+#plot_matrix_heat_map(get_distmatrix(hit_coords), 'Distance matrix')
 KNN(x, hit_coords, 3, track1_labels, track2_labels)
 
