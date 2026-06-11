@@ -4,6 +4,8 @@ from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestNeighbors
 import networkx as nx
 
+np.random.seed(41)
+
 def create_hits(N, x, m, c, sigma, truth_color):
     truth_labels = np.full(N, truth_color)
     hits = (m*x + c) + np.random.normal(loc=0,scale=sigma,size=N)
@@ -61,7 +63,9 @@ def plot_matrix_heat_map(sim_matrix, matrix_type):
 def KNN(x, hit_coords, n, t1l, t2l):
     nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(hit_coords)
     distances, indices = nbrs.kneighbors(hit_coords)
-    knn_matrix = nbrs.kneighbors_graph(hit_coords).toarray()
+    neighbour_matrix = nbrs.kneighbors_graph(hit_coords).toarray()
+    
+    knn_matrix = ((neighbour_matrix + neighbour_matrix.T)>0).astype(int)
     
     distances = distances[:,1:]
     indices = indices[:,1:]
@@ -70,7 +74,7 @@ def KNN(x, hit_coords, n, t1l, t2l):
     pos = {i: tuple(hit_coords[i]) for i in range(len(hit_coords))}
     
     '''
-    Weighted Graph calculated using the a simple reciprocal type similarity.
+    Weighted Graph calculated using a simple reciprocal type similarity.
     G = nx.Graph()
     edges = []
 
@@ -101,7 +105,7 @@ def KNN(x, hit_coords, n, t1l, t2l):
 Num_hits = 6
 x = np.linspace(0,1,Num_hits)
 sigma_noise = 1e-2
-sigma_rbf = 0.5
+sigma_rbf = 0.2
 intsection_allow = False
 nearneighb_n = 3
 
@@ -116,4 +120,5 @@ plot_matrix_heat_map(RBF_matrix, 'Radial Basis Function')
 #plot_matrix_heat_map(get_distmatrix(hit_coords), 'Distance matrix')
 
 KNN_matrix = KNN(x, hit_coords, nearneighb_n, track1_labels, track2_labels)
+print(KNN_matrix)
 plot_matrix_heat_map(KNN_matrix, f'{nearneighb_n} NearestNeighbour')
