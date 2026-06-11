@@ -47,7 +47,7 @@ def plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma, intse
     plt.xlim(-0.1, 1.1)
     plt.title(f'Two track plot with intersection={intsec}. Noise standev.={sigma}')
     plt.grid(axis='x')
-    #plt.savefig('plots/Toytracks.png')
+    plt.savefig('plots/Toytracks.png')
     plt.show()
     
     
@@ -64,7 +64,7 @@ def plot_matrix_heat_map(sim_matrix, matrix_type):
     plt.title(f'{matrix_type} Heat map')
     plt.colorbar()
     plt.xlabel('Hit index')
-    #plt.savefig(f'plots/{matrix_type}_heat_map.png')
+    plt.savefig(f'plots/{matrix_type}_heat_map.png')
     plt.show()
     
     
@@ -99,7 +99,7 @@ def KNN(x, hit_coords, n, t1l, t2l):
         plt.axvline(detector_x,linestyle='--',alpha=0.08)
     
     plt.title('Weighted kNN Graph')
-    #plt.savefig('plots/kNN_Graph.png')
+    plt.savefig('plots/kNN_Graph.png')
     plt.show()
     
     return knn_matrix
@@ -122,4 +122,4 @@ plot_matrix_heat_map(RBF_matrix, 'Radial Basis Function')
 
 KNN_matrix = KNN(x, hit_coords, nearneighb_n, track1_labels, track2_labels)
 
-plot_matrix_heat_map(KNN_matrix, f'{nearneighb_n} NearestNeighbour')
+plot_matrix_heat_map(KNN_matrix, f'{nearneighb_n}_NearestNeighbours')
