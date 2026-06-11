@@ -64,8 +64,9 @@ def KNN(x, hit_coords, n, t1l, t2l):
     nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(hit_coords)
     distances, indices = nbrs.kneighbors(hit_coords)
     neighbour_matrix = nbrs.kneighbors_graph(hit_coords).toarray()
-    
+
     knn_matrix = ((neighbour_matrix + neighbour_matrix.T)>0).astype(int)
+    
     
     distances = distances[:,1:]
     indices = indices[:,1:]
@@ -97,19 +98,21 @@ def KNN(x, hit_coords, n, t1l, t2l):
         plt.axvline(detector_x,linestyle='--',alpha=0.2) 
     plt.title(f'{n} NN Undirected Graph')
     
-    nx.draw(H,pos=pos, with_labels=True,node_size=200)   
+    nx.draw(H,pos=pos, with_labels=True,node_size=200) 
+    plt.title('kNN Graph (unweighted)')  
+    plt.savefig(f'plots/kNN_Graph.png')
     plt.show()
     
     return knn_matrix
     
-Num_hits = 6
-x = np.linspace(0,1,Num_hits)
+num_hits = 6
+x = np.linspace(0,1,num_hits)
 sigma_noise = 1e-2
 sigma_rbf = 0.2
 intsection_allow = False
 nearneighb_n = 3
 
-track1, track1_labels, track2, track2_labels = construct_toytracks(x, Num_hits, sigma_noise, intsection_allow)
+track1, track1_labels, track2, track2_labels = construct_toytracks(x, num_hits, sigma_noise, intsection_allow)
 plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma_noise, intsection_allow)
 
 hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track1, track2])])
@@ -120,5 +123,5 @@ plot_matrix_heat_map(RBF_matrix, 'Radial Basis Function')
 #plot_matrix_heat_map(get_distmatrix(hit_coords), 'Distance matrix')
 
 KNN_matrix = KNN(x, hit_coords, nearneighb_n, track1_labels, track2_labels)
-print(KNN_matrix)
+
 plot_matrix_heat_map(KNN_matrix, f'{nearneighb_n} NearestNeighbour')
