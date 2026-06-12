@@ -44,7 +44,7 @@ def construct_toytracks(x, N, sigma_noise, allow_intersection):
         while True:
             m2, c2 = generate_lineparams(*track_lims)
             
-            while np.isclose(m1, m2, rtol=1e-8):
+            while np.isclose(m1, m2, rtol=1e-8):                   
                 m2, _ = generate_lineparams(*track_lims)
                 
             x_int = (c1 - c2) / (m2 - m1)
@@ -90,8 +90,7 @@ def construct_RBFmatrix(hit_coords, sigma_rbf):
     
     Similarity between two hits is modelled with a Gaussian. Very close hits have a RBF similaity close to 1, whilst 
     hits that are distant have close to 0 RBF similarity.
-    '''     
-                                                     
+    '''                                                    
     return np.exp(-(get_distmatrix(hit_coords))**2 / (2*(sigma_rbf)**2))  
 
 
@@ -102,7 +101,6 @@ def contruct_KNN_matrix(x, hit_coords, n):
     Otherwise it is 0. 
     
     '''
-    
     nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(hit_coords)
     neighbour_matrix = nbrs.kneighbors_graph(hit_coords).toarray()
 
@@ -117,7 +115,6 @@ def plot_matrix_heat_map(sim_matrix, matrix_type):
     Plot heat map representation of the matrix. The more correlated hits i and j are, the brighter the (ij)th 
     coordinate in the heat map.
     '''
-        
     plt.imshow(sim_matrix, cmap='viridis')
     plt.title(f'{matrix_type} Heat map')
     plt.colorbar()
@@ -130,11 +127,15 @@ def plot_matrix_heat_map(sim_matrix, matrix_type):
     
     
 def construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix):
+    '''
+    Create nodes and edges of RBF Graph representation. Edges are weighted and this is shwon via contrast (labels 
+    would be too cluttered). A higher contrast means a smaller similarity.
+    '''
     H = nx.Graph()
     rbf_edge_weights = []
     
-    for i in range(number_of_hits):
-        for j in range(i+1, number_of_hits):
+    for i in range(number_of_hits):                         
+        for j in range(i+1, number_of_hits):                       #Similarity matrix must be symmetric hence loop over the upper triangle of the matrix.
             rbf_edge_weight = RBF_matrix[i][j]
             H.add_edge(i, j, weight=rbf_edge_weight)
             rbf_edge_weights.append(rbf_edge_weight)
@@ -142,17 +143,29 @@ def construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix):
             
     rbf_edge_weights = np.asarray(rbf_edge_weights)
     
-    edge_contrasts = 0.05 + 0.95 * (rbf_edge_weights - rbf_edge_weights.min()) / (rbf_edge_weights.max() - rbf_edge_weights.min())
-    
+    edge_contrasts = get_edge_contrasts(rbf_edge_weights)
     plot_graphrep(H, x, hit_coords_dict, H.edges(), edge_contrasts, 'RBF')
     
     
+    
+def get_edge_contrasts(rbf_edge_weights):
+    '''
+    Contrast parameter alpha must be between 0 and 1. Formula is a linear normalisation.
+    '''
+    return 0.05 + 0.95 * (rbf_edge_weights - rbf_edge_weights.min()) / (rbf_edge_weights.max() - rbf_edge_weights.min())
+
+
 
 def construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs):
+    '''
+    KNN similarity is discrete so no contrast. Function obtains 2D array with each hits k nearest neighbours. 
+    keighbors command returns indices including the hit itself. Hence the first index (closest, being the hit itself)
+    is cut off from the array.
+    '''
     H = nx.Graph()
     
-    _, indices = nbrs.kneighbors(hit_coords)
-    indices = indices[:,1:]
+    _, indices = nbrs.kneighbors(hit_coords)                #Can ignore distances here since KNN matrix is a discrete metric.
+    indices = indices[:,1:]                                 #Slicing first column.
     
     for i in range(number_of_hits):
         for j in indices[i]:
@@ -163,12 +176,12 @@ def construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
   
   
 def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
-
+    
     nx.draw_networkx_edges(H, hit_coords_dict, edgelist=edges, alpha=edge_contrasts, edge_color='black')
     nx.draw_networkx_nodes(H, hit_coords_dict, node_size=200)
     nx.draw_networkx_labels(H, hit_coords_dict)
       
-    for detector_x in x:
+    for detector_x in x:                                        #Shows positions of the detectors.
         plt.axvline(detector_x, linestyle='--', alpha=0.12)
     
     plt.title(f'{matrix_type} Graph Representation')
@@ -180,17 +193,33 @@ def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
 
 
 def main():
-    track_hits = 6
+    '''
+    Problem: Two particles pass through a detector each leaving N 'hits'. Using these 'hits' as coordinate
+    locations of the particles, can we resolve the two tracks from each other and hence determine each particle's
+    trajectory?
+    
+    Method:
+    Two toy tracks (with noise) are randomly generated in 2D plane. 
+    From the tracks obtain two types of similarity matrices:
+    - RBF (radial basis function)
+    - KNN (k nearest neighbours)
+    which are continuous and discrete respectively.
+    Matrix elements measure the likelyhood that one hit is compatible to another, i.e. if they are the same 
+    particle.
+    Obtain plots of these matrices as heatmaps.
+    Obtain Graph representations of these similarity matrices.
+    '''
+    track_hits = 6                          
     x = np.linspace(0,1,track_hits)
-    sigma_noise = 1e-2
-    sigma_rbf = 0.3
-    intsection_allow = False
-    nearneighb_n = 3
+    sigma_noise = 1e-2                      #External noise 
+    sigma_rbf = 0.3                         #RBF standard dev parameter. 
+    intsection_allow = False                #Boolean to control whether particles intersect within the detector?
+    nearneighb_n = 3                        #Number of nearest neighbours to consider in the KNN matrix.
 
     track1, track1_labels, track2, track2_labels = construct_toytracks(x, track_hits, sigma_noise, intsection_allow)
     plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma_noise, intsection_allow)
 
-    hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track1, track2])])
+    hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track1, track2])])         #2D array of hit coordinates.
     number_of_hits = len(hit_coords)
     
     hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}
