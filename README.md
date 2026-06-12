@@ -16,9 +16,3 @@ Traditioanlly classical methods have been generally used to tackle this problem,
 
 The aim of this project is to explore how quantum optimization algorithms might be applied to collider experiments to reproduce particle trajectories using python. For the purposes of simulating quantum circuits, the project uses the [Qiskit](https://github.com/Qiskit) and [Quiskit-aer](https://github.com/Qiskit/qiskit-aer) libraries. Corresponding classical algorithms will be used to build up the problem as comparatives to evaluate the performance of their quantum counterparts.
 
-
-
-
-![LHCb Antiproton Image](Images/LHCbAntiprotonEventDisplay.png)
-*Image from LHCb experiment, CERN.
-
