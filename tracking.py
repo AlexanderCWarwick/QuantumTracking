@@ -6,18 +6,20 @@ import networkx as nx
 
 np.random.seed(41)
 
-def create_hits(N, x, m, c, sigma, truth_colour):
+#######################################################     Generate toy data set     #######################################################
+
+def create_hits(N, x,  m : np.float64,  c : np.float64, sigma_noise,  truth_colour : str)   ->  tuple[np.ndarray[np.float64], np.ndarray[str]]:
     '''
     Generate N evenly spaced hits on x. truth_colour designates which track hits belong to and is the truth label. 
     '''
     
     truth_labels = np.full(N, truth_colour)
-    hits = (m*x + c) + np.random.normal(loc=0,scale=sigma,size=N)
+    hits = (m*x + c) + np.random.normal(loc=0, scale=sigma_noise, size=N)               #Track modelled as straight line: y = mx + c over domain [0,1].
     return hits, truth_labels
 
 
 
-def generate_lineparams(m_low, m_high, c_low, c_high):    
+def generate_lineparams(m_low, m_high, c_low, c_high)  ->  tuple[int, int]:    
     '''
     Random generator for gradient and y-intercept of particle tracks.
     '''      
@@ -25,27 +27,28 @@ def generate_lineparams(m_low, m_high, c_low, c_high):
 
     
     
-def construct_toytracks(x, N, sigma_noise, allow_intersection):
+def construct_toytracks(x : np.ndarray[np.float64],  N : int,  sigma_noise : np.float64,  allow_intersection : bool
+                    
+                    )  ->  tuple[np.ndarray[np.float64],  np.ndarray[str],  np.ndarray[np.float64],  np.ndarray[str]]:
     '''
     Function generates the y coords and associated truth labels of all hits. Bounds on m and c are arbitrary but
-    m is small to reflect a forward-type experiment.
-        
+    m is small to reflect a forward-type experiment. 
     Distinction between whether the tracks are allowed to intercept or not is included for generality.
     '''
         
-    track_lims = (-0.5, 0.5, 0, 1)                           
-    m1, c1 = generate_lineparams(*track_lims)                          
+    track_parameter_limits = (-0.5, 0.5, 0, 1)                           
+    m1, c1 = generate_lineparams(*track_parameter_limits)                          
     m2, c2 = 0, 0
     
     if allow_intersection:
-        m2, c2 = generate_lineparams(*track_lims)
+        m2, c2 = generate_lineparams(*track_parameter_limits)
         
     else:
         while True:
-            m2, c2 = generate_lineparams(*track_lims)
+            m2, c2 = generate_lineparams(*track_parameter_limits)
             
             while np.isclose(m1, m2, rtol=1e-8):                   
-                m2, _ = generate_lineparams(*track_lims)
+                m2, _ = generate_lineparams(*track_parameter_limits)
                 
             x_int = (c1 - c2) / (m2 - m1)
             if x_int > 1 or x_int < 0:
@@ -60,11 +63,12 @@ def construct_toytracks(x, N, sigma_noise, allow_intersection):
 
 
 
-def plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma_noise, intsec):
+def plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma_noise, allow_intsection):
+    
     plt.scatter(x, track1, c=track1_labels, s=40, marker='o')
     plt.scatter(x, track2, c=track2_labels, s=40, marker='o')
     plt.xlim(-0.1, 1.1)
-    plt.title(f'Two track plot with intersection={intsec}. Noise standev.={sigma_noise}')
+    plt.title(f'Two track plot with intersection={allow_intsection}. Noise standev.={sigma_noise}')
     plt.grid(axis='x')
     plt.xlabel('x')
     plt.ylabel('y')
@@ -72,10 +76,10 @@ def plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma_noise,
     plt.show()
     
     
-################################################################################################
+#######################################################     Construct similarity matrices     #######################################################
     
     
-def get_distmatrix(hit_coords): 
+def get_distmatrix(hit_coords : np.array) -> np.array: 
     '''
     Scipy cdist return matrix of all pairwise Eucldiean norm distances between hits.
     '''
@@ -83,7 +87,7 @@ def get_distmatrix(hit_coords):
 
     
     
-def construct_RBFmatrix(hit_coords, sigma_rbf):
+def construct_RBFmatrix(hit_coords,  sigma_rbf : np.float64)  ->  np.ndarray[np.float64]:
     '''
     Radial Basis Function (RBF) similarity models the correlation between hits using the Euclidean distance
     between hits.  
@@ -94,12 +98,11 @@ def construct_RBFmatrix(hit_coords, sigma_rbf):
     return np.exp(-(get_distmatrix(hit_coords))**2 / (2*(sigma_rbf)**2))  
 
 
-def contruct_KNN_matrix(x, hit_coords, n):
+def construct_KNN_matrix(hit_coords, n : int):
     '''
     The KNN matrix is a discrete matrix of 0's and 1's. neighbour_matrix find the n nearest neighbours of every 
     hit. If hit j is a nearest neighbour of i, then the (ij)th entry (and (ji)th since it must be symmetric) is 1.
     Otherwise it is 0. 
-    
     '''
     nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(hit_coords)
     neighbour_matrix = nbrs.kneighbors_graph(hit_coords).toarray()
@@ -110,7 +113,7 @@ def contruct_KNN_matrix(x, hit_coords, n):
     
     
     
-def plot_matrix_heat_map(sim_matrix, matrix_type):
+def plot_matrix_heat_map(sim_matrix,  matrix_type : str):
     '''
     Plot heat map representation of the matrix. The more correlated hits i and j are, the brighter the (ij)th 
     coordinate in the heat map.
@@ -123,10 +126,10 @@ def plot_matrix_heat_map(sim_matrix, matrix_type):
     plt.show()
      
 
-################################################################################################
+#######################################################    Graph Plots    #######################################################
     
     
-def construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix):
+def construct_RBF_graphrep(x, number_of_hits,  hit_coords_dict : dict,  RBF_matrix : np.ndarray[np.float64]):
     '''
     Create nodes and edges of RBF Graph representation. Edges are weighted and this is shwon via contrast (labels 
     would be too cluttered). A higher contrast means a smaller similarity.
@@ -137,9 +140,9 @@ def construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix):
     for i in range(number_of_hits):                         
         for j in range(i+1, number_of_hits):                       #Similarity matrix must be symmetric hence loop over the upper triangle of the matrix.
             rbf_edge_weight = RBF_matrix[i][j]
+            
             H.add_edge(i, j, weight=rbf_edge_weight)
             rbf_edge_weights.append(rbf_edge_weight)
-            
             
     rbf_edge_weights = np.asarray(rbf_edge_weights)
     
@@ -148,7 +151,7 @@ def construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix):
     
     
     
-def get_edge_contrasts(rbf_edge_weights):
+def get_edge_contrasts(rbf_edge_weights : np.ndarray[np.float64])  ->  np.ndarray[np.float64]:
     '''
     Contrast parameter alpha must be between 0 and 1. Formula is a linear normalisation.
     '''
@@ -156,7 +159,7 @@ def get_edge_contrasts(rbf_edge_weights):
 
 
 
-def construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs):
+def construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict,  nbrs : NearestNeighbors):
     '''
     KNN similarity is discrete so no contrast. Function obtains 2D array with each hits k nearest neighbours. 
     keighbors command returns indices including the hit itself. Hence the first index (closest, being the hit itself)
@@ -189,7 +192,7 @@ def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
     plt.show()
 
 
-################################################################################################
+#######################################################     Main workflow     #######################################################
 
 
 def main():
@@ -209,12 +212,12 @@ def main():
     Obtain plots of these matrices as heatmaps.
     Obtain Graph representations of these similarity matrices.
     '''
-    track_hits = 6                          
-    x = np.linspace(0,1,track_hits)
+    track_hits = 6                          #Number of detectors                         
+    x = np.linspace(0,1,track_hits)         #Positions of detectors
     sigma_noise = 1e-2                      #External noise 
-    sigma_rbf = 0.3                         #RBF standard dev parameter. 
-    intsection_allow = False                #Boolean to control whether particles intersect within the detector?
-    nearneighb_n = 3                        #Number of nearest neighbours to consider in the KNN matrix.
+    sigma_rbf = 0.3                         #RBF standard dev parameter 
+    intsection_allow = False                #Boolean to control whether particles intersect
+    nearneighb_n = 3                        #Number of nearest neighbours to consider in the KNN matrix
 
     track1, track1_labels, track2, track2_labels = construct_toytracks(x, track_hits, sigma_noise, intsection_allow)
     plot_toytracks(x, track1, track1_labels, track2, track2_labels, sigma_noise, intsection_allow)
@@ -228,7 +231,7 @@ def main():
     plot_matrix_heat_map(RBF_matrix, 'Radial Basis Function')
     construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
 
-    KNN_matrix, nbrs = contruct_KNN_matrix(x, hit_coords, nearneighb_n)
+    KNN_matrix, nbrs = construct_KNN_matrix(hit_coords, nearneighb_n)
     plot_matrix_heat_map(KNN_matrix, f'{nearneighb_n}_NearestNeighbours')
     construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
     
