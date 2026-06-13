@@ -1,6 +1,7 @@
 # Quantum optimization for particle tracking problems
 
-In this project, the application of quantum solutions to the problem of particle tracking is explored. Such solutions are invaluable in high-energy particle experiments, such as the [LHCb](https://home.cern/science/experiments/lhcb/) experiment at [CERN](https://home.cern/), as they allow the identification and parameterisation of final-state particles. Optimization of such combinatorially complex problems, using quantum computing, may prove better than classical benchmarks.
+This project investigates the application of quantum optimization algorithms to the problem of particle tracking in high-energy physics experiments. Such solutions are invaluable in high-energy particle experiments, such as the [LHCb](https://home.cern/science/experiments/lhcb/) experiment at [CERN](https://home.cern/), as they can be used to identify and characterize final-state particles. 
+Optimization of such combinatorially complex problems, using quantum computing, may offer an alternative to established classical approaches.
 
 
 ![LHCb Proton Tracks](Images/ProtonCollisionTracks.jpg)
