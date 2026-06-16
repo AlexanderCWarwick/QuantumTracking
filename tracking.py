@@ -329,7 +329,7 @@ def main():
     sigma_noise = 1e-2                      #External noise 
     sigma_rbf = 0.2                         #RBF standard dev parameter 
     intsection_allow = False                #Boolean to control whether particles intersect
-    nearneighb_n = 4                       #Number of nearest neighbours to consider in the KNN matrix
+    nearneighb_n = 3                       #Number of nearest neighbours to consider in the KNN matrix
 
     track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intsection_allow)
     plot_toytracks(x, track0, track1, sigma_noise, intsection_allow)
@@ -344,14 +344,18 @@ def main():
     KNN_matrix, nbrs = construct_KNN_matrix(hit_coords, nearneighb_n)
     plot_similaritymatrix_heatmap(KNN_matrix, f'{nearneighb_n}_NearestNeighbours')
     plt.show()
+    plt.close()
     construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
     plt.show()
+    plt.close()
     
     RBF_matrix = construct_RBFmatrix(hit_coords, sigma_rbf)
     plot_similaritymatrix_heatmap(RBF_matrix, 'Radial Basis Function')
     plt.show()
+    plt.close()
     construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
     plt.show()
+    plt.close()
     
     lambda_bal_values = np.linspace(0.1,1,3)    
     config_space = np.array(list(product([0,1], repeat=number_of_hits)))
