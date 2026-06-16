@@ -66,8 +66,8 @@ def construct_toytracks(x : np.ndarray[np.float64],  N : int,  sigma_noise : np.
 
 def plot_toytracks(x, track1, track2, sigma_noise, allow_intsection):
     
-    plt.scatter(x, track1, s=40, marker='o')
-    plt.scatter(x, track2, s=40, marker='o')
+    plt.scatter(x, track1, c='blue', s=40, marker='o')
+    plt.scatter(x, track2, c='blue', s=40, marker='o')
     plt.xlim(-0.1, 1.1)
     plt.title(f'Two track plot with intersection={allow_intsection}. Noise standev.={sigma_noise}')
     plt.grid(axis='x')
@@ -203,7 +203,7 @@ def convert_bitstring_to_isingspins(bitstring : np.ndarray[int]):
     return (2 * bitstring) - 1
 
 
-def ising_hamiltonian(n : int, bitstring : np.ndarray[int], W : np.ndarray[np.float64], lambda_bal : float):
+def ising_energy(n : int, bitstring : np.ndarray[int], W : np.ndarray[np.float64], lambda_bal : float):
     isingstring = convert_bitstring_to_isingspins(bitstring)
     H = 0
 
@@ -215,33 +215,44 @@ def ising_hamiltonian(n : int, bitstring : np.ndarray[int], W : np.ndarray[np.fl
     
     return H
 
-def get_groundstate(energies, groundstate_energy, config_space):
-    groundstates_indices = np.where(energies == groundstate_energy)[0]
-    groundstate_configs = np.array([config_space[i] for i in groundstates_indices])
-    print(groundstate_configs)
-    
-    return groundstate_configs
 
-def ising_formulation(n, W, lambda_bal, config_space):
+def get_ising_energies(n, W, lambda_bal, config_space):
     energies = []
     
-    for config in config_space:
-        energy = ising_hamiltonian(n, config, W, lambda_bal)
+    for bitstring in config_space:
+        energy = ising_energy(n, bitstring, W, lambda_bal)
         energies.append(energy)
 
     return np.array(energies)
 
 
 
+def get_groundstate(energies, groundstate_energy, config_space):
+    groundstates_indices = np.where(energies == groundstate_energy)[0]
+    groundstate_configs = np.array([config_space[i] for i in groundstates_indices])
+    print(groundstate_configs)
+    for i in np.where(energies < -6.0)[0]:
+        print(energies[i], config_space[i])
+    
+    return groundstate_configs
+
+
+
 def ising_optimise(lambda_bal, config_space, number_of_hits, sim_matrix):
-    energies = ising_formulation(number_of_hits, sim_matrix, lambda_bal, config_space)
+    energies = get_ising_energies(number_of_hits, sim_matrix, lambda_bal, config_space)
     groundstate_energy = min(energies)  
+    print(groundstate_energy)
     
     return energies, groundstate_energy, get_groundstate(energies, groundstate_energy, config_space)
         
 
-def plot_energy_landscape():
-    pass
+
+def plot_energy_landscape(N, energies, lambda_val, groundstate_energy):
+    decimal_config_space = np.arange(0,2**N)    
+    plt.scatter(decimal_config_space, energies)
+    plt.axhline(groundstate_energy)
+    plt.show()
+    
 
 
 #######################################################     Main workflow     #######################################################
@@ -267,7 +278,7 @@ def main():
     track_hits = 6                          #Number of detectors                         
     x = np.linspace(0,1,track_hits)         #Positions of detectors
     sigma_noise = 1e-2                      #External noise 
-    sigma_rbf = 0.3                         #RBF standard dev parameter 
+    sigma_rbf = 0.1                         #RBF standard dev parameter 
     intsection_allow = False                #Boolean to control whether particles intersect
     nearneighb_n = 3                        #Number of nearest neighbours to consider in the KNN matrix
 
@@ -277,7 +288,7 @@ def main():
     hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.
     number_of_hits = len(hit_coords)
     
-    hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}
+    #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}
     
     RBF_matrix = construct_RBFmatrix(hit_coords, sigma_rbf)
     #plot_similaritymatrix_heatmap(RBF_matrix, 'Radial Basis Function')
@@ -288,13 +299,15 @@ def main():
     #construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
     
     
-    lambda_bal_values = np.linspace(1,2,3)     
+    #lambda_bal_values = np.linspace(1,2,3)    
+    lambda_bal_values = np.array([1.0]) 
     config_space = np.array(list(product([0,1], repeat=number_of_hits)))
 
     lambda_groundstates = []
     for lambda_bal in lambda_bal_values:
-        energies, groundstate_energy, groundstate_configs = ising_optimise(lambda_bal, config_space, number_of_hits, KNN_matrix)
+        energies, groundstate_energy, groundstate_configs = ising_optimise(lambda_bal, config_space, number_of_hits, RBF_matrix)
         lambda_groundstates.append((lambda_bal, groundstate_energy, groundstate_configs))
+        plot_energy_landscape(number_of_hits, energies, lambda_bal, groundstate_energy)
     
     
 if __name__ == "__main__":
