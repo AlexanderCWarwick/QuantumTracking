@@ -230,9 +230,6 @@ def get_ising_energies(n, W, lambda_bal, config_space):
 def get_groundstate(energies, groundstate_energy, config_space):
     groundstates_indices = np.where(energies == groundstate_energy)[0]
     groundstate_configs = np.array([config_space[i] for i in groundstates_indices])
-    print(groundstate_configs)
-    for i in np.where(energies < -6.0)[0]:
-        print(energies[i], config_space[i])
     
     return groundstate_configs
 
@@ -241,16 +238,18 @@ def get_groundstate(energies, groundstate_energy, config_space):
 def ising_optimise(lambda_bal, config_space, number_of_hits, sim_matrix):
     energies = get_ising_energies(number_of_hits, sim_matrix, lambda_bal, config_space)
     groundstate_energy = min(energies)  
-    print(groundstate_energy)
     
     return energies, groundstate_energy, get_groundstate(energies, groundstate_energy, config_space)
         
 
 
-def plot_energy_landscape(N, energies, lambda_val, groundstate_energy):
+def plot_energy_landscape(N, energies, lambda_val, groundstate_energy, matrix_type):
     decimal_config_space = np.arange(0,2**N)    
     plt.scatter(decimal_config_space, energies)
     plt.axhline(groundstate_energy)
+    plt.title(f'Energy landscape with lambda={lambda_val} for {matrix_type} matrix.')
+    plt.xlabel('Decimal representation of binary bitstrings')
+    plt.ylabel('Energy (arbitrary units)')
     plt.show()
     
 
@@ -278,7 +277,7 @@ def main():
     track_hits = 6                          #Number of detectors                         
     x = np.linspace(0,1,track_hits)         #Positions of detectors
     sigma_noise = 1e-2                      #External noise 
-    sigma_rbf = 0.1                         #RBF standard dev parameter 
+    sigma_rbf = 0.2                         #RBF standard dev parameter 
     intsection_allow = False                #Boolean to control whether particles intersect
     nearneighb_n = 3                        #Number of nearest neighbours to consider in the KNN matrix
 
@@ -305,9 +304,9 @@ def main():
 
     lambda_groundstates = []
     for lambda_bal in lambda_bal_values:
-        energies, groundstate_energy, groundstate_configs = ising_optimise(lambda_bal, config_space, number_of_hits, RBF_matrix)
+        energies, groundstate_energy, groundstate_configs = ising_optimise(lambda_bal, config_space, number_of_hits, KNN_matrix)
         lambda_groundstates.append((lambda_bal, groundstate_energy, groundstate_configs))
-        plot_energy_landscape(number_of_hits, energies, lambda_bal, groundstate_energy)
+        plot_energy_landscape(number_of_hits, energies, lambda_bal, groundstate_energy, 'KNN')
     
     
 if __name__ == "__main__":
