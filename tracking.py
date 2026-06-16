@@ -248,11 +248,26 @@ def plot_energy_landscape(N, energies, lambda_val, groundstate_energy, matrix_ty
     plt.scatter(decimal_config_space, energies)
     plt.axhline(groundstate_energy)
     plt.title(f'Energy landscape with lambda={lambda_val} for {matrix_type} matrix.')
-    plt.xlabel('Decimal representation of binary bitstrings')
+    plt.xlabel('Decimal representation of bitstring configurations')
     plt.ylabel('Energy (arbitrary units)')
     plt.show()
     
+    
+def get_groundstate_data(number_of_hits, sim_matrix, config_space, lambda_bal):
+    energies, groundstate_energy, groundstate_configs = ising_optimise(lambda_bal, config_space, number_of_hits, sim_matrix)
+    return energies, groundstate_energy, groundstate_configs
 
+
+    
+def KNN_optimise(number_of_hits, KNN_matrix, lambda_bal, config_space):
+    return get_groundstate_data(number_of_hits, KNN_matrix, config_space, lambda_bal)
+
+        
+            
+def RBF_optimise(number_of_hits, RBF_matrix, lambda_bal, config_space):
+    return get_groundstate_data(number_of_hits, RBF_matrix, config_space, lambda_bal)
+            
+        
 
 #######################################################     Main workflow     #######################################################
 
@@ -298,16 +313,16 @@ def main():
     #construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
     
     
-    #lambda_bal_values = np.linspace(1,2,3)    
-    lambda_bal_values = np.array([1.0]) 
+    lambda_bal_values = np.linspace(0.5,2,2)    
     config_space = np.array(list(product([0,1], repeat=number_of_hits)))
 
-    lambda_groundstates = []
     for lambda_bal in lambda_bal_values:
-        energies, groundstate_energy, groundstate_configs = ising_optimise(lambda_bal, config_space, number_of_hits, KNN_matrix)
-        lambda_groundstates.append((lambda_bal, groundstate_energy, groundstate_configs))
-        plot_energy_landscape(number_of_hits, energies, lambda_bal, groundstate_energy, 'KNN')
+        KNN_energies, KNN_groundstate_energy, KNN_groundstate_configs = KNN_optimise(number_of_hits, KNN_matrix, lambda_bal, config_space)
+        RBF_energies, RBF_groundstate_energy, RBF_groundstate_configs = RBF_optimise(number_of_hits, RBF_matrix, lambda_bal, config_space)
+        
+        plot_energy_landscape(number_of_hits, KNN_energies, lambda_bal, KNN_groundstate_energy, 'KNN')
+        plot_energy_landscape(number_of_hits, RBF_energies, lambda_bal, RBF_groundstate_energy, 'RBF')
     
-    
+   
 if __name__ == "__main__":
     main()
