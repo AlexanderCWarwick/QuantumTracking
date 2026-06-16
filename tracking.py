@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics.cluster import adjusted_rand_score
 import networkx as nx
 from itertools import product
 
@@ -9,12 +10,12 @@ np.random.seed(41)
 
 #######################################################     Generate toy data set     #######################################################
 
-def create_hits(N, x,  m : np.float64,  c : np.float64, sigma_noise,  truth_colour : int)   ->  tuple[np.ndarray[np.float64], np.ndarray[int]]:
+def create_hits(N, x,  m : np.float64,  c : np.float64, sigma_noise,  truth_label : int)   ->  tuple[np.ndarray[np.float64], np.ndarray[int]]:
     '''
     Generate N evenly spaced hits on x. truth_colour designates which track hits belong to and is the truth label. 
     '''
     
-    truth_labels = np.full(N, truth_colour)
+    truth_labels = np.full(N, truth_label)
     hits = (m*x + c) + np.random.normal(loc=0, scale=sigma_noise, size=N)               #Track modelled as straight line: y = mx + c over domain [0,1].
     return hits, truth_labels
 
@@ -73,7 +74,7 @@ def plot_toytracks(x, track1, track2, sigma_noise, allow_intsection):
     plt.grid(axis='x')
     plt.xlabel('x')
     plt.ylabel('y')
-    #plt.savefig('plots/Toytracks.png')
+    plt.savefig('plots/Toytracks.png')
     plt.show()
     
     
@@ -241,16 +242,6 @@ def ising_optimise(lambda_bal, config_space, number_of_hits, sim_matrix):
     
     return energies, groundstate_energy, get_groundstate(energies, groundstate_energy, config_space)
         
-
-
-def plot_energy_landscape(N, energies, lambda_val, groundstate_energy, matrix_type):
-    decimal_config_space = np.arange(0,2**N)    
-    plt.scatter(decimal_config_space, energies)
-    plt.axhline(groundstate_energy)
-    plt.title(f'Energy landscape with lambda={lambda_val} for {matrix_type} matrix.')
-    plt.xlabel('Decimal representation of bitstring configurations')
-    plt.ylabel('Energy (arbitrary units)')
-    plt.show()
     
     
 def get_groundstate_data(number_of_hits, sim_matrix, config_space, lambda_bal):
@@ -267,8 +258,53 @@ def KNN_optimise(number_of_hits, KNN_matrix, lambda_bal, config_space):
 def RBF_optimise(number_of_hits, RBF_matrix, lambda_bal, config_space):
     return get_groundstate_data(number_of_hits, RBF_matrix, config_space, lambda_bal)
             
+            
         
+def plot_energy_landscape(decimal_config_space, lambda_bal,
+                          KNN_energies, KNN_groundstate_energy,
+                          RBF_energies, RBF_groundstate_energy): 
+    
+    fig, ax = plt.subplots(1, 2, figsize=(12,5))  
+    
+    ax[0].scatter(decimal_config_space, KNN_energies, color='orange')
+    ax[0].axhline(KNN_groundstate_energy, color='black', linestyle='--', label=f'Ground state = {KNN_groundstate_energy}')
+    ax[0].set_title('KNN similarity')
+    
+    ax[1].scatter(decimal_config_space, RBF_energies, color='red')
+    ax[1].axhline(RBF_groundstate_energy, color='black', linestyle='--', label= f'Ground state = {RBF_groundstate_energy}')
+    ax[1].set_title('RBF similarity')
+    
+    fig.suptitle(f'Energy landscape for lambda={lambda_bal}')
+    fig.supxlabel('Decimal representation of bitstring configurations')
+    fig.supylabel('Energy')
+    plt.tight_layout()
+    
+    plt.show()
+    
 
+def test_lambda_values(number_of_hits, config_space, lambda_bal_values, KNN_matrix, RBF_matrix):
+    
+    decimal_config_space = np.arange(0, 2**(number_of_hits))
+    for lambda_bal in lambda_bal_values:
+        KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs = KNN_optimise(number_of_hits, KNN_matrix, lambda_bal, config_space)
+        RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs = RBF_optimise(number_of_hits, RBF_matrix, lambda_bal, config_space)
+        
+        plot_energy_landscape(decimal_config_space, lambda_bal,
+                                KNN_energies, KNN_groundstate_energy,
+                                RBF_energies, RBF_groundstate_energy)
+    
+    return KNN_groundstate_binary_configs, RBF_groundstate_binary_configs
+    
+def ARI_check(truth_track_labels, groundstate_binary_configs):  
+    
+    for l in truth_track_labels:
+        for k in groundstate_binary_configs:
+            try:
+                assert adjusted_rand_score(l, k) == 1.0
+            except:
+                print('Truth labels and groundstate labels do not match.')
+    
+    
 #######################################################     Main workflow     #######################################################
 
 
@@ -294,35 +330,35 @@ def main():
     sigma_noise = 1e-2                      #External noise 
     sigma_rbf = 0.2                         #RBF standard dev parameter 
     intsection_allow = False                #Boolean to control whether particles intersect
-    nearneighb_n = 3                        #Number of nearest neighbours to consider in the KNN matrix
+    nearneighb_n = 4                       #Number of nearest neighbours to consider in the KNN matrix
 
     track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intsection_allow)
     plot_toytracks(x, track0, track1, sigma_noise, intsection_allow)
-
+    
+    truth_track_labels = np.array([np.concatenate([track0_truthlabels, track1_truthlabels]), np.concatenate([track0_truthlabels, track1_truthlabels])])
+    
     hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.
     number_of_hits = len(hit_coords)
     
     #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}
     
+    KNN_matrix, nbrs = construct_KNN_matrix(hit_coords, nearneighb_n)
+    plot_similaritymatrix_heatmap(KNN_matrix, f'{nearneighb_n}_NearestNeighbours')
+    #construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
+    
     RBF_matrix = construct_RBFmatrix(hit_coords, sigma_rbf)
     #plot_similaritymatrix_heatmap(RBF_matrix, 'Radial Basis Function')
     #construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
-
-    KNN_matrix, nbrs = construct_KNN_matrix(hit_coords, nearneighb_n)
-    #plot_similaritymatrix_heatmap(KNN_matrix, f'{nearneighb_n}_NearestNeighbours')
-    #construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
     
     
-    lambda_bal_values = np.linspace(0.5,2,2)    
+    lambda_bal_values = np.linspace(0.1,1,5)    
     config_space = np.array(list(product([0,1], repeat=number_of_hits)))
-
-    for lambda_bal in lambda_bal_values:
-        KNN_energies, KNN_groundstate_energy, KNN_groundstate_configs = KNN_optimise(number_of_hits, KNN_matrix, lambda_bal, config_space)
-        RBF_energies, RBF_groundstate_energy, RBF_groundstate_configs = RBF_optimise(number_of_hits, RBF_matrix, lambda_bal, config_space)
-        
-        plot_energy_landscape(number_of_hits, KNN_energies, lambda_bal, KNN_groundstate_energy, 'KNN')
-        plot_energy_landscape(number_of_hits, RBF_energies, lambda_bal, RBF_groundstate_energy, 'RBF')
     
-   
+    KNN_groundstate_binary_configs, RBF_groundstate_binary_configs = test_lambda_values(number_of_hits, config_space, lambda_bal_values, KNN_matrix, RBF_matrix)
+    
+    ARI_check(truth_track_labels, KNN_groundstate_binary_configs)
+    ARI_check(truth_track_labels, RBF_groundstate_binary_configs)
+    
+    
 if __name__ == "__main__":
     main()
