@@ -126,7 +126,6 @@ def plot_similaritymatrix_heatmap(sim_matrix,  matrix_type : str):
     plt.colorbar()
     plt.xlabel('Hit index')
     plt.savefig(f'plots/{matrix_type}_heat_map.png')
-    plt.show()
      
 
 #######################################################    Graph Plots    #######################################################
@@ -195,7 +194,7 @@ def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
     
     plt.title(f'{matrix_type} Graph Representation')
     plt.savefig(f'plots/{matrix_type}_Graph.png')
-    plt.show()
+    
 
 
 #######################################################     Ising Optimisation     #######################################################       
@@ -264,7 +263,7 @@ def plot_energy_landscape(decimal_config_space, lambda_bal,
                           KNN_energies, KNN_groundstate_energy,
                           RBF_energies, RBF_groundstate_energy): 
     
-    fig, ax = plt.subplots(1, 2, figsize=(12,5))  
+    fig, ax = plt.subplots(1, 2, figsize=(7,4))  
     
     ax[0].scatter(decimal_config_space, KNN_energies, color='orange')
     ax[0].axhline(KNN_groundstate_energy, color='black', linestyle='--', label=f'Ground state = {KNN_groundstate_energy}')
@@ -279,7 +278,7 @@ def plot_energy_landscape(decimal_config_space, lambda_bal,
     fig.supylabel('Energy')
     plt.tight_layout()
     
-    plt.show()
+    plt.savefig(f'plots/energy_landscape_λ={lambda_bal}.png')
     
 
 def test_lambda_values(number_of_hits, config_space, lambda_bal_values, KNN_matrix, RBF_matrix):
@@ -340,25 +339,29 @@ def main():
     hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.
     number_of_hits = len(hit_coords)
     
-    #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}
+    hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}
     
     KNN_matrix, nbrs = construct_KNN_matrix(hit_coords, nearneighb_n)
     plot_similaritymatrix_heatmap(KNN_matrix, f'{nearneighb_n}_NearestNeighbours')
-    #construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
+    plt.show()
+    construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
+    plt.show()
     
     RBF_matrix = construct_RBFmatrix(hit_coords, sigma_rbf)
-    #plot_similaritymatrix_heatmap(RBF_matrix, 'Radial Basis Function')
-    #construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
+    plot_similaritymatrix_heatmap(RBF_matrix, 'Radial Basis Function')
+    plt.show()
+    construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
+    plt.show()
     
-    
-    lambda_bal_values = np.linspace(0.1,1,5)    
+    lambda_bal_values = np.linspace(0.1,1,3)    
     config_space = np.array(list(product([0,1], repeat=number_of_hits)))
     
     KNN_groundstate_binary_configs, RBF_groundstate_binary_configs = test_lambda_values(number_of_hits, config_space, lambda_bal_values, KNN_matrix, RBF_matrix)
     
     ARI_check(truth_track_labels, KNN_groundstate_binary_configs)
     ARI_check(truth_track_labels, RBF_groundstate_binary_configs)
-    
+    plt.show()
+
     
 if __name__ == "__main__":
     main()
