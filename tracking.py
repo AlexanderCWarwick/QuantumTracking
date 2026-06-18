@@ -211,14 +211,32 @@ def ising_energy(n : int, bitstring : np.ndarray[int], W : np.ndarray[np.float64
         for j in range(i+1, n):
             H -= W[i][j] * isingstring[i] * isingstring[j]
             
-    H += lambda_bal * (np.sum(isingstring))**2
+    H += ising_penalty_term(lambda_bal, isingstring)
     
     return H
 
 
-def get_ising_energies(n, W, lambda_bal, config_space):
-    energies = []
+def ising_penalty_term(lambda_bal, isingstring):
+    '''
+    Tyoe of penalty term to be used in the Ising energy. Should be non-negative.
+    Types: 
+    1. lambda_bal * (np.sum(isingstring))**2  
     
+    2. lambda_bal * (mod(np.sum(isingstring)))
+    3. lambda_bal * (np.sum(isingstring))**4
+    4. lambda_bal * (sum_(i<j)(isingstring))**2
+    '''
+    
+    return lambda_bal * (np.sum(isingstring))**2
+
+
+
+def get_ising_energies(n, W, lambda_bal, config_space):
+    '''
+    Returns the 'energy landscape' of the the chosen hamiltonian. 
+    '''
+    energies = []
+    print(type(config_space))
     for bitstring in config_space:
         energy = ising_energy(n, bitstring, W, lambda_bal)
         energies.append(energy)
@@ -228,6 +246,10 @@ def get_ising_energies(n, W, lambda_bal, config_space):
 
 
 def get_groundstate(energies, groundstate_energy, config_space):
+    '''
+    Returns where the ground state configuration is (the indices) using the energies array.
+    Exchange degeneracy means energy landscape is symmetric. Hence there are at least two ground states.
+    '''
     groundstates_indices = np.where(energies == groundstate_energy)[0]
     groundstate_configs = np.array([config_space[i] for i in groundstates_indices])
     
@@ -235,27 +257,24 @@ def get_groundstate(energies, groundstate_energy, config_space):
 
 
 
-def ising_optimise(lambda_bal, config_space, number_of_hits, sim_matrix):
+def ising_optimise(number_of_hits, sim_matrix, lambda_bal, config_space):
+    '''
+    Here the problem turns into an optimisation one. Now the game is to find the configuration i.e. the bitstring that minimises 
+    Ising energy. Hopefully in this toytrack scenario, it should be both 000000111111 and 111111000000.'''
+    
     energies = get_ising_energies(number_of_hits, sim_matrix, lambda_bal, config_space)
     groundstate_energy = min(energies)  
     
     return energies, groundstate_energy, get_groundstate(energies, groundstate_energy, config_space)
-        
-    
-    
-def get_groundstate_data(number_of_hits, sim_matrix, config_space, lambda_bal):
-    energies, groundstate_energy, groundstate_configs = ising_optimise(lambda_bal, config_space, number_of_hits, sim_matrix)
-    return energies, groundstate_energy, groundstate_configs
-
 
     
 def KNN_optimise(number_of_hits, KNN_matrix, lambda_bal, config_space):
-    return get_groundstate_data(number_of_hits, KNN_matrix, config_space, lambda_bal)
+    return ising_optimise(number_of_hits, KNN_matrix, lambda_bal, config_space)
 
         
             
 def RBF_optimise(number_of_hits, RBF_matrix, lambda_bal, config_space):
-    return get_groundstate_data(number_of_hits, RBF_matrix, config_space, lambda_bal)
+    return ising_optimise(number_of_hits, RBF_matrix, lambda_bal, config_space)
             
             
         
@@ -284,6 +303,7 @@ def plot_energy_landscape(decimal_config_space, lambda_bal,
 def test_lambda_values(number_of_hits, config_space, lambda_bal_values, KNN_matrix, RBF_matrix):
     
     decimal_config_space = np.arange(0, 2**(number_of_hits))
+    
     for lambda_bal in lambda_bal_values:
         KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs = KNN_optimise(number_of_hits, KNN_matrix, lambda_bal, config_space)
         RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs = RBF_optimise(number_of_hits, RBF_matrix, lambda_bal, config_space)
@@ -296,12 +316,13 @@ def test_lambda_values(number_of_hits, config_space, lambda_bal_values, KNN_matr
     
 def ARI_check(truth_track_labels, groundstate_binary_configs):  
     
-    for l in truth_track_labels:
-        for k in groundstate_binary_configs:
+    for true_track in truth_track_labels:
+        for calculated_true_track in groundstate_binary_configs:
             try:
-                assert adjusted_rand_score(l, k) == 1.0
+                assert adjusted_rand_score(true_track , calculated_true_track ) == 1.0
             except:
                 print('Truth labels and groundstate labels do not match.')
+                continue
     
     
 #######################################################     Main workflow     #######################################################
@@ -342,25 +363,18 @@ def main():
     hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}
     
     KNN_matrix, nbrs = construct_KNN_matrix(hit_coords, nearneighb_n)
-    plot_similaritymatrix_heatmap(KNN_matrix, f'{nearneighb_n}_NearestNeighbours')
-    plt.show()
-    plt.close()
-    construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
-    plt.show()
-    plt.close()
+    #plot_similaritymatrix_heatmap(KNN_matrix, f'{nearneighb_n}_NearestNeighbours')
+    #construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
+    
     
     RBF_matrix = construct_RBFmatrix(hit_coords, sigma_rbf)
-    plot_similaritymatrix_heatmap(RBF_matrix, 'Radial Basis Function')
-    plt.show()
-    plt.close()
-    construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
-    plt.show()
-    plt.close()
+    #plot_similaritymatrix_heatmap(RBF_matrix, 'Radial Basis Function')
+    #construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
     
     lambda_bal_values = np.linspace(0.1,1,3)    
-    config_space = np.array(list(product([0,1], repeat=number_of_hits)))
+    tracklabel_config_space = np.array(list(product([0,1], repeat=number_of_hits)))
     
-    KNN_groundstate_binary_configs, RBF_groundstate_binary_configs = test_lambda_values(number_of_hits, config_space, lambda_bal_values, KNN_matrix, RBF_matrix)
+    KNN_groundstate_binary_configs, RBF_groundstate_binary_configs = test_lambda_values(number_of_hits, tracklabel_config_space, lambda_bal_values, KNN_matrix, RBF_matrix)
     
     ARI_check(truth_track_labels, KNN_groundstate_binary_configs)
     ARI_check(truth_track_labels, RBF_groundstate_binary_configs)
