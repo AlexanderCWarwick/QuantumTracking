@@ -115,6 +115,12 @@ def construct_KNN_matrix(hit_coords, n : int):
     return knn_matrix, nbrs
     
     
+def construct_weightedKNNmatrix(KNN_matrix, RBF_matrix):
+    '''
+    The weighted KNN matrix combines the KNN and RBF. The k nearest neighbours are weighted by their RBF matrix values. 
+    '''
+    return KNN_matrix * RBF_matrix          #Elementwise multiplication.
+    
     
 def plot_similaritymatrix_heatmap(sim_matrix,  matrix_type : str):
     '''
@@ -177,7 +183,6 @@ def construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict,  nbrs
             H.add_edge(i,j)
     
     plot_graphrep(H, x, hit_coords_dict, H.edges(), None, 'KNN')    #No edge_contrasts needed for KNN matrix.
-  
   
   
 def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
@@ -308,23 +313,16 @@ def plot_energy_landscape(decimal_config_space, lambda_bal,
     plt.savefig(f'plots/energy_landscape_λ={lambda_bal}.png')
     
 
-def ising(number_of_hits, config_space, lambda_bal_values, KNN_matrix, RBF_matrix):
+def ising(number_of_hits, config_space, lambda_bal, KNN_matrix, RBF_matrix):
     '''
     Iterate through the lambda_balance parameter values for each similarity matrix. 
     Return the computed ground states for each similarity matrix.
     '''
     
-    decimal_config_space = np.arange(0, 2**(number_of_hits))
-    
-    for lambda_bal in lambda_bal_values:
-        KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs = KNN_optimise(number_of_hits, KNN_matrix, lambda_bal, config_space)
-        RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs = RBF_optimise(number_of_hits, RBF_matrix, lambda_bal, config_space)
-        
-        plot_energy_landscape(decimal_config_space, lambda_bal,
-                                KNN_energies, KNN_groundstate_energy,
-                                RBF_energies, RBF_groundstate_energy)
-    
-    return KNN_groundstate_binary_configs, RBF_groundstate_binary_configs
+    KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs = KNN_optimise(number_of_hits, KNN_matrix, lambda_bal, config_space)
+    RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs = RBF_optimise(number_of_hits, RBF_matrix, lambda_bal, config_space)
+            
+    return (KNN_energies, RBF_energies), (KNN_groundstate_energy, RBF_groundstate_energy), (KNN_groundstate_binary_configs, RBF_groundstate_binary_configs)
     
 def ARI_check(truth_track_labels, groundstate_binary_configs):  
     '''
@@ -358,9 +356,8 @@ def main():
     From the tracks obtain two types of similarity matrices:
     - RBF (radial basis function)
     - KNN (k nearest neighbours)
-    which are continuous and discrete respectively.
-    Matrix elements measure the likelyhood that one hit is compatible to another, i.e. if they are the same 
-    particle.
+    - wKNN (weighted k nearest neighbours)
+    Matrix elements measure the likelyhood that one hit is compatible to another, i.e. if they are the same particle.
     Obtain plots of these matrices as heatmaps.
     Obtain Graph representations of these similarity matrices.
     '''
@@ -390,17 +387,46 @@ def main():
     #plot_similaritymatrix_heatmap(RBF_matrix, 'Radial Basis Function')
     #construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
     
+    wKNN_matrix = construct_weightedKNNmatrix(KNN_matrix, RBF_matrix)                       #Calculate the weighted KNN matrix.
+    #wKNN_matrix heatmap and graph representation are just  versions of RBF.
+    
+    '''
+    Turn problem into an optimisation problem. The optimal track is the one that minimises the energy objective, the ground state. Ideally these are
+    000000111111 and 111111000000.
+    Here the energy objective is modelled as an Ising type function.
+    
+    The configuration space is the set of all possible hit labellings. Since each label is 0 or 1, this equates to assigning every configuration a binary string
+    from 000000000000 up to 111111111111. This forms the binary configuration space with 2^12 = 4096 possibilities. 
+    Each configuration can be converted into a decimal number, forming the decimal configuration space.
+    
+    The objective function depends on a balance parameter, λ, which serves to discourage extreme configurations. 
+    This simple optimisation technique will be tested for different λ values along with a ARI function to act as a numerical check on the randomness 
+    of the calculated ground state. 
+    '''
+    
     lambda_bal_values = np.linspace(0.1,1,3)                                                #Lambda_balance parameter values to be used in the Hamiltonian. 
-    tracklabel_config_space = np.array(list(product([0,1], repeat=number_of_hits)))         #List of all 2^12 possible label configurations.
+    binary_config_space = np.array(list(product([0,1], repeat=number_of_hits)))             #List of all 2^12 possible BINARY label configurations.
+    decimal_config_space = np.arange(0, 2**(number_of_hits))                                #List of corresponding DECIMAL configurations.  
     
-    '''
-    ising function turns problem into an optimisation problem. The optimal track is the one that minimises the energy (in ising_energy function).
-    Ideally these are 000000111111 and 111111000000
-    '''
-    KNN_groundstate_binary_configs, RBF_groundstate_binary_configs = ising(number_of_hits, tracklabel_config_space, lambda_bal_values, KNN_matrix, RBF_matrix)
-    
-    ARI_check(truth_track_labels, KNN_groundstate_binary_configs)       #ARI check for KNN
-    ARI_check(truth_track_labels, RBF_groundstate_binary_configs)       #ARI check for RBF
+    for lambda_bal in lambda_bal_values:
+        energies, groundstate_energies, groundstate_binary_configs = ising(number_of_hits, binary_config_space, lambda_bal, KNN_matrix, RBF_matrix)
+        
+        KNN_energies = energies[0]
+        RBF_energies = energies[1]
+            
+        KNN_groundstate_energy = groundstate_energies[0]
+        RBF_groundstate_energy = groundstate_energies[1]
+        
+        KNN_groundstate_binary_configs = groundstate_binary_configs[0]
+        RBF_groundstate_binary_configs = groundstate_binary_configs[1]
+        
+        plot_energy_landscape(decimal_config_space, lambda_bal,
+                                KNN_energies, KNN_groundstate_energy,
+                                RBF_energies, RBF_groundstate_energy)
+        
+        ARI_check(truth_track_labels, KNN_groundstate_binary_configs)       #ARI check for KNN
+        ARI_check(truth_track_labels, RBF_groundstate_binary_configs)       #ARI check for RBF
+        
     plt.show()
 
     
