@@ -200,25 +200,31 @@ def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
 #######################################################     Ising Optimisation     #######################################################       
 
 def convert_bitstring_to_isingspins(bitstring : np.ndarray[int]):
+    '''
+    z_i = 2*x_i - 1 maps numeric labels 0 and 1 onto -1 and 1 spins.
+    '''
     return (2 * bitstring) - 1
 
 
 def ising_energy(n : int, bitstring : np.ndarray[int], W : np.ndarray[np.float64], lambda_bal : float):
-    isingstring = convert_bitstring_to_isingspins(bitstring)
+    '''
+    Ising objective function. The function rewards like spins and discourages extreme configurations with a penalty term e.g. 111111111111.
+    '''
+    isingstring = convert_bitstring_to_isingspins(bitstring)            #Convert the bitstring (configuration) into a ising spin configuration.
     H = 0
 
     for i in range(n):
         for j in range(i+1, n):
-            H -= W[i][j] * isingstring[i] * isingstring[j]
+            H -= W[i][j] * isingstring[i] * isingstring[j]              #Rewarding term for like spins
             
-    H += ising_penalty_term(lambda_bal, isingstring)
+    H += ising_penalty_term(lambda_bal, isingstring)                    #Penalty term penalising big clustering.
     
     return H
 
 
 def ising_penalty_term(lambda_bal, isingstring):
     '''
-    Tyoe of penalty term to be used in the Ising energy. Should be non-negative.
+    Type of penalty term to be used in the Ising energy. Should be non-negative.
     Types: 
     1. lambda_bal * (np.sum(isingstring))**2  
     
@@ -236,7 +242,6 @@ def get_ising_energies(n, W, lambda_bal, config_space):
     Returns the 'energy landscape' of the the chosen hamiltonian. 
     '''
     energies = []
-    print(type(config_space))
     for bitstring in config_space:
         energy = ising_energy(n, bitstring, W, lambda_bal)
         energies.append(energy)
@@ -259,8 +264,11 @@ def get_groundstate(energies, groundstate_energy, config_space):
 
 def ising_optimise(number_of_hits, sim_matrix, lambda_bal, config_space):
     '''
-    Here the problem turns into an optimisation one. Now the game is to find the configuration i.e. the bitstring that minimises 
-    Ising energy. Hopefully in this toytrack scenario, it should be both 000000111111 and 111111000000.'''
+    Primary function of the Ising optimisation block. Returns:
+    1. The energy landscape 
+    2. The calculated ground state energy
+    3. The ground state configurations
+    '''
     
     energies = get_ising_energies(number_of_hits, sim_matrix, lambda_bal, config_space)
     groundstate_energy = min(energies)  
@@ -300,7 +308,11 @@ def plot_energy_landscape(decimal_config_space, lambda_bal,
     plt.savefig(f'plots/energy_landscape_λ={lambda_bal}.png')
     
 
-def test_lambda_values(number_of_hits, config_space, lambda_bal_values, KNN_matrix, RBF_matrix):
+def ising(number_of_hits, config_space, lambda_bal_values, KNN_matrix, RBF_matrix):
+    '''
+    Iterate through the lambda_balance parameter values for each similarity matrix. 
+    Return the computed ground states for each similarity matrix.
+    '''
     
     decimal_config_space = np.arange(0, 2**(number_of_hits))
     
@@ -315,6 +327,13 @@ def test_lambda_values(number_of_hits, config_space, lambda_bal_values, KNN_matr
     return KNN_groundstate_binary_configs, RBF_groundstate_binary_configs
     
 def ARI_check(truth_track_labels, groundstate_binary_configs):  
+    '''
+    Adjusted random score measures randomness of the cluster labels. It compares the computed groundstate and the true answer
+    and returns: 
+    ARI = 1 - Perfect match (what we are aiming for)
+    0 < ARI < 1 - Random assignment (0 being worst).
+    ARI < 0 - Something has gone wrong.
+    '''
     
     for true_track in truth_track_labels:
         for calculated_true_track in groundstate_binary_configs:
@@ -362,22 +381,26 @@ def main():
     
     hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}
     
-    KNN_matrix, nbrs = construct_KNN_matrix(hit_coords, nearneighb_n)
+    KNN_matrix, nbrs = construct_KNN_matrix(hit_coords, nearneighb_n)                       #Calculate the KNN similarity matrix.
     #plot_similaritymatrix_heatmap(KNN_matrix, f'{nearneighb_n}_NearestNeighbours')
     #construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
     
     
-    RBF_matrix = construct_RBFmatrix(hit_coords, sigma_rbf)
+    RBF_matrix = construct_RBFmatrix(hit_coords, sigma_rbf)                                 #Calculate the RBF similarity matrix. 
     #plot_similaritymatrix_heatmap(RBF_matrix, 'Radial Basis Function')
     #construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
     
-    lambda_bal_values = np.linspace(0.1,1,3)    
-    tracklabel_config_space = np.array(list(product([0,1], repeat=number_of_hits)))
+    lambda_bal_values = np.linspace(0.1,1,3)                                                #Lambda_balance parameter values to be used in the Hamiltonian. 
+    tracklabel_config_space = np.array(list(product([0,1], repeat=number_of_hits)))         #List of all 2^12 possible label configurations.
     
-    KNN_groundstate_binary_configs, RBF_groundstate_binary_configs = test_lambda_values(number_of_hits, tracklabel_config_space, lambda_bal_values, KNN_matrix, RBF_matrix)
+    '''
+    ising function turns problem into an optimisation problem. The optimal track is the one that minimises the energy (in ising_energy function).
+    Ideally these are 000000111111 and 111111000000
+    '''
+    KNN_groundstate_binary_configs, RBF_groundstate_binary_configs = ising(number_of_hits, tracklabel_config_space, lambda_bal_values, KNN_matrix, RBF_matrix)
     
-    ARI_check(truth_track_labels, KNN_groundstate_binary_configs)
-    ARI_check(truth_track_labels, RBF_groundstate_binary_configs)
+    ARI_check(truth_track_labels, KNN_groundstate_binary_configs)       #ARI check for KNN
+    ARI_check(truth_track_labels, RBF_groundstate_binary_configs)       #ARI check for RBF
     plt.show()
 
     
