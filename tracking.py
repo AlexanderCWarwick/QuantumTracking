@@ -6,7 +6,7 @@ from sklearn.metrics.cluster import adjusted_rand_score
 import networkx as nx
 from itertools import product
 
-np.random.seed(41)
+np.random.seed(48)
 
 #######################################################     Generate toy data set     #######################################################
 
@@ -75,7 +75,6 @@ def plot_toytracks(x, track1, track2, sigma_noise, allow_intsection):
     plt.xlabel('x')
     plt.ylabel('y')
     plt.savefig('plots/Toytracks.png')
-    plt.show()
     
     
 #######################################################     Construct similarity matrices     #######################################################
@@ -113,13 +112,7 @@ def construct_KNN_matrix(hit_coords, n : int):
     knn_matrix = ((neighbour_matrix + neighbour_matrix.T)>0).astype(int)        #Symmetrise knn_matrix. as.type(int) converts binary boolean values back to integers 0 and 1.
     
     return knn_matrix, nbrs
-    
-    
-def construct_weightedKNNmatrix(KNN_matrix, RBF_matrix):
-    '''
-    The weighted KNN matrix combines the KNN and RBF. The k nearest neighbours are weighted by their RBF matrix values. 
-    '''
-    return KNN_matrix * RBF_matrix          #Elementwise multiplication.
+
     
     
 def plot_similaritymatrix_heatmap(sim_matrix,  matrix_type : str):
@@ -207,6 +200,7 @@ def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
 def ising_energy(bitstring : np.ndarray[int], W : np.ndarray[np.float64], lambda_bal : float):
     '''
     Ising objective function. The function rewards like spins and discourages extreme configurations with a penalty term e.g. 111111111111.
+    Note that the approach here is to use brute force since there is only 12 hits. If n = 20 then brute force would be VERY inefficient.
     '''
     isingstring = (2 * bitstring) - 1                   #Convert the bitstring (configuration) into a ising spin configuration.
     n = len(W)
@@ -254,7 +248,7 @@ def get_groundstate(energies, groundstate_energy, config_space):
     Returns where the ground state configuration is (the indices) using the energies array.
     Exchange degeneracy means energy landscape is symmetric. Hence there are at least two ground states.
     '''
-    groundstates_indices = np.where(energies == groundstate_energy)[0]
+    groundstates_indices = np.where(np.isclose(energies,groundstate_energy))[0]
     groundstate_configs = np.array([config_space[i] for i in groundstates_indices])
 
     return groundstate_configs
@@ -275,43 +269,72 @@ def ising_optimise(sim_matrix, lambda_bal, config_space):
     return energies, groundstate_energy, get_groundstate(energies, groundstate_energy, config_space)     
             
         
-def plot_energy_landscape(decimal_config_space, lambda_bal,
-                          KNN_energies, KNN_groundstate_energy,
-                          RBF_energies, RBF_groundstate_energy): 
+        
+def plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies): 
     
-    fig, ax = plt.subplots(1, 2, figsize=(8,4))  
+    fig, ax = plt.subplots(2, 2, figsize=(10,6))  
+    ax[0,0].plot(np.sort(KNN_energies), color='orange')
+    ax[0,0].set_title('KNN all states')
     
-    ax[0].plot(np.sort(KNN_energies)[:10], color='orange')
-    ax[0].set_title('KNN similarity')
+    ax[0,1].plot(np.sort(RBF_energies), color='red')
+    ax[0,1].set_title('RBF all states')
     
-    ax[1].plot(np.sort(RBF_energies)[:10], color='red')
-    ax[1].set_title('RBF similarity')
+    ax[1,0].plot(np.sort(KNN_energies)[:10], color='orange')
+    ax[1,0].set_title('KNN lowest 10 energy states')
+    ax[1,0].set_xlabel('Rank')
     
-    fig.suptitle(f'Energy landscape for lambda={lambda_bal}')
-    fig.supxlabel('Rank')
+    ax[1,1].plot(np.sort(RBF_energies)[:10], color='red')
+    ax[1,1].set_title('RBF lowest 10 energy states')
+    ax[1,1].set_xlabel('Rank')
+    
+    fig.suptitle(f'Energy landscapes for lambda={lambda_bal}')
     fig.supylabel('Energy')
     plt.tight_layout()
-    
     plt.savefig(f'plots/energy_landscape_λ={lambda_bal}.png')
     
        
 
-def ARI_check(true_track, groundstate_track):  
+def get_ARI(true_track, groundstate_track):  
     '''
     Adjusted random score measures randomness of the cluster labels. It compares the computed groundstate and the true answer
     and returns: 
-    ARI = 1 - Perfect match (what we are aiming for)
-    0 < ARI < 1 - Random assignment (0 being worst).
-    ARI < 0 - Something has gone wrong.
+    ARI = 1 - Perfect clustering (what we are aiming for)
+    0 < ARI < 1 - Random clustering
+    ARI < 0 - Something has gone wrong
+    
+    Test the optimised groundstates against ONLY ONE of the true groundstate tracks, here called true_track.
+    Hence double loop (ising_simmatrix_optimisation())
     '''
     
-    return adjusted_rand_score(true_track , groundstate_track) 
+    return adjusted_rand_score(true_track, groundstate_track)
     
     
 #######################################################     Main workflow     #######################################################
 
 
 def main():
+    
+    def compute_KNN_matrix(x, number_of_hits, hit_coords, hit_coords_dict, nearneighb_n):
+        
+        KNN_matrix, nbrs = construct_KNN_matrix(hit_coords, nearneighb_n)                       #Calculate the KNN similarity matrix.
+        plot_similaritymatrix_heatmap(KNN_matrix, f'{nearneighb_n}_NearestNeighbours')
+        construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
+        
+        return KNN_matrix
+    
+    
+    
+    def compute_RBF_matrix(x, number_of_hits, hit_coords, hit_coords_dict):
+        sigma_rbf = 0.1
+        
+        RBF_matrix = construct_RBFmatrix(hit_coords, sigma_rbf)                                 #Calculate the RBF similarity matrix. 
+        plot_similaritymatrix_heatmap(RBF_matrix, 'Radial Basis Function')
+        construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
+        
+        return RBF_matrix
+    
+    
+    
     def toytrack_similarity_plot(track_hits, intersection_allowed):
         '''
         Problem: Two particles pass through a detector each leaving N 'hits'. Using these 'hits' as coordinate
@@ -331,37 +354,44 @@ def main():
                              
         x = np.linspace(0,1,track_hits)         #Positions of detectors
         sigma_noise = 1e-2                      #External noise 
-        sigma_rbf = 0.1                         #RBF standard dev parameter
         nearneighb_n = 3                       #Number of nearest neighbours to consider in the KNN matrix
 
         track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
         plot_toytracks(x, track0, track1, sigma_noise, intersection_allowed)
-        #truth_track_labels = np.array([np.concatenate([track0_truthlabels, track1_truthlabels]), np.concatenate([track1_truthlabels, track0_truthlabels])])
         
         hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.
         number_of_hits = len(hit_coords)
-        
         hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}
         
-        KNN_matrix, nbrs = construct_KNN_matrix(hit_coords, nearneighb_n)                       #Calculate the KNN similarity matrix.
-        plot_similaritymatrix_heatmap(KNN_matrix, f'{nearneighb_n}_NearestNeighbours')
-        construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
-        
-        RBF_matrix = construct_RBFmatrix(hit_coords, sigma_rbf)                                 #Calculate the RBF similarity matrix. 
-        plot_similaritymatrix_heatmap(RBF_matrix, 'Radial Basis Function')
-        construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
-        
-        #wKNN_matrix = construct_weightedKNNmatrix(KNN_matrix, RBF_matrix)                       #Calculate the weighted KNN matrix.
-        #wKNN_matrix heatmap and graph representation are just  versions of RBF.
-        
+        KNN_matrix = compute_KNN_matrix(x, number_of_hits, hit_coords, hit_coords_dict, nearneighb_n)
+        RBF_matrix = compute_RBF_matrix(x, number_of_hits, hit_coords, hit_coords_dict)
         
         return number_of_hits, track0_truthlabels, track1_truthlabels, KNN_matrix, RBF_matrix
+    
+    
+    ##############################################################################################################
+    
+    
+    def ARI_check(true_groundstate, KNN_groundstate_binary_configs, RBF_groundstate_binary_configs):
+        KNN_aris = []
+        RBF_aris = []
         
-    def ising_optimisation_of_similarity_matrices(number_of_hits, true_groundstate0, true_groundstate1, KNN_matrix, RBF_matrix):
+        for KNN_state, RBF_state in zip(RBF_groundstate_binary_configs, RBF_groundstate_binary_configs):
+            KNN_aris.append(get_ARI(true_groundstate, KNN_state))
+            RBF_aris.append(get_ARI(true_groundstate, RBF_state))
+        
+        KNN_ind = np.argmax(np.array(KNN_aris))
+        RBF_ind = np.argmax(np.array(RBF_aris))
+        
+        print(f'Best KNN clustering is: {KNN_groundstate_binary_configs[KNN_ind]} with ARI = {KNN_aris[KNN_ind]}')
+        print(f'Best RBF clustering is: {RBF_groundstate_binary_configs[RBF_ind]} with ARI = {RBF_aris[RBF_ind]}')
+        
+        
+    def ising_simmatrix_optimisation(number_of_hits, true_groundstate, KNN_matrix, RBF_matrix):
         
         '''
         Turn problem into an optimisation problem. The optimal track is the one that minimises the energy objective, the ground state. Ideally these are
-        000000111111 and 111111000000.
+        000000111111 and 111111000000, the 'true ground states'.
         Here the energy objective is modelled as an Ising type function.
         
         The configuration space is the set of all possible hit labellings. Since each label is 0 or 1, this equates to assigning every configuration a binary string
@@ -370,33 +400,28 @@ def main():
         The objective function depends on a balance parameter, λ, which serves to discourage extreme configurations. 
         This simple optimisation technique will be tested for different λ values along with a ARI function to act as a numerical check on the randomness 
         of the calculated ground state. 
+        
+        The ARI check is symmetric to bit flops hence only need to use one of the two true groundstate tracks, true_groundstates[0] is used
+        here but true_groundstates[1].
         '''
         
         lambda_bal = 1.0                                                                        #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
-        binary_config_space = np.array(list(product([0,1], repeat=number_of_hits)))             #List of all 2^12 possible BINARY label configurations.
-        decimal_config_space = np.arange(0, 2**(number_of_hits))                                #List of corresponding DECIMAL configurations.  
+        binary_config_space = np.array(list(product([0,1], repeat=number_of_hits)))             #List of all 2^12 possible BINARY label configurations. 
         
         
         KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs = ising_optimise(KNN_matrix, lambda_bal, binary_config_space)
         RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs = ising_optimise(RBF_matrix, lambda_bal, binary_config_space)
             
-        plot_energy_landscape(decimal_config_space, lambda_bal,
-                            KNN_energies, KNN_groundstate_energy,
-                            RBF_energies, RBF_groundstate_energy)
-            
-        KNN_aris = np.array([ARI_check(true_groundstate0, state) for state in KNN_groundstate_binary_configs])
-        RBF_aris = np.array([ARI_check(true_groundstate0, state) for state in KNN_groundstate_binary_configs])
-            
-        plt.show()
+        plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies)
+        ARI_check(true_groundstate, KNN_groundstate_binary_configs, RBF_groundstate_binary_configs)
         
     track_hits = 6                          #Number of detectors
     intersection_allowed = False            #Boolean to control whether particles intersect
     
     number_of_hits, track0_truthlabels, track1_truthlabels, KNN_matrix, RBF_matrix = toytrack_similarity_plot(track_hits, intersection_allowed)
-    true_groundstate0 = np.concatenate([track0_truthlabels, track1_truthlabels])
-    true_groundstate1 = np.concatenate([track1_truthlabels, track0_truthlabels])
     
-    ising_optimisation_of_similarity_matrices(number_of_hits, true_groundstate0, true_groundstate1, KNN_matrix, RBF_matrix)
+    true_groundstates = np.array([np.concatenate([track0_truthlabels, track1_truthlabels]), np.concatenate([track1_truthlabels, track0_truthlabels])])
+    ising_simmatrix_optimisation(number_of_hits, true_groundstates[0], KNN_matrix, RBF_matrix)
     
 if __name__ == "__main__":
     main()
