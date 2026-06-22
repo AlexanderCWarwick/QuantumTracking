@@ -18,7 +18,7 @@ We create a simple toy data set with which we can build example similarity matri
 
 The simplest tracking problem, requiring some level of optimisation, is two non-intersecting tracks in 2-dimensional space. We construct this system so that we have 6 equally spaced detectors on the interval $[0,1]$ as shown. External noise is modelled as a Gaussian for each hit. 
 
-[2D track setup](plots/Toytracks.png)
+![2D track setup](plots/Toytracks.png)
 
 The similarity matrix elements $W_{ij}$ quantify the compatibility or correlation between hits i and j. The more correlated two hits, the more likely it is that they correspond to the same particle track. Intuitively, a simialrity matrix should be symmetric. 
 In this project, two main types used are:
@@ -51,8 +51,9 @@ We then map this binary string space into a spin sequence of $+1$ and $-1$. Each
 The constraint we place on the system is that the best configuration is the one that minimises the 'energy'. We develop an Ising-style Hamiltonian objective which admits the configuration spin sequence. Crucially, the Hamiltonian depends on the similarity matrix $W_{ij}$ in the same way as the magnetic coupling matrix does in the magnetism forumlation of the Ising model. 
 
 $$
-H = -\sum_{i<j}W_{ij}z_iz_j + \lambda \bigl(\sum_{i}z_i\bigr)^2
+H = -\sum_{i<j} W_{ij} z_i z_j + \lambda \left(\sum_i z_i\right)^2
 $$
+
 
 Because we force $W$ to be symmetrical, the Hamiltonian is symmetric about flipping the signs of all spins in any sequence. This means that each energy level, whether we use the KNN or RBF matrix, will be at least two-fold degeneracy.
 The second term acts as a penalty term, with the $\lambda > 0$ parameter enforcing how strict the peanlty term should be. This penalty term balances the first term by discouraging the all-in-one configurations of
