@@ -3,9 +3,16 @@ from track_generation import construct_toytracks
 from plotting import plot_toytracks, plot_energy_landscape
 from similarity import get_KNN_matrix, get_RBF_matrix
 from ising import ising_optimisation, ARI_check
+from classical_benchmarks import greedy_alg, spectral, sim_annealing
 
 np.random.seed(41)
 
+def w1_track_generation(x, track_hits, intersection_allowed, sigma_noise):
+    track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
+    plot_toytracks(x, track0, track1, sigma_noise, intersection_allowed)
+    
+    return track0, track0_truthlabels, track1, track1_truthlabels 
+    
 #######################################################     Main workflow     #######################################################
 
 def main(): 
@@ -30,13 +37,12 @@ def main():
     sigma_noise = 1e-2                      #External noise 
     nearneighb_n = 3                       #Number of nearest neighbours to consider in the KNN matrix
     
-    track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
-    plot_toytracks(x, track0, track1, sigma_noise, intersection_allowed)
+    track0, track0_truthlabels, track1, track1_truthlabels  = w1_track_generation(x, track_hits, intersection_allowed, sigma_noise)
     
     hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.
     number_of_hits = len(hit_coords)
-    hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}
-        
+    hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Used for plotting graph representations.
+    
     KNN_matrix, nbrs = get_KNN_matrix(x, hit_coords, nearneighb_n)
     RBF_matrix = get_RBF_matrix(x, hit_coords)
     
@@ -64,7 +70,39 @@ def main():
     
     KNN_energies, _, KNN_groundstate_binary_configs, RBF_energies, _, RBF_groundstate_binary_configs = ising_optimisation(number_of_hits, lambda_bal, KNN_matrix, RBF_matrix)
     plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies)
-    ARI_check(true_groundstates[0], KNN_groundstate_binary_configs, RBF_groundstate_binary_configs)
+    
+    _ = ARI_check(true_groundstates[0], KNN_groundstate_binary_configs, 'KNN Ising optimisation')
+    _ = ARI_check(true_groundstates[0], KNN_groundstate_binary_configs, 'RBF Ising optimisation')
 
+###############################################################################################################################
+
+    cluster0, cluster1, greedy_time_elapsed = greedy_alg(RBF_matrix)
+    node_track = np.concatenate([cluster0, cluster1])
+    greedy_track = np.zeros_like(node_track)
+    
+    for node0, node1 in zip(cluster0, cluster1):
+        greedy_track[node0] = 0
+        greedy_track[node1] = 1
+       
+        
+    print(f'Greedy algorithm returned configuration: {greedy_track}')
+    print(f'Time to run was {greedy_time_elapsed}')
+    
+    ##############################################
+    
+    spectral_track, spectral_time_elapsed = spectral(RBF_matrix)
+    spectral_ARI = ARI_check(true_groundstates[0], np.array([spectral]), 'Spectral clustering')
+    print(f'Spectral algorithm returned configuration: {spectral_track}')
+    print(f'ARI check returns a value of {spectral_ARI}')
+    print(f'Time to run was {spectral_time_elapsed}')
+    
+    ################################################
+    init = np.random.randint(0,2, 12)
+    sa_track, sa_track_energy, state_history, energy_history, sa_time_elapsed = sim_annealing(init, RBF_matrix, lambda_bal)
+    sa_ari = ARI_check(true_groundstates[0], np.array([spectral]), 'Simulated annealing')
+    print(f'Simulated annealing returned configuration: {sa_track} with energy {sa_track_energy}')
+    print(f'ARI check returns value of {sa_ARI}')
+    print(f'Time to run was {sa_time_elapsed}')
+        
 if __name__ == "__main__":
     main()

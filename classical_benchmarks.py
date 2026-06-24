@@ -1,4 +1,5 @@
 import numpy as np
+import time
 from sklearn.cluster import SpectralClustering
 from ising import ising_energy
 
@@ -24,6 +25,7 @@ def greedy_alg(W : np.ndarray[float]):
     W_no_diag = W.copy()                                    
     np.fill_diagonal(W_no_diag, np.inf)                         #We don't want to include the diagonals so we force them, in this copy, to inf.
 
+    greedy_start_time = time.time()
     i, j = np.unravel_index(np.argmin(W_no_diag), W_no_diag.shape)          #np.argmin finds the indices of the minimum. Since W is symmetric we only need one position.
     hits_to_assign.remove(i)
     hits_to_assign.remove(j)
@@ -42,14 +44,20 @@ def greedy_alg(W : np.ndarray[float]):
         else:
             cluster1.add(k)
         hits_to_assign.remove(k)
-        
-    return np.array(list(cluster0)), np.array(list(cluster1))
+    
+    greedy_end_time = time.time()
+    return np.array(list(cluster0)), np.array(list(cluster1)), (greedy_end_time - greedy_start_time)
 
 
 def spectral(W : np.ndarray[float]):
+    spectral_start_time = time.time()
+
     clustering = SpectralClustering(n_clusters=2, affinity='precomputed', random_state=1).fit_predict(W)
-    
-    return clustering
+
+    spectral_end_time = time.time()   
+    return clustering, (spectral_end_time - spectral_start_time)
+
+
     
 def perturb_current_state(state):
     rand_ind = np.random.randint(len(state))
@@ -59,6 +67,7 @@ def perturb_current_state(state):
     return new_state
         
 def sim_annealing(init, W, lambda_bal):
+    sim_anneal_start_time = time.time()
     current_state = init
     current_energy = ising_energy(current_state, W, lambda_bal)
     T = 2.0
@@ -95,5 +104,7 @@ def sim_annealing(init, W, lambda_bal):
         energy_history = np.append(energy_history, current_energy)
             
         T *= 0.99
+    
+    sim_anneal_end_time = time.time()
             
-    return best_state, best_energy, state_history, energy_history
+    return best_state, best_energy, state_history, energy_history, (sim_anneal_end_time - sim_anneal_start_time)
