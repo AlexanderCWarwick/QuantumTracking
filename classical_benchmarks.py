@@ -1,4 +1,5 @@
 import numpy as np
+
 import time
 from sklearn.cluster import SpectralClustering
 from plotting import plot_optimised_toytracks
@@ -28,16 +29,14 @@ def greedy_alg(W : np.ndarray[float]):
 
     greedy_start_time = time.time()
     i, j = np.unravel_index(np.argmin(W_no_diag), W_no_diag.shape)          #np.argmin finds the indices of the minimum. Since W is symmetric we only need one position.
-    
+
     hits_to_assign.remove(i)
     hits_to_assign.remove(j)
     
     cluster0 = {i}
     cluster1 = {j}
     
-    while len(hits_to_assign) != 0:                     
-        k = np.random.choice(list(hits_to_assign))                  #Randomly select a node from the hits we have yet to assign.
-        
+    for k in hits_to_assign:                     
         mean_0 = np.mean(np.array([W[k][x] for x in cluster0]))       #Calculate means of the similarity matrix row k (excluding hits that aren't yet selected in the cluster).
         mean_1 = np.mean(np.array([W[k][x] for x in cluster1]))
         
@@ -45,7 +44,6 @@ def greedy_alg(W : np.ndarray[float]):
             cluster0.add(k)
         else:
             cluster1.add(k)
-        hits_to_assign.remove(k)
     
     greedy_end_time = time.time()
     return np.array(list(cluster0)), np.array(list(cluster1)), (greedy_end_time - greedy_start_time)
@@ -58,7 +56,7 @@ def spectral(W : np.ndarray[float]):
 
     spectral_start_time = time.time()
 
-    clustering = SpectralClustering(n_clusters=2, affinity='precomputed', random_state=1).fit_predict(W)
+    clustering = SpectralClustering(n_clusters=2, affinity='precomputed', random_state=41).fit_predict(W)
 
     spectral_end_time = time.time()   
     return clustering, (spectral_end_time - spectral_start_time)
@@ -70,14 +68,15 @@ def perturb_current_state(state):
     rand_ind = np.random.randint(len(state))
     new_state = state.copy()
         
-    new_state[rand_ind] ^= 1
+    new_state[rand_ind] ^= 1                        #Bitwise XOR. The (rand_ind)th element is XORed with 1 which always flips the element (0 to 1 and vice versa)
     return new_state
+
         
 def sim_annealing(init, W, lambda_bal):
     sim_anneal_start_time = time.time()
     current_state = init
     current_energy = ising_energy(current_state, W, lambda_bal)
-    T = 2.0
+    T = 10.0
         
     best_state = current_state.copy()
     best_energy = current_energy
@@ -107,10 +106,10 @@ def sim_annealing(init, W, lambda_bal):
             best_state = current_state.copy()
                 
             
-        state_history = np.vstack([state_history, current_state])
+        state_history = np.append(state_history, current_state)
         energy_history = np.append(energy_history, current_energy)
             
-        T *= 0.99
+        T *= 0.999
     
     sim_anneal_end_time = time.time()
             
@@ -123,9 +122,10 @@ def plot_conv_trace():
 
 ##################################################      Handling functions      ################################################## 
 
-def print_results(hit_coords, optimised_config, ari, time_elapsed, algorithm_type):
+def print_results(hit_coords, optimised_config, optimised_energy, ari, time_elapsed, algorithm_type):
     
     print(f'{algorithm_type} algorithm returned configuration = {optimised_config}')
+    print(f'Ising energy of this state is {optimised_energy}')
     print(f'ARI check returns a value of {ari}')
     print(f'Time to run was {time_elapsed}')
     plot_optimised_toytracks(hit_coords, optimised_config, algorithm_type)
@@ -137,9 +137,11 @@ def greedy_results(W, true_groundstate,lambda_bal):
     greedy_cluster0, greedy_cluster1, greedy_time_elapsed = greedy_alg(W)
     greedy_config = np.zeros_like(np.concatenate([greedy_cluster0, greedy_cluster1]))
     
-    for node0, node1 in zip(greedy_cluster0, greedy_cluster1):
-        greedy_config[node0] = 0
-        greedy_config[node1] = 1
+    for node in greedy_cluster0:
+        greedy_config[node] = 0
+        
+    for node in greedy_cluster1:
+        greedy_config[node] = 1
         
     greedy_ari = ARI_check(true_groundstate, np.array([greedy_config]))
     greedy_energy = ising_energy(greedy_config, W, lambda_bal)
@@ -159,9 +161,13 @@ def spectral_clustering_results(W, true_groundstate, lambda_bal):
     
 
 def sim_annealing_results(W, true_groundstate, lambda_bal):
-    init = np.random.randint(0,2, len(W))
-    
-    sa_track, sa_track_energy, state_history, energy_history, sa_time_elapsed = sim_annealing(init, W, lambda_bal)
-
-    sa_ari = ARI_check(true_groundstate, np.array([sa_track]))   
-    return sa_track, sa_track_energy, sa_ari, sa_time_elapsed, state_history, energy_history
+    best_states = []
+    for _ in range(10):
+        init = np.random.randint(0,2, len(W))
+        
+        sa_config, sa_energy, state_history, energy_history, sa_time_elapsed = sim_annealing(init, W, lambda_bal)
+        sa_ari = ARI_check(true_groundstate, np.array([sa_config]))   
+        
+        best_states.append((sa_config, sa_ari))
+        
+    return sa_config, sa_energy, sa_ari, sa_time_elapsed, state_history, energy_history

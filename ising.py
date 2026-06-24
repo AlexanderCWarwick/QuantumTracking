@@ -16,13 +16,13 @@ def ising_energy(bitstring : np.ndarray[int], W : np.ndarray[np.float64], lambda
     for i in range(n):
         for j in range(i+1, n):                                         #j > i in Hamiltonian. Avoids double counting the interacting spins.
             H -= W[i][j] * isingstring[i] * isingstring[j]              #Rewarding term for like spins
-            
+    
     H += ising_penalty_term(lambda_bal, isingstring)                    #Penalty term penalising big clustering.
     
     return H
 
 
-def ising_penalty_term(lambda_bal, isingstring):
+def ising_penalty_term(lambda_bal, isingstring : np.ndarray[float]) -> int:
     '''
     Type of penalty term to be used in the Ising energy. Should be non-negative.
     Types: 
@@ -32,7 +32,7 @@ def ising_penalty_term(lambda_bal, isingstring):
     3. lambda_bal * (np.sum(isingstring))**4
     4. lambda_bal * (sum_(i<j)(isingstring))**2
     '''
-    
+   
     return lambda_bal * (np.sum(isingstring))**2
 
 
@@ -50,7 +50,7 @@ def get_ising_energies(W, lambda_bal, config_space):
 
 
 
-def get_groundstate(energies, groundstate_energy, config_space):
+def get_groundstates(energies : np.ndarray,  groundstate_energy : np.ndarray,  config_space):
     '''
     Returns where the ground state configuration is (the indices) using the energies array.
     Exchange degeneracy means energy landscape is symmetric. Hence there are at least two ground states.
@@ -62,7 +62,7 @@ def get_groundstate(energies, groundstate_energy, config_space):
 
 
 
-def KNN_RBF_opt(sim_matrix, lambda_bal, config_space):
+def KNN_RBF_opt(sim_matrix, lambda_bal,  config_space : np.ndarray):
     '''
     Primary function of the Ising optimisation block. Returns:
     1. The energy landscape 
@@ -73,11 +73,11 @@ def KNN_RBF_opt(sim_matrix, lambda_bal, config_space):
     energies = get_ising_energies(sim_matrix, lambda_bal, config_space)
     groundstate_energy = min(energies)  
     
-    return energies, groundstate_energy, get_groundstate(energies, groundstate_energy, config_space)     
+    return energies, groundstate_energy, get_groundstates(energies, groundstate_energy, config_space)     
 
 
             
-def ising_optimisation(number_of_hits, lambda_bal, KNN_matrix, RBF_matrix):
+def ising_optimisation(number_of_hits : int,  lambda_bal : float,  KNN_matrix : np.ndarray,  RBF_matrix : np.ndarray):
     
     binary_config_space = np.array(list(product([0,1], repeat=number_of_hits)))             #List of all 2^12 possible BINARY label configurations. 
         
@@ -90,7 +90,7 @@ def ising_optimisation(number_of_hits, lambda_bal, KNN_matrix, RBF_matrix):
 
 #######################     ARI calculation and check       ####################### 
 
-def ARI_check(true_groundstate, optimised_tracks):
+def ARI_check(true_groundstate : np.ndarray,  optimised_tracks : np.ndarray) -> np.ndarray:
     '''
     Adjusted random score measures randomness of the cluster labels. It compares the computed groundstate and the true answer
     and returns: 
@@ -105,7 +105,5 @@ def ARI_check(true_groundstate, optimised_tracks):
     
     for track in optimised_tracks:
         aris.append(adjusted_rand_score(true_groundstate, track))
-        
-    ind = np.argmax(np.array(aris))
     
     return np.array(aris)

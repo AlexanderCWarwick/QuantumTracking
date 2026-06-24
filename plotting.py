@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 def plot_true_toytracks(x, track0, track1, sigma_noise, intersection_allowed):
-    
+  
     plt.scatter(x, track0, c='blue', s=40, marker='o')
     plt.scatter(x, track1, c='red', s=40, marker='o')
     plt.xlim(-0.1, 1.1)
@@ -15,17 +15,7 @@ def plot_true_toytracks(x, track0, track1, sigma_noise, intersection_allowed):
     plt.show()
     
 def plot_optimised_toytracks(hit_coords, optimised_labels, algorithm_type : str):
-    '''
-    optimised_labels = optimised_labels.astype(object)
     
-    for i in range(len(optimised_labels)):
-        if optimised_labels[i] == 0:
-            optimised_labels[i] = 'blue'
-        else:
-             optimised_labels[i] = 'red'
-    #plt.scatter(hit_coords[:, 0], hit_coords[:, 1], c=optimised_labels)
-    '''
-        
     plt.scatter(hit_coords[:, 0], hit_coords[:, 1], c=optimised_labels, cmap='bwr')
     plt.xlim(-0.1, 1.1)
     plt.title(f'Particle track optimisation using {algorithm_type}')
