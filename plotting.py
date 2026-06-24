@@ -2,17 +2,38 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 
-def plot_toytracks(x, track1, track2, sigma_noise, allow_intsection):
+def plot_true_toytracks(x, track0, track1, sigma_noise, intersection_allowed):
     
-    plt.scatter(x, track1, c='blue', s=40, marker='o')
-    plt.scatter(x, track2, c='red', s=40, marker='o')
+    plt.scatter(x, track0, c='blue', s=40, marker='o')
+    plt.scatter(x, track1, c='red', s=40, marker='o')
     plt.xlim(-0.1, 1.1)
-    plt.title(f'Two track plot with intersection={allow_intsection}. Noise standev.={sigma_noise}')
+    plt.title(f'Particle track plot with intersection = {intersection_allowed} and noise = {sigma_noise}')
     plt.grid(axis='x')
     plt.xlabel('x')
     plt.ylabel('y')
     #plt.savefig('plots/Toytracks.png')
     plt.show()
+    
+def plot_optimised_toytracks(hit_coords, optimised_labels, algorithm_type : str):
+    '''
+    optimised_labels = optimised_labels.astype(object)
+    
+    for i in range(len(optimised_labels)):
+        if optimised_labels[i] == 0:
+            optimised_labels[i] = 'blue'
+        else:
+             optimised_labels[i] = 'red'
+    #plt.scatter(hit_coords[:, 0], hit_coords[:, 1], c=optimised_labels)
+    '''
+        
+    plt.scatter(hit_coords[:, 0], hit_coords[:, 1], c=optimised_labels, cmap='bwr')
+    plt.xlim(-0.1, 1.1)
+    plt.title(f'Particle track optimisation using {algorithm_type}')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.grid(axis='x')
+    plt.show()
+    
     
 ##############################################################################################################################
 

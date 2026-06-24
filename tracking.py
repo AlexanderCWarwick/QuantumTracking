@@ -1,17 +1,12 @@
 import numpy as np
-from track_generation import construct_toytracks
-from plotting import plot_toytracks, plot_energy_landscape
-from similarity import get_KNN_matrix, get_RBF_matrix
-from ising import ising_optimisation, ARI_check
-from classical_benchmarks import greedy_alg, spectral, sim_annealing
 
 np.random.seed(41)
 
-def w1_track_generation(x, track_hits, intersection_allowed, sigma_noise):
-    track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
-    plot_toytracks(x, track0, track1, sigma_noise, intersection_allowed)
-    
-    return track0, track0_truthlabels, track1, track1_truthlabels 
+from track_generation import construct_toytracks
+from plotting import plot_true_toytracks #plot_energy_landscape
+from similarity import get_KNN_matrix, get_RBF_matrix
+#from ising import ising_optimisation, ARI_check
+import classical_benchmarks as cb
     
 #######################################################     Main workflow     #######################################################
 
@@ -32,21 +27,25 @@ def main():
     Obtain Graph representations of these similarity matrices.
     '''
     track_hits = 6                          #Number of detectors
+    
+    number_of_true_tracks = 2
+    number_of_hits = track_hits * number_of_true_tracks
+    
     x = np.linspace(0,1,track_hits)         #Positions of detectors
     intersection_allowed = False            #Boolean to control whether particles intersect
     sigma_noise = 1e-2                      #External noise 
     nearneighb_n = 3                       #Number of nearest neighbours to consider in the KNN matrix
     
-    track0, track0_truthlabels, track1, track1_truthlabels  = w1_track_generation(x, track_hits, intersection_allowed, sigma_noise)
+    track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
+    plot_true_toytracks(x, track0, track1, sigma_noise, intersection_allowed)
     
-    hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.
-    number_of_hits = len(hit_coords)
-    hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Used for plotting graph representations.
+    hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.                                                    
+    hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Hit coordinates needed for plotting graph representations.
     
-    KNN_matrix, nbrs = get_KNN_matrix(x, hit_coords, nearneighb_n)
+    KNN_matrix, nbrs = get_KNN_matrix(x, hit_coords, nearneighb_n)                      #nbrs only need for graph visualisation.
     RBF_matrix = get_RBF_matrix(x, hit_coords)
     
-#########################################################################################################################################################
+#############################################################################################################################
 
 
     '''
@@ -66,43 +65,26 @@ def main():
     '''
     lambda_bal = 1.0                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     
-    true_groundstates = np.array([np.concatenate([track0_truthlabels, track1_truthlabels]), np.concatenate([track1_truthlabels, track0_truthlabels])])
+    true_groundstate = np.array([np.concatenate([track0_truthlabels, track1_truthlabels]), np.concatenate([track1_truthlabels, track0_truthlabels])])[0]
     
-    KNN_energies, _, KNN_groundstate_binary_configs, RBF_energies, _, RBF_groundstate_binary_configs = ising_optimisation(number_of_hits, lambda_bal, KNN_matrix, RBF_matrix)
-    plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies)
+    #KNN_energies, _, KNN_groundstate_binary_configs, RBF_energies, _, RBF_groundstate_binary_configs = ising_optimisation(number_of_hits, lambda_bal, KNN_matrix, RBF_matrix)
+    #plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies)
     
-    _ = ARI_check(true_groundstates[0], KNN_groundstate_binary_configs, 'KNN Ising optimisation')
-    _ = ARI_check(true_groundstates[0], KNN_groundstate_binary_configs, 'RBF Ising optimisation')
+    #KNN_aris = ARI_check(true_groundstate, KNN_groundstate_binary_configs)
+    #RBF_aris = ARI_check(true_groundstate, RBF_groundstate_binary_configs)
 
 ###############################################################################################################################
-
-    cluster0, cluster1, greedy_time_elapsed = greedy_alg(RBF_matrix)
-    node_track = np.concatenate([cluster0, cluster1])
-    greedy_track = np.zeros_like(node_track)
+    RBF_params = (RBF_matrix, true_groundstate, lambda_bal)
+    KNN_params = (KNN_matrix, true_groundstate, lambda_bal)
     
-    for node0, node1 in zip(cluster0, cluster1):
-        greedy_track[node0] = 0
-        greedy_track[node1] = 1
-       
-        
-    print(f'Greedy algorithm returned configuration: {greedy_track}')
-    print(f'Time to run was {greedy_time_elapsed}')
+    greedy_config, greedy_energy, greedy_ari, greedy_time_elapsed = cb.greedy_results(*RBF_params)
+    cb.print_results(hit_coords, greedy_config, greedy_ari, greedy_time_elapsed, 'Greedy')
     
-    ##############################################
+    spectral_config, spectral_energy, spectral_ari, spectral_time_elapsed = cb.spectral_clustering_results(*RBF_params)
+    cb.print_results(hit_coords, spectral_config, spectral_ari, spectral_time_elapsed, 'Spectral Clustering')
     
-    spectral_track, spectral_time_elapsed = spectral(RBF_matrix)
-    spectral_ARI = ARI_check(true_groundstates[0], np.array([spectral]), 'Spectral clustering')
-    print(f'Spectral algorithm returned configuration: {spectral_track}')
-    print(f'ARI check returns a value of {spectral_ARI}')
-    print(f'Time to run was {spectral_time_elapsed}')
+    sa_track, sa_track_energy, sa_ari, sa_time_elapsed, state_history, energy_history = cb.sim_annealing_results(*RBF_params)
+    cb.print_results(hit_coords, sa_track, sa_ari, sa_time_elapsed, 'Simulated Annealing')
     
-    ################################################
-    init = np.random.randint(0,2, 12)
-    sa_track, sa_track_energy, state_history, energy_history, sa_time_elapsed = sim_annealing(init, RBF_matrix, lambda_bal)
-    sa_ari = ARI_check(true_groundstates[0], np.array([spectral]), 'Simulated annealing')
-    print(f'Simulated annealing returned configuration: {sa_track} with energy {sa_track_energy}')
-    print(f'ARI check returns value of {sa_ARI}')
-    print(f'Time to run was {sa_time_elapsed}')
-        
 if __name__ == "__main__":
     main()

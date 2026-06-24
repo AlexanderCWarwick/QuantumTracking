@@ -1,9 +1,10 @@
 import numpy as np
 import time
 from sklearn.cluster import SpectralClustering
-from ising import ising_energy
+from plotting import plot_optimised_toytracks
+from ising import ising_energy, ARI_check
 
-#####################################   Greedy  #####################################
+##################################################      GREEDY ALGORITHM      ################################################## 
 
 def greedy_alg(W : np.ndarray[float]):
     '''
@@ -22,11 +23,12 @@ def greedy_alg(W : np.ndarray[float]):
     n = len(W)
     hits_to_assign = set(range(n))                        #Hits that we have yet to assign. 
     
-    W_no_diag = W.copy()                                    
+    W_no_diag = W.copy()                                 
     np.fill_diagonal(W_no_diag, np.inf)                         #We don't want to include the diagonals so we force them, in this copy, to inf.
 
     greedy_start_time = time.time()
     i, j = np.unravel_index(np.argmin(W_no_diag), W_no_diag.shape)          #np.argmin finds the indices of the minimum. Since W is symmetric we only need one position.
+    
     hits_to_assign.remove(i)
     hits_to_assign.remove(j)
     
@@ -49,7 +51,11 @@ def greedy_alg(W : np.ndarray[float]):
     return np.array(list(cluster0)), np.array(list(cluster1)), (greedy_end_time - greedy_start_time)
 
 
+##################################################      SPECTRAL CLUSTERING ALGORITHM      ################################################## 
+
+
 def spectral(W : np.ndarray[float]):
+
     spectral_start_time = time.time()
 
     clustering = SpectralClustering(n_clusters=2, affinity='precomputed', random_state=1).fit_predict(W)
@@ -58,6 +64,7 @@ def spectral(W : np.ndarray[float]):
     return clustering, (spectral_end_time - spectral_start_time)
 
 
+##################################################      SIMULATED ANNEALING ALGORITHM      ################################################## 
     
 def perturb_current_state(state):
     rand_ind = np.random.randint(len(state))
@@ -108,3 +115,53 @@ def sim_annealing(init, W, lambda_bal):
     sim_anneal_end_time = time.time()
             
     return best_state, best_energy, state_history, energy_history, (sim_anneal_end_time - sim_anneal_start_time)
+
+##################################################      SA CONVERGENCE TRACE      ################################################## 
+
+def plot_conv_trace():
+    pass
+
+##################################################      Handling functions      ################################################## 
+
+def print_results(hit_coords, optimised_config, ari, time_elapsed, algorithm_type):
+    
+    print(f'{algorithm_type} algorithm returned configuration = {optimised_config}')
+    print(f'ARI check returns a value of {ari}')
+    print(f'Time to run was {time_elapsed}')
+    plot_optimised_toytracks(hit_coords, optimised_config, algorithm_type)
+    print('\n')
+
+
+
+def greedy_results(W, true_groundstate,lambda_bal):
+    greedy_cluster0, greedy_cluster1, greedy_time_elapsed = greedy_alg(W)
+    greedy_config = np.zeros_like(np.concatenate([greedy_cluster0, greedy_cluster1]))
+    
+    for node0, node1 in zip(greedy_cluster0, greedy_cluster1):
+        greedy_config[node0] = 0
+        greedy_config[node1] = 1
+        
+    greedy_ari = ARI_check(true_groundstate, np.array([greedy_config]))
+    greedy_energy = ising_energy(greedy_config, W, lambda_bal)
+    
+    return greedy_config, greedy_energy, greedy_ari, greedy_time_elapsed 
+
+
+
+def spectral_clustering_results(W, true_groundstate, lambda_bal):
+    spectral_config, spectral_time_elapsed = spectral(W)
+    
+    spectral_ari = ARI_check(true_groundstate, np.array([spectral_config]))
+    spectral_energy = ising_energy(spectral_config, W, lambda_bal)
+    
+    return spectral_config, spectral_energy, spectral_ari, spectral_time_elapsed, 
+    
+    
+
+def sim_annealing_results(W, true_groundstate, lambda_bal):
+    init = np.random.randint(0,2, len(W))
+    
+    sa_track, sa_track_energy, state_history, energy_history, sa_time_elapsed = sim_annealing(init, W, lambda_bal)
+
+    sa_ari = ARI_check(true_groundstate, np.array([sa_track]))   
+    return sa_track, sa_track_energy, sa_ari, sa_time_elapsed, state_history, energy_history

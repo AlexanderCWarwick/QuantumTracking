@@ -39,16 +39,14 @@ def construct_KNN_matrix(hit_coords, n : int):
     
     return knn_matrix, nbrs
 
+
     
 def get_KNN_matrix(x, hit_coords, nearneighb_n):   
     KNN_matrix, nbrs = construct_KNN_matrix(hit_coords, nearneighb_n)                       #Calculate the KNN similarity matrix.
-        
     return KNN_matrix, nbrs
-    
     
     
 def get_RBF_matrix(x, hit_coords):
     sigma_rbf = 0.1
-        
     RBF_matrix = construct_RBFmatrix(hit_coords, sigma_rbf)                                 #Calculate the RBF similarity matrix.     
     return RBF_matrix
