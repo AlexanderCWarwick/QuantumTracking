@@ -105,6 +105,7 @@ def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
     #plt.savefig(f'plots/{matrix_type}_Graph.png')
     plt.show()
 
+
 ##############################################################################################################################
 
 
@@ -130,3 +131,30 @@ def plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies):
     plt.tight_layout()
     #plt.savefig(f'plots/energy_landscape_λ={lambda_bal}.png')
     plt.show()
+    
+
+##############################################################################################################################
+
+def plot_conv_trace(number_of_steps : int, energy_history : np.ndarray):
+    steps = np.arange(number_of_steps)
+    
+    plt.plot(steps, energy_history)
+    plt.xlabel('Steps')
+    plt.ylabel('Ising energy')
+    plt.title('Convergence Trace of Simulated Annealing algorithm')
+    plt.show()
+
+
+def plot_conv_traces(steps : np.ndarray, energy_histories : np.ndarray):
+    reps = len(energy_histories)
+    fig, ax = plt.subplots(reps, 1, figsize=(11,11))
+    
+    for i in range(reps):
+        s = np.arange(steps[i])
+        ax[i].plot(s, energy_histories[i], color='red')
+    
+    fig.suptitle('Convergence trace plots for different starting points in SA')
+    fig.supylabel('Energy')
+    fig.supxlabel('Step')
+    plt.show()
+    

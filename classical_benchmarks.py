@@ -76,12 +76,12 @@ def sim_annealing(init, W, lambda_bal):
     sim_anneal_start_time = time.time()
     current_state = init
     current_energy = ising_energy(current_state, W, lambda_bal)
-    T = 10.0
+    number_of_steps = 1
+    T = 5.0
         
     best_state = current_state.copy()
     best_energy = current_energy
     
-    state_history = np.array([current_state])
     energy_history = np.array([current_energy])
         
     while T > 0.001:
@@ -94,8 +94,8 @@ def sim_annealing(init, W, lambda_bal):
             
         if energy_change < 0:
             current_state = candidate_state
-            current_energy = candidate_energy
-                
+            current_energy = candidate_energy    
+            
         elif random_num < np.exp(-(energy_change) / T):
             current_state = candidate_state
             current_energy = candidate_energy
@@ -106,25 +106,21 @@ def sim_annealing(init, W, lambda_bal):
             best_state = current_state.copy()
                 
             
-        state_history = np.append(state_history, current_state)
         energy_history = np.append(energy_history, current_energy)
             
         T *= 0.999
+        number_of_steps += 1
     
     sim_anneal_end_time = time.time()
             
-    return best_state, best_energy, state_history, energy_history, (sim_anneal_end_time - sim_anneal_start_time)
+    return best_state, best_energy, energy_history, (sim_anneal_end_time - sim_anneal_start_time), number_of_steps
 
-##################################################      SA CONVERGENCE TRACE      ################################################## 
-
-def plot_conv_trace():
-    pass
 
 ##################################################      Handling functions      ################################################## 
 
 def print_results(hit_coords, optimised_config, optimised_energy, ari, time_elapsed, algorithm_type):
     
-    print(f'{algorithm_type} algorithm returned configuration = {optimised_config}')
+    print(f'{algorithm_type} algorithm returned optimised configuration = {optimised_config}')
     print(f'Ising energy of this state is {optimised_energy}')
     print(f'ARI check returns a value of {ari}')
     print(f'Time to run was {time_elapsed}')
@@ -156,18 +152,63 @@ def spectral_clustering_results(W, true_groundstate, lambda_bal):
     spectral_ari = ARI_check(true_groundstate, np.array([spectral_config]))
     spectral_energy = ising_energy(spectral_config, W, lambda_bal)
     
-    return spectral_config, spectral_energy, spectral_ari, spectral_time_elapsed, 
+    return spectral_config, spectral_energy, spectral_ari, spectral_time_elapsed 
     
     
 
 def sim_annealing_results(W, true_groundstate, lambda_bal):
-    best_states = []
-    for _ in range(10):
+    best_config = None
+    best_ari = - np.inf
+    best_energy = np.inf
+    best_energy_history = None
+    best_time_elapsed = 0
+    number_of_start_points = 10
+    
+    for _ in range(number_of_start_points):
         init = np.random.randint(0,2, len(W))
         
-        sa_config, sa_energy, state_history, energy_history, sa_time_elapsed = sim_annealing(init, W, lambda_bal)
+        sa_config, sa_energy, energy_history, sa_time_elapsed, number_of_steps = sim_annealing(init, W, lambda_bal)
         sa_ari = ARI_check(true_groundstate, np.array([sa_config]))   
         
-        best_states.append((sa_config, sa_ari))
         
-    return sa_config, sa_energy, sa_ari, sa_time_elapsed, state_history, energy_history
+        if sa_energy < best_energy:
+            best_config = sa_config
+            best_energy = sa_energy
+            best_energy_history = energy_history
+            best_time_elapsed = sa_time_elapsed
+            
+        if sa_ari > best_ari:
+            best_ari = sa_ari
+            
+    return best_config, best_energy, best_ari, best_time_elapsed, best_energy_history, number_of_steps
+
+def sim_annealing_results2(W, true_groundstate, lambda_bal, number_of_loops):
+
+    energy_histories = []
+    best_configs = []
+    best_configs_energies = []
+    aris = []
+    times = []
+    steps = []
+    
+    for _ in range(number_of_loops):
+        init = np.random.randint(0,2, len(W))
+        
+        sa_config, sa_energy, energy_history, sa_time_elapsed, no_steps = sim_annealing(init, W, lambda_bal)
+        sa_ari = ARI_check(true_groundstate, np.array([sa_config]))   
+        
+        best_configs.append(sa_config)
+        energy_histories.append(energy_history)
+        best_configs_energies.append(sa_energy)
+        aris.append(sa_ari)
+        times.append(sa_time_elapsed)
+        steps.append(no_steps)
+        
+    return best_configs, best_configs_energies, aris, times, energy_histories, steps
+
+def find_optimised_sa_data(best_sa_configs, best_sa_config_energies, sa_aris, sa_times_elapsed):
+    best_ari = np.max(sa_aris)
+    best_index = np.where(sa_aris == best_ari)[0][0]           #Gets first instance (or only instance) of the best result using the ARIs.
+    
+    return best_sa_configs[best_index], best_sa_config_energies[best_index], best_ari, sa_times_elapsed[best_index]
+            
