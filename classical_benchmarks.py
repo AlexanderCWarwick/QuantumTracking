@@ -153,36 +153,10 @@ def spectral_clustering_results(W, true_groundstate, lambda_bal):
     spectral_energy = ising_energy(spectral_config, W, lambda_bal)
     
     return spectral_config, spectral_energy, spectral_ari, spectral_time_elapsed 
-    
-    
 
-def sim_annealing_results(W, true_groundstate, lambda_bal):
-    best_config = None
-    best_ari = - np.inf
-    best_energy = np.inf
-    best_energy_history = None
-    best_time_elapsed = 0
-    number_of_start_points = 10
-    
-    for _ in range(number_of_start_points):
-        init = np.random.randint(0,2, len(W))
-        
-        sa_config, sa_energy, energy_history, sa_time_elapsed, number_of_steps = sim_annealing(init, W, lambda_bal)
-        sa_ari = ARI_check(true_groundstate, np.array([sa_config]))   
-        
-        
-        if sa_energy < best_energy:
-            best_config = sa_config
-            best_energy = sa_energy
-            best_energy_history = energy_history
-            best_time_elapsed = sa_time_elapsed
-            
-        if sa_ari > best_ari:
-            best_ari = sa_ari
-            
-    return best_config, best_energy, best_ari, best_time_elapsed, best_energy_history, number_of_steps
 
-def sim_annealing_results2(W, true_groundstate, lambda_bal, number_of_loops):
+
+def sim_annealing_results(W, true_groundstate, lambda_bal, number_of_loops):
 
     energy_histories = []
     best_configs = []
@@ -205,6 +179,7 @@ def sim_annealing_results2(W, true_groundstate, lambda_bal, number_of_loops):
         steps.append(no_steps)
         
     return best_configs, best_configs_energies, aris, times, energy_histories, steps
+
 
 def find_optimised_sa_data(best_sa_configs, best_sa_config_energies, sa_aris, sa_times_elapsed):
     best_ari = np.max(sa_aris)

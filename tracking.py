@@ -3,7 +3,7 @@ import numpy as np
 np.random.seed(41)                  #Fixed random seed
 
 from track_generation import construct_toytracks
-from plotting import plot_true_toytracks, plot_conv_trace, plot_conv_traces #plot_energy_landscape
+from plotting import plot_true_toytracks,  plot_conv_traces #plot_energy_landscape
 from similarity import get_KNN_matrix, get_RBF_matrix
 #from ising import ising_optimisation, ARI_check
 import classical_benchmarks as cb
@@ -59,10 +59,13 @@ def main():
     here but true_groundstates[1].
     '''
     
-    lambda_bal = 0.80                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
+    lambda_bal = 2.0                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     
-    true_groundstate = np.array([np.concatenate([track0_truthlabels, track1_truthlabels]), np.concatenate([track1_truthlabels, track0_truthlabels])])[0]
+    true_groundstate = np.array([np.concatenate([track0_truthlabels, track1_truthlabels]), np.concatenate([track1_truthlabels, track0_truthlabels])])[0]    
+    #The reference groundstate we use is the first, but could just as well be the other. Both are included in this statement for completeness and changing [0] to [1] won't affect results.
     '''
+    Week 2 Ising optimisation code. Don't run if testing higher values of track_hits, brute force technique will crash computer due to exponential order.
+    
     KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs, RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs = ising_optimisation(number_of_hits, lambda_bal, KNN_matrix, RBF_matrix)
     plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies)
     
@@ -72,7 +75,7 @@ def main():
 ###############################################################################################################################
 
     RBF_params = (RBF_matrix, true_groundstate, lambda_bal)
-    KNN_params = (KNN_matrix, true_groundstate, lambda_bal)
+    #KNN_params = (KNN_matrix, true_groundstate, lambda_bal)
     
     greedy_config, greedy_energy, greedy_ari, greedy_time_elapsed = cb.greedy_results(*RBF_params)
     cb.print_results(hit_coords, greedy_config, greedy_energy, greedy_ari, greedy_time_elapsed, 'Greedy')
@@ -80,16 +83,12 @@ def main():
     spectral_config, spectral_energy, spectral_ari, spectral_time_elapsed = cb.spectral_clustering_results(*RBF_params)
     cb.print_results(hit_coords, spectral_config, spectral_energy, spectral_ari, spectral_time_elapsed, 'Spectral Clustering')
     
-    #sa_config, sa_energy, sa_ari, sa_time_elapsed, energy_history, number_of_steps = cb.sim_annealing_results(*RBF_params)
-    #cb.print_results(hit_coords, sa_config, sa_energy, sa_ari, sa_time_elapsed, 'Simulated Annealing')
-    #plot_conv_trace(number_of_steps, energy_history)
-    
-    number_of_loops = 4
-    best_sa_configs, best_sa_config_energies, sa_aris, sa_times_elapsed, sa_energy_histories, sa_number_of_steps = cb.sim_annealing_results2(*RBF_params, number_of_loops)
+    number_of_loops = 2
+    best_sa_configs, best_sa_config_energies, sa_aris, sa_times_elapsed, sa_energy_histories, sa_number_of_steps = cb.sim_annealing_results(*RBF_params, number_of_loops)
     sa_config, sa_energy, sa_ari, sa_time_elapsed = cb.find_optimised_sa_data(best_sa_configs, best_sa_config_energies, sa_aris, sa_times_elapsed)
     cb.print_results(hit_coords, sa_config, sa_energy, sa_ari, sa_time_elapsed, 'Simulated Annealing')
-    
-    plot_conv_traces(sa_number_of_steps, sa_energy_histories)
+   
+    plot_conv_traces(sa_number_of_steps, sa_energy_histories, best_sa_config_energies)
 
 if __name__ == "__main__":
     main()
