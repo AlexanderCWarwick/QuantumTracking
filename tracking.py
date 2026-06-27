@@ -1,16 +1,14 @@
 import numpy as np
-
-np.random.seed(41)                  #Fixed random seed
-
 from track_generation import construct_toytracks
-from plotting import plot_true_toytracks,  plot_conv_traces #plot_energy_landscape
+from plotting import plot_true_toytracks,  plot_optimised_benchmark_toytracks, print_benchmark_table #plot_energy_landscape
 from similarity import get_KNN_matrix, get_RBF_matrix
 #from ising import ising_optimisation, ARI_check
 import classical_benchmarks as cb
+
     
 #######################################################     Main workflow     #######################################################
 
-def main(): 
+def track_analysis(track_hits, algorithm_types): 
     '''
     Problem: Two particles pass through a detector each leaving N 'hits'. Using these 'hits' as coordinate
     locations of the particles, can we resolve the two tracks from each other and hence determine each particle's
@@ -25,7 +23,7 @@ def main():
     Obtain plots of these matrices as heatmaps.
     Obtain Graph representations of these similarity matrices.
     '''
-    track_hits = 15                          #Number of detectors
+    
     x = np.linspace(0,1,track_hits)         #Positions of detectors
     intersection_allowed = False            #Boolean to control whether particles intersect
     sigma_noise = 1e-2                      #External noise 
@@ -35,10 +33,10 @@ def main():
     plot_true_toytracks(x, track0, track1, sigma_noise, intersection_allowed)
     
     hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.   
-    number_of_hits = len(hit_coords)                                                 
+    #number_of_hits = len(hit_coords)                                                 
     #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Hit coordinates needed for plotting graph representations.
     
-    KNN_matrix, nbrs = get_KNN_matrix(hit_coords, nearneighb_n)                      #nbrs only need for graph visualisation.
+    KNN_matrix, nbrs = get_KNN_matrix(hit_coords, nearneighb_n)                      #nbrs only needed for graph visualisation.
     RBF_matrix = get_RBF_matrix(hit_coords)
     
 #############################################################################################################################
@@ -59,10 +57,12 @@ def main():
     here but true_groundstates[1].
     '''
     
-    lambda_bal = 2.0                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
+    lambda_bal = 1.0                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     
     true_groundstate = np.array([np.concatenate([track0_truthlabels, track1_truthlabels]), np.concatenate([track1_truthlabels, track0_truthlabels])])[0]    
-    #The reference groundstate we use is the first, but could just as well be the other. Both are included in this statement for completeness and changing [0] to [1] won't affect results.
+    #The reference groundstate we use is the first, but could just as well be the other. 
+    #Both are included in this statement for completeness and changing [0] to [1] won't affect results.
+    
     '''
     Week 2 Ising optimisation code. Don't run if testing higher values of track_hits, brute force technique will crash computer due to exponential order.
     
@@ -74,21 +74,51 @@ def main():
     '''
 ###############################################################################################################################
 
-    RBF_params = (RBF_matrix, true_groundstate, lambda_bal)
-    #KNN_params = (KNN_matrix, true_groundstate, lambda_bal)
+    similarity_params = (RBF_matrix, true_groundstate, lambda_bal)
+    groundstate_energy = cb.get_groundstate(*similarity_params)
     
-    greedy_config, greedy_energy, greedy_ari, greedy_time_elapsed = cb.greedy_results(*RBF_params)
-    cb.print_results(hit_coords, greedy_config, greedy_energy, greedy_ari, greedy_time_elapsed, 'Greedy')
+    optimised_configs = []
+    relative_benchmark_energies = []
+    benchmark_aris = []
+    benchmark_times = []
     
-    spectral_config, spectral_energy, spectral_ari, spectral_time_elapsed = cb.spectral_clustering_results(*RBF_params)
-    cb.print_results(hit_coords, spectral_config, spectral_energy, spectral_ari, spectral_time_elapsed, 'Spectral Clustering')
     
-    number_of_loops = 2
-    best_sa_configs, best_sa_config_energies, sa_aris, sa_times_elapsed, sa_energy_histories, sa_number_of_steps = cb.sim_annealing_results(*RBF_params, number_of_loops)
-    sa_config, sa_energy, sa_ari, sa_time_elapsed = cb.find_optimised_sa_data(best_sa_configs, best_sa_config_energies, sa_aris, sa_times_elapsed)
-    cb.print_results(hit_coords, sa_config, sa_energy, sa_ari, sa_time_elapsed, 'Simulated Annealing')
-   
-    plot_conv_traces(sa_number_of_steps, sa_energy_histories, best_sa_config_energies)
+    for algorithm in algorithm_types:
+        config, energy, ari, time_elapsed, convergence_frac = cb.signpost(algorithm, similarity_params)
+        cb.print_results(config, energy, ari, time_elapsed, algorithm)
+        
+        relative_benchmark_energies.append((groundstate_energy - energy) / groundstate_energy)
+        benchmark_aris.append(ari)
+        benchmark_times.append(time_elapsed)
+        optimised_configs.append(config)
+        
+        
+    plot_optimised_benchmark_toytracks(hit_coords, optimised_configs, algorithm_types)
+    return np.array(relative_benchmark_energies), np.array(benchmark_aris), np.array(benchmark_times), convergence_frac
+        
+        
 
+def main():
+    algorithm_types = ['Greedy', 'Spectral Clustering', 'Simulated Annealing']
+    benchmark_times = []
+    benchmark_aris = []
+    relative_benchmark_energies = []
+    conv_fractions = []
+    
+    track_hit_array = np.array([6,12,15])
+    
+    for track_hits in track_hit_array:
+        np.random.seed(41)                  #Fixed random seed. Same for every number of track hits
+        rel_energies, aris, times, conv_frac = track_analysis(track_hits, algorithm_types)
+        
+        relative_benchmark_energies.append(rel_energies)
+        benchmark_aris.append(aris)
+        benchmark_times.append(times)
+        conv_fractions.append(conv_frac)
+        
+    print_benchmark_table(track_hit_array, algorithm_types, benchmark_aris, benchmark_times, relative_benchmark_energies, conv_fractions)
+        
+    
+    
 if __name__ == "__main__":
     main()

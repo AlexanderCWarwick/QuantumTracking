@@ -14,17 +14,6 @@ def plot_true_toytracks(x, track0, track1, sigma_noise, intersection_allowed):
     #plt.savefig('plots/Toytracks.png')
     plt.show()
     
-def plot_optimised_toytracks(hit_coords, optimised_labels, algorithm_type : str):
-    
-    plt.scatter(hit_coords[:, 0], hit_coords[:, 1], c=optimised_labels, cmap='bwr')
-    plt.xlim(-0.1, 1.1)
-    plt.title(f'Particle track optimisation using {algorithm_type}')
-    plt.xlabel('x')
-    plt.ylabel('y')
-    plt.grid(axis='x')
-    plt.show()
-    
-    
 ##############################################################################################################################
 
 def plot_similaritymatrix_heatmap(sim_matrix,  matrix_type : str):
@@ -134,20 +123,65 @@ def plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies):
     
 
 ##############################################################################################################################
-
+def plot_optimised_benchmark_toytracks(hit_coords, optimised_labels, algorithm_type : np.ndarray[str]):
+    fig, ax = plt.subplots(1,3, figsize=(10,10))
+    
+    for i, algorithm in enumerate(algorithm_type):
+        print(optimised_labels[i])
+        ax[i].scatter(hit_coords[:, 0], hit_coords[:, 1], c=optimised_labels[i], cmap='bwr')
+        ax[i].set_title(f'{algorithm}')
+        
+    fig.suptitle('Optimised Clusterings for Different Benchmark Algorithms')
+    fig.supylabel('y')
+    fig.supxlabel('x')
+    plt.show()
+    
+    
 
 def plot_conv_traces(steps : np.ndarray, energy_histories : np.ndarray, sa_groundstate_energies : np.ndarray[float]):
     reps = len(energy_histories)
-    fig, ax = plt.subplots(reps, 1, figsize=(11,11))
-    
-    for i in range(reps):
-        s = np.arange(steps[i])
-        ax[i].plot(s, energy_histories[i], color='red')
-        ax[i].axhline(y=sa_groundstate_energies[i], color='black', linestyle='--', linewidth=0.5)
-        
-    
-    fig.suptitle('Convergence trace plots for different starting points in SA')
+    fig, ax = plt.subplots(reps, 1, figsize=(12,12))
+    if reps > 1:
+        for i in range(reps):
+            ax[i].plot(np.arange(steps[i]), energy_histories[i], color='red')
+            ax[i].axhline(y=sa_groundstate_energies[i], color='black', linestyle='--', linewidth=0.5)
+            
+    else:
+        ax.plot(np.arange(steps[0]), energy_histories[0], color='red')
+        ax.axhline(y=sa_groundstate_energies[0], color='black', linestyle='--', linewidth=0.5)
+            
+    fig.suptitle('Convergence Traces with Different Random Starting Points in SA')
     fig.supylabel('Energy')
     fig.supxlabel('Step')
     plt.show()
+
     
+    
+def print_benchmark_table(track_hit_array, algorithm_types, benchmark_aris, benchmark_times, relative_benchmark_energies, conv_fractions):
+    header = (f'{'Hits':<8}'
+        f'{'Algorithm':<25}'
+        f'{'ARI':<12}'
+        f'{'Time (s)':<15}'
+        f'{'Relative Energy Error':<25}'
+        f'{'Convergence Fraction':<15}')
+
+    print(header)
+
+    for i, hits in enumerate(track_hit_array):
+        print('-' * len(header))
+        for j, algorithm in enumerate(algorithm_types):
+            if algorithm == 'Simulated Annealing' or j == 2:
+                print(f'{2*hits:<8}'
+                    f'{algorithm:<25}'
+                    f'{benchmark_aris[i][j][0]:<12.4f}'
+                    f'{benchmark_times[i][j]:<15.4f}'
+                    f'{relative_benchmark_energies[i][j]:<25.4f}'
+                    f'{conv_fractions[i]:<15}')
+                
+            else:
+                print(f'{2*hits:<8}'
+                    f'{algorithm:<25}'
+                    f'{benchmark_aris[i][j][0]:<12.4f}'
+                    f'{benchmark_times[i][j]:<15.4f}'
+                    f'{relative_benchmark_energies[i][j]:<25.4f}') 
+            

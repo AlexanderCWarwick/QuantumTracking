@@ -2,7 +2,7 @@ import numpy as np
 
 import time
 from sklearn.cluster import SpectralClustering
-from plotting import plot_optimised_toytracks
+from plotting import plot_conv_traces
 from ising import ising_energy, ARI_check
 
 ##################################################      GREEDY ALGORITHM      ################################################## 
@@ -53,7 +53,8 @@ def greedy_alg(W : np.ndarray[float]):
 
 
 def spectral(W : np.ndarray[float]):
-
+    clustering = SpectralClustering(n_clusters=2, affinity='precomputed', random_state=41).fit_predict(W)
+    
     spectral_start_time = time.time()
 
     clustering = SpectralClustering(n_clusters=2, affinity='precomputed', random_state=41).fit_predict(W)
@@ -118,15 +119,32 @@ def sim_annealing(init, W, lambda_bal):
 
 ##################################################      Handling functions      ################################################## 
 
-def print_results(hit_coords, optimised_config, optimised_energy, ari, time_elapsed, algorithm_type):
+def signpost(algorithm : str, similarity_params : tuple):
+    if algorithm == 'Greedy':
+        return greedy_results(*similarity_params)
+    
+    if algorithm == 'Spectral Clustering':
+        return spectral_clustering_results(*similarity_params)
+    
+    else:
+        number_of_loops = 10
+        best_sa_configs, best_sa_config_energies, sa_aris, sa_times_elapsed, sa_energy_histories, sa_number_of_steps, sa_conv_count = sim_annealing_results(*similarity_params, number_of_loops)
+        sa_config, sa_energy, sa_ari, sa_time_elapsed = find_optimised_sa_data(best_sa_configs, best_sa_config_energies, sa_aris, sa_times_elapsed)
+        
+        plot_conv_traces(sa_number_of_steps, sa_energy_histories, best_sa_config_energies)
+        return sa_config, sa_energy, sa_ari, sa_time_elapsed, (sa_conv_count / number_of_loops) 
+
+def print_results(optimised_config, optimised_energy, ari, time_elapsed, algorithm_type):
     
     print(f'{algorithm_type} algorithm returned optimised configuration = {optimised_config}')
     print(f'Ising energy of this state is {optimised_energy}')
     print(f'ARI check returns a value of {ari}')
     print(f'Time to run was {time_elapsed}')
-    plot_optimised_toytracks(hit_coords, optimised_config, algorithm_type)
     print('\n')
 
+
+def get_groundstate(W, true_groundstate, lambda_bal):
+    return ising_energy(true_groundstate, W, lambda_bal)
 
 
 def greedy_results(W, true_groundstate,lambda_bal):
@@ -142,7 +160,7 @@ def greedy_results(W, true_groundstate,lambda_bal):
     greedy_ari = ARI_check(true_groundstate, np.array([greedy_config]))
     greedy_energy = ising_energy(greedy_config, W, lambda_bal)
     
-    return greedy_config, greedy_energy, greedy_ari, greedy_time_elapsed 
+    return greedy_config, greedy_energy, greedy_ari, greedy_time_elapsed, None 
 
 
 
@@ -152,7 +170,7 @@ def spectral_clustering_results(W, true_groundstate, lambda_bal):
     spectral_ari = ARI_check(true_groundstate, np.array([spectral_config]))
     spectral_energy = ising_energy(spectral_config, W, lambda_bal)
     
-    return spectral_config, spectral_energy, spectral_ari, spectral_time_elapsed 
+    return spectral_config, spectral_energy, spectral_ari, spectral_time_elapsed, None 
 
 
 
@@ -164,6 +182,7 @@ def sim_annealing_results(W, true_groundstate, lambda_bal, number_of_loops):
     aris = []
     times = []
     steps = []
+    convergence_counter = 0
     
     for _ in range(number_of_loops):
         init = np.random.randint(0,2, len(W))
@@ -178,12 +197,15 @@ def sim_annealing_results(W, true_groundstate, lambda_bal, number_of_loops):
         times.append(sa_time_elapsed)
         steps.append(no_steps)
         
-    return best_configs, best_configs_energies, aris, times, energy_histories, steps
+        if energy_history[-1] == sa_energy:
+            convergence_counter += 1
+        
+    return best_configs, best_configs_energies, aris, times, energy_histories, steps, convergence_counter
 
 
 def find_optimised_sa_data(best_sa_configs, best_sa_config_energies, sa_aris, sa_times_elapsed):
     best_ari = np.max(sa_aris)
     best_index = np.where(sa_aris == best_ari)[0][0]           #Gets first instance (or only instance) of the best result using the ARIs.
     
-    return best_sa_configs[best_index], best_sa_config_energies[best_index], best_ari, sa_times_elapsed[best_index]
+    return best_sa_configs[best_index], best_sa_config_energies[best_index], np.array([best_ari]), sa_times_elapsed[best_index]
             
