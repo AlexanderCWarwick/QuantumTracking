@@ -2,12 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 
-def plot_true_toytracks(x, track0, track1, sigma_noise, intersection_allowed):
+def plot_true_toytracks(x, track0, track1, intersection_allowed):
   
     plt.scatter(x, track0, c='blue', s=40, marker='o')
     plt.scatter(x, track1, c='red', s=40, marker='o')
     plt.xlim(-0.1, 1.1)
-    plt.title(f'Particle track plot with intersection = {intersection_allowed} and noise = {sigma_noise}')
+    plt.title(f'Particle track plot with intersection = {intersection_allowed}')
     plt.grid(axis='x')
     plt.xlabel('x')
     plt.ylabel('y')
@@ -124,35 +124,34 @@ def plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies):
 
 ##############################################################################################################################
 def plot_optimised_benchmark_toytracks(hit_coords, optimised_labels, algorithm_type : np.ndarray[str]):
-    fig, ax = plt.subplots(1,3, figsize=(10,10))
+    fig, ax = plt.subplots(1,3, figsize=(13,8))
     
     for i, algorithm in enumerate(algorithm_type):
-        print(optimised_labels[i])
         ax[i].scatter(hit_coords[:, 0], hit_coords[:, 1], c=optimised_labels[i], cmap='bwr')
         ax[i].set_title(f'{algorithm}')
         
-    fig.suptitle('Optimised Clusterings for Different Benchmark Algorithms')
+    fig.suptitle(f'Optimised Clusterings for Different Benchmark Algorithms: N = {len(hit_coords)}')
     fig.supylabel('y')
     fig.supxlabel('x')
+    plt.savefig(f'plots/optimised_benchmark_clusters_{len(hit_coords)}_hits.png')
     plt.show()
     
     
 
-def plot_conv_traces(steps : np.ndarray, energy_histories : np.ndarray, sa_groundstate_energies : np.ndarray[float]):
+def plot_conv_traces(N: int, steps : np.ndarray, energy_histories : np.ndarray):
     reps = len(energy_histories)
     fig, ax = plt.subplots(reps, 1, figsize=(12,12))
     if reps > 1:
         for i in range(reps):
             ax[i].plot(np.arange(steps[i]), energy_histories[i], color='red')
-            ax[i].axhline(y=sa_groundstate_energies[i], color='black', linestyle='--', linewidth=0.5)
             
     else:
         ax.plot(np.arange(steps[0]), energy_histories[0], color='red')
-        ax.axhline(y=sa_groundstate_energies[0], color='black', linestyle='--', linewidth=0.5)
             
     fig.suptitle('Convergence Traces with Different Random Starting Points in SA')
     fig.supylabel('Energy')
     fig.supxlabel('Step')
+    #plt.savefig(f'plots/{reps}_Convergence_Traces_{N}_hits.png')
     plt.show()
 
     
@@ -176,7 +175,7 @@ def print_benchmark_table(track_hit_array, algorithm_types, benchmark_aris, benc
                     f'{benchmark_aris[i][j][0]:<12.4f}'
                     f'{benchmark_times[i][j]:<15.4f}'
                     f'{relative_benchmark_energies[i][j]:<25.4f}'
-                    f'{conv_fractions[i]:<15}')
+                    f'{conv_fractions[i]:<15.2f}')
                 
             else:
                 print(f'{2*hits:<8}'

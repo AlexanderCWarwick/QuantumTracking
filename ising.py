@@ -4,7 +4,7 @@ from itertools import product
 
 #######################     Brute force Ising minimisation        ####################### 
 
-def ising_energy(bitstring : np.ndarray[int], W : np.ndarray[np.float64], lambda_bal : float):
+def ising_energy(W : np.ndarray[np.float64], bitstring : np.ndarray[int],  lambda_bal : float):
     '''
     Ising objective function. The function rewards like spins and discourages extreme configurations with a penalty term e.g. 111111111111.
     Note that the approach here is to use brute force since there is only 12 hits. If n = 20 then brute force would be VERY inefficient.
