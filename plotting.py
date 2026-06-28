@@ -11,7 +11,7 @@ def plot_true_toytracks(x, track0, track1, intersection_allowed):
     plt.grid(axis='x')
     plt.xlabel('x')
     plt.ylabel('y')
-    #plt.savefig('plots/Toytracks.png')
+    plt.savefig(f'plots/ClassicalPlots/TrueTracks_{len(np.concatenate([track0, track1]))}')
     plt.show()
     
 ##############################################################################################################################
@@ -25,7 +25,6 @@ def plot_similaritymatrix_heatmap(sim_matrix,  matrix_type : str):
     plt.title(f'{matrix_type} Heat map')
     plt.colorbar()
     plt.xlabel('Hit index')
-    #plt.savefig(f'plots/{matrix_type}_heat_map.png')
     plt.show()
      
 ##############################################################################################################################  
@@ -91,7 +90,6 @@ def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
         plt.axvline(detector_x, linestyle='--', alpha=0.12)
     
     plt.title(f'{matrix_type} Graph Representation')
-    #plt.savefig(f'plots/{matrix_type}_Graph.png')
     plt.show()
 
 
@@ -118,7 +116,6 @@ def plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies):
     fig.suptitle(f'Energy landscapes for lambda={lambda_bal}')
     fig.supylabel('Energy')
     plt.tight_layout()
-    #plt.savefig(f'plots/energy_landscape_λ={lambda_bal}.png')
     plt.show()
     
 
@@ -133,7 +130,7 @@ def plot_optimised_benchmark_toytracks(hit_coords, optimised_labels, algorithm_t
     fig.suptitle(f'Optimised Clusterings for Different Benchmark Algorithms: N = {len(hit_coords)}')
     fig.supylabel('y')
     fig.supxlabel('x')
-    plt.savefig(f'plots/optimised_benchmark_clusters_{len(hit_coords)}_hits.png')
+    plt.savefig(f'plots/ClassicalPlots/optimised_benchmark_clusters_{len(hit_coords)}_hits.png')
     plt.show()
     
     
@@ -151,7 +148,7 @@ def plot_conv_traces(N: int, steps : np.ndarray, energy_histories : np.ndarray):
     fig.suptitle('Convergence Traces with Different Random Starting Points in SA')
     fig.supylabel('Energy')
     fig.supxlabel('Step')
-    #plt.savefig(f'plots/{reps}_Convergence_Traces_{N}_hits.png')
+    plt.savefig(f'plots/ClassicalPlots/{reps}_Convergence_Traces_{N}_hits.png')
     plt.show()
 
     
