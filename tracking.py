@@ -83,7 +83,7 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
     true_groundstate_energy_rbf = cb.get_groundstate_energy(RBF_matrix, true_groundstate, lambda_bal) 
     true_groundstate_energy_knn = cb.get_groundstate_energy(KNN_matrix, true_groundstate, lambda_bal)
     
-    params = (KNN_matrix, true_groundstate, true_groundstate_energy_knn, lambda_bal)
+    params = (RBF_matrix, true_groundstate, true_groundstate_energy_rbf, lambda_bal)
     
     i, j = cb.get_mostdissimlar_hits(RBF_matrix)        #Gets the most dissimilar hits for the greedy algorithm. Uses RBF matrix for both RBF and KNN options.
     
@@ -122,7 +122,7 @@ def main():
     relative_benchmark_energies = []
     conv_fractions = []
     
-    hits_array = np.array([4])
+    hits_array = np.array([6])
     
     for hits in hits_array:
         np.random.seed(41)                  #Fixed random seed. Same for every number of track hits

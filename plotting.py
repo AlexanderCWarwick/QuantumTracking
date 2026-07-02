@@ -131,7 +131,7 @@ def optimised_benchmark_toytracks(hit_coords, optimised_labels, algorithm_type :
     fig.suptitle(f'Optimised Clusterings for Different Benchmark Algorithms: N = {len(hit_coords)}')
     fig.supylabel('y')
     fig.supxlabel('x')
-    plt.savefig(f'plots/ClassicalPlots/optimised_benchmark_clusters_{len(hit_coords)}_hits.png')
+    #plt.savefig(f'plots/ClassicalPlots/optimised_benchmark_clusters_{len(hit_coords)}_hits.png')
     plt.show()
     
     
@@ -149,7 +149,7 @@ def conv_traces(N: int, steps : np.ndarray, energy_histories : np.ndarray):
     fig.suptitle('Convergence Traces with Different Random Starting Points in SA')
     fig.supylabel('Energy')
     fig.supxlabel('Step')
-    plt.savefig(f'plots/ClassicalPlots/{reps}_Convergence_Traces_{N}_hits.png')
+    #plt.savefig(f'plots/ClassicalPlots/{reps}_Convergence_Traces_{N}_hits.png')
     plt.show()
 
     
