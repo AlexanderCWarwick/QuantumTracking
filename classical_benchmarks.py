@@ -2,12 +2,19 @@ import numpy as np
 
 import time
 from sklearn.cluster import SpectralClustering
-from plotting import plot_conv_traces
+from plotting import conv_traces
 from ising import ising_energy, ARI_check
 
 ##################################################      GREEDY ALGORITHM      ################################################## 
+def get_mostdissimlar_hits(RBF_matrix):
+    RBF_no_diag = RBF_matrix.copy()                                 
+    np.fill_diagonal(RBF_no_diag, np.inf)                         #We don't want to include the diagonals so we force them, in this copy, to inf.
 
-def greedy(W : np.ndarray[float]):
+    i, j = np.unravel_index(np.argmin(RBF_no_diag), RBF_no_diag.shape)          #np.argmin finds the indices of the minimum. Since W is symmetric we only need one position.
+    return i,j 
+
+
+def greedy(W : np.ndarray[float], i, j):
     '''
     Greedy algorithm optimisation approach. Greedy makes local (short-sighted) decisions. Given a Yes/No question, go with which every gives the most benefit 
     at time when choosing.
@@ -20,19 +27,14 @@ def greedy(W : np.ndarray[float]):
     
     Sets are used for functionality over np arrays. 
     '''
-    
     n = len(W)
     hits_to_assign = list(range(n))                        #Hits that we have yet to assign. 
     greedy_config = np.zeros_like(hits_to_assign)
     
-    W_no_diag = W.copy()                                 
-    np.fill_diagonal(W_no_diag, np.inf)                         #We don't want to include the diagonals so we force them, in this copy, to inf.
-
-    greedy_start_time = time.time()
-    i, j = np.unravel_index(np.argmin(W_no_diag), W_no_diag.shape)          #np.argmin finds the indices of the minimum. Since W is symmetric we only need one position.
-    
     hits_to_assign.remove(i)
     hits_to_assign.remove(j)
+    
+    greedy_start_time = time.time()
     
     cluster0 = [i]
     cluster1 = [j]
@@ -54,7 +56,7 @@ def greedy(W : np.ndarray[float]):
         
     for node in cluster1:
         greedy_config[node] = 1
-        
+   
     return np.array(greedy_config), (greedy_end_time - greedy_start_time)
 
 
@@ -135,48 +137,46 @@ def sim_annealing(W, init, lambda_bal):
 
 ##################################################      Handling functions      ################################################## 
 
-def run_classical_algorithm(algorithm : str, similarity_params : tuple):
+def run_classical_algorithm(algorithm : str, similarity_params : tuple, i, j):
     if algorithm == 'Greedy':
-        return greedy_spectral_results(*similarity_params, greedy)
+        return greedy_results(*similarity_params, i, j)
     
     elif algorithm == 'Spectral Clustering':
-        return greedy_spectral_results(*similarity_params, spectral)
+        return spectral_results(*similarity_params)
     
     else:
-        number_of_loops = 3
+        number_of_loops = 2
         best_sa_configs, best_sa_config_energies, best_sa_aris, sa_times_elapsed, sa_energy_histories, sa_number_of_steps, sa_conv_count = sim_annealing_results(*similarity_params, number_of_loops)
         sa_config, sa_rel_energy, sa_ari, sa_time_elapsed = find_optimised_sa_data(best_sa_configs, best_sa_config_energies, similarity_params[2], best_sa_aris, sa_times_elapsed)
        
-        plot_conv_traces(len(sa_config), sa_number_of_steps, sa_energy_histories)
+        conv_traces(len(sa_config), sa_number_of_steps, sa_energy_histories)
         return sa_config, sa_rel_energy, sa_ari, sa_time_elapsed, (sa_conv_count / number_of_loops) 
     
 
-
-def get_groundstate(W, true_groundstate, lambda_bal):
+def get_groundstate_energy(W, true_groundstate, lambda_bal):
     return ising_energy(W, true_groundstate, lambda_bal)
 
 
-def greedy_spectral_results(W, true_groundstate, true_groundstate_energy, lambda_bal, algorithm_func):
-    '''
-    Performs the same 'get results' process for both greedy and spectral hence can encapsulate in one function 
-    with algorithm_func acting as a branching parameter.
+
+def greedy_results(W, true_groundstate, true_groundstate_energy, lambda_bal, i, j):
+    optimised_config, time_elapsed = greedy(W, i, j)
+
+    ari = ARI_check(true_groundstate, np.array([optimised_config]))
+    energy = ising_energy(W, optimised_config, lambda_bal)
+    rel_energy = abs((true_groundstate_energy - energy) / true_groundstate_energy)
     
-    Returns:
-    1. The algorithms optimised configuration, ideally the same as the true groundstate.
-    2. The time-to-run
-    3. The optimised configuration ARI
-    4. The optimised configuration energy.
-    
-    The fifth return is the convergence fraction which only applies to the simulated annealing, hence is None.
-    '''
-    
-    optimised_config, time_elapsed = algorithm_func(W)
+    return optimised_config, rel_energy, ari, time_elapsed, None
+
+
+def spectral_results(W, true_groundstate, true_groundstate_energy, lambda_bal):
+    optimised_config, time_elapsed = spectral(W)
     
     ari = ARI_check(true_groundstate, np.array([optimised_config]))
     energy = ising_energy(W, optimised_config, lambda_bal)
     rel_energy = abs((true_groundstate_energy - energy) / true_groundstate_energy)
     
     return optimised_config, rel_energy, ari, time_elapsed, None
+
 
 
 def sim_annealing_results(W, true_groundstate, true_groundstate_energy, lambda_bal, number_of_loops: int):

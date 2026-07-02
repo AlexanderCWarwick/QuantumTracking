@@ -102,8 +102,6 @@ def ARI_check(true_groundstate : np.ndarray,  optimised_tracks : np.ndarray) -> 
     Hence double loop (ising_optimisation())
     '''
     aris = []
-    print(optimised_tracks)
-    print(true_groundstate)
     for track in optimised_tracks:
         aris.append(adjusted_rand_score(true_groundstate, track))
     

@@ -29,22 +29,24 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
     sigma_noise = 1e-2                      #External noise 
     nearneighb_n = 3                       #Number of nearest neighbours to consider in the KNN matrix
     
-    lambda_bal = 1.0                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
+    lambda_bal = 0.5                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     
     track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
-    plot.plot_true_toytracks(x, track0, track1, intersection_allowed)
+    #plot.plot_true_toytracks(x, track0, track1, intersection_allowed)
     
     hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.   
     number_of_hits = len(hit_coords)                                                 
-    hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Hit coordinates needed for plotting graph representations.
+    #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Hit coordinates needed for plotting graph representations.
     
     
     KNN_matrix, nbrs = get_KNN_matrix(hit_coords, nearneighb_n)                      #nbrs only needed for graph visualisation.
     RBF_matrix = get_RBF_matrix(hit_coords)
     
-    knn_G = plot.construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict, nbrs)
-    rbf_G = plot.construct_RBF_graphrep(x, number_of_hits, hit_coords_dict, RBF_matrix)
+    #knn_G, knn_edges = plot.construct_KNN_graphrep(number_of_hits, hit_coords, nbrs)
+    #rbf_G, rbf_edges, edge_contrasts = plot.construct_RBF_graphrep(number_of_hits, RBF_matrix)
     
+    #plot.graphrep(knn_G, x, hit_coords_dict, knn_edges, None, 'KNN')
+    #plot.graphrep(rbf_G, x, hit_coords_dict, rbf_edges, edge_contrasts, 'RBF')
 #############################################################################################################################
 
     '''
@@ -78,37 +80,37 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
     
 ###############################################################################################################################
     
-    true_groundstate_energy = cb.get_groundstate(RBF_matrix, true_groundstate, lambda_bal)
-    rbf_similarity_params = (RBF_matrix, true_groundstate, true_groundstate_energy, lambda_bal)
+    true_groundstate_energy_rbf = cb.get_groundstate_energy(RBF_matrix, true_groundstate, lambda_bal) 
+    true_groundstate_energy_knn = cb.get_groundstate_energy(KNN_matrix, true_groundstate, lambda_bal)
+    
+    params = (KNN_matrix, true_groundstate, true_groundstate_energy_knn, lambda_bal)
+    
+    i, j = cb.get_mostdissimlar_hits(RBF_matrix)        #Gets the most dissimilar hits for the greedy algorithm. Uses RBF matrix for both RBF and KNN options.
     
     optimised_configs = []
     relative_energies = []
     aris = []
     times = []
     
+    no_of_shots = 1000
     
     for algorithm in algorithm_types:
         if algorithm != 'QAOA':
-            config, rel_energy, ari, time_elapsed, convergence_fraction = cb.run_classical_algorithm(algorithm, rbf_similarity_params)
+            config, rel_energy, ari, time_elapsed, convergence_fraction = cb.run_classical_algorithm(algorithm, params, i, j)
             relative_energies.append(rel_energy)
             aris.append(ari)
             times.append(time_elapsed)
             optimised_configs.append(config)
         else:
-            q_config, q_rel_energy, q_ari, _, _, q_time_elapsed = s_qaoa.qaoa_results(hit_coords, *rbf_similarity_params, rbf_G)
+            q_config, q_rel_energy, q_ari, _, _, q_time_elapsed = s_qaoa.qaoa_results(hit_coords, *params, no_of_shots)
             relative_energies.append(q_rel_energy)
             aris.append(q_ari)
             times.append(q_time_elapsed)
             optimised_configs.append(q_config)
-            
         
-    plot.plot_optimised_benchmark_toytracks(hit_coords, optimised_configs, algorithm_types)
+        
+    plot.optimised_benchmark_toytracks(hit_coords, optimised_configs, algorithm_types)
     
-    
-##################################################################################################################################
-    
-
-    print(aris)
     return np.array(relative_energies), np.array(aris), np.array(times), convergence_fraction
 
 
@@ -120,12 +122,11 @@ def main():
     relative_benchmark_energies = []
     conv_fractions = []
     
-    hits_array = np.array([6])
+    hits_array = np.array([4])
     
     for hits in hits_array:
         np.random.seed(41)                  #Fixed random seed. Same for every number of track hits
-        
-        #Classical algorithm results
+    
         rel_energies, aris, times, conv_frac = track_analysis(hits, algorithm_types)
         relative_benchmark_energies.append(rel_energies)
         benchmark_aris.append(aris)
