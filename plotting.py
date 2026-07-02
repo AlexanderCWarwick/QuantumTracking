@@ -47,8 +47,9 @@ def construct_RBF_graphrep(x, number_of_hits,  hit_coords_dict : dict,  RBF_matr
     rbf_edge_weights = np.asarray(rbf_edge_weights)                #rbf_edge_weights is the ordered list of RBF matrix weights.
     
     edge_contrasts = get_edge_contrasts(rbf_edge_weights)          #Convert the RBF weights into contrasts for graph edges. Only for visualisation.
-    plot_graphrep(H, x, hit_coords_dict, H.edges(), edge_contrasts, 'RBF')
     
+    rbf_H = plot_graphrep(H, x, hit_coords_dict, H.edges(), edge_contrasts, 'RBF')
+    return rbf_H
     
     
 def get_edge_contrasts(rbf_edge_weights : np.ndarray[np.float64])  ->  np.ndarray[np.float64]:
@@ -73,9 +74,9 @@ def construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict,  nbrs
     for i in range(number_of_hits):
         for j in indices[i]:
             H.add_edge(i,j)
-    
-    plot_graphrep(H, x, hit_coords_dict, H.edges(), None, 'KNN')    #No edge_contrasts needed for KNN matrix.
-  
+              
+    knn_H = plot_graphrep(H, x, hit_coords_dict, H.edges(), None, 'KNN')    #No edge_contrasts needed for KNN matrix.
+    return knn_H
   
 def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
     '''
@@ -86,11 +87,15 @@ def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
     nx.draw_networkx_nodes(H, hit_coords_dict, node_size=200)                                                   #Draw nodes
     nx.draw_networkx_labels(H, hit_coords_dict)                                                                 #Draw hit labels.
       
+    '''
     for detector_x in x:                                        #Shows positions of the detectors.
         plt.axvline(detector_x, linestyle='--', alpha=0.12)
     
     plt.title(f'{matrix_type} Graph Representation')
     plt.show()
+    '''
+    
+    return H
 
 
 ##############################################################################################################################
@@ -121,7 +126,7 @@ def plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies):
 
 ##############################################################################################################################
 def plot_optimised_benchmark_toytracks(hit_coords, optimised_labels, algorithm_type : np.ndarray[str]):
-    fig, ax = plt.subplots(1,3, figsize=(13,8))
+    fig, ax = plt.subplots(1,len(algorithm_type), figsize=(13,8))
     
     for i, algorithm in enumerate(algorithm_type):
         ax[i].scatter(hit_coords[:, 0], hit_coords[:, 1], c=optimised_labels[i], cmap='bwr')

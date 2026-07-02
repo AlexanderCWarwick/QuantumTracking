@@ -135,7 +135,7 @@ def sim_annealing(W, init, lambda_bal):
 
 ##################################################      Handling functions      ################################################## 
 
-def run_algorithm(algorithm : str, similarity_params : tuple):
+def run_classical_algorithm(algorithm : str, similarity_params : tuple):
     if algorithm == 'Greedy':
         return greedy_spectral_results(*similarity_params, greedy)
     
