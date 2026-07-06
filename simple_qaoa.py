@@ -6,12 +6,13 @@ from ising import ising_energy, ARI_check
 from plotting import plot_energy_hist
 import time
 
-def qaoa(hit_coords : np.ndarray,  W : np.ndarray,  lambda_bal : float,    no_of_shots : int):
-    N = len(hit_coords)
+def qaoa(W : np.ndarray,  lambda_bal : float, no_of_shots : int):
+    N = len(W)
     qreg_q = QuantumRegister(N, 'q')
     creg_c = ClassicalRegister(N, 'c')
-    grid_counts = 5
+    grid_counts = 20
     backend = Aer.get_backend('aer_simulator')
+    backend.set_options(seed_simulator=44)
     
     best_energy = np.inf
     best_gamma = 0
@@ -20,51 +21,84 @@ def qaoa(hit_coords : np.ndarray,  W : np.ndarray,  lambda_bal : float,    no_of
         
     start = time.time()
     
-    for gamma in np.linspace(0, np.pi/2, grid_counts):              #Grid search optimisation for tuning parameters beta and gamma.
+    for gamma in np.linspace(0, np.pi, grid_counts):              #Grid search optimisation for tuning parameters beta and gamma.
         for beta in np.linspace(0, np.pi/2, grid_counts):
-            circuit = QuantumCircuit(qreg_q, creg_c)
+            circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta)           #Build a new circuit for eevry (gamma, beta) pair. (Hadamard layer redundant)
             
-            circuit.h(qreg_q)                       #Superposition layer
-            
-            for i in range(N):
-                for j in range(i+1, N):
-                    J = 2*lambda_bal - W[i][j]                                  #Effective coupling matrix. Equivalent to classical Ising energy.
-                    circuit.rzz(2*gamma*J, qreg_q[i], qreg_q[j])                #Cost layer. Applies RZZ gates to all connected vertices.
-                    
-            circuit.rx(2 * beta, qreg_q)            #Mixer layer. Applies RX gates to every qubit. Allows for interference between qubit phases.
-            
-            for i in range(N):
-                circuit.measure(qreg_q[i], creg_c[i])           #Measurement of each qubit i. Store measured output in classical register i.
-                    
-            result = backend.run(circuit, shots=no_of_shots).result()
-            counts = result.get_counts()
-            
-            avg_energy = 0 
-            for rev_config, count in counts.items():
-                config = rev_config[::-1]                         #Corrects for qiskit endian convention (qubits are ordered in reverse)  
-                config = np.array(list(config), dtype=int)        #counts is a dictionary of bitstrings and their corresponding frequencies. The bitstrings are given as strings.
-    
-                config_energy = ising_energy(W, config, lambda_bal)               
-                avg_energy += config_energy * (count / no_of_shots)      
+            if gamma == 0 and beta == 0:
+                #Plotting selection
+                circuit.draw('mpl', fold=-1)
+                plt.show()
                 
-            if avg_energy < best_energy:
-                #If this 'shot' measures a better expectation value of the energy, it replaces the previous best shot.
-                best_energy = avg_energy
-                best_gamma = gamma
-                best_beta = beta
-                best_counts = counts
+            counts = run_qaoa(backend, circuit, no_of_shots)
+            
+    avg_energy = 0 
+    for rev_config, count in counts.items():
+        config = rev_config[::-1]                         #Corrects for qiskit endian convention (qubits are ordered in reverse)  
+        config = np.array(list(config), dtype=int)        #counts is a dictionary of bitstrings and their corresponding frequencies. The bitstrings are given as strings so convert to a np array
+        config_energy = ising_energy(W, config, lambda_bal)               
+        avg_energy += config_energy * (count / no_of_shots)      
+                
+    if avg_energy < best_energy:
+        #If this 'shot' measures a better expectation value of the energy, it replaces the previous best shot.
+        best_energy = avg_energy
+        best_gamma = gamma
+        best_beta = beta
+        best_counts = counts
                 
     end = time.time()
     
     return best_counts, best_gamma, best_beta, (end-start)
 
 
+
+def build_qaoa_circuit(W, lambda_bal, gamma : float, beta : float):
+    '''
+    p=1 QAOA circuit. Superposition --> Cost Layer --> Mixer layer --> Measurement
+    '''
+    
+    N = len(W)
+    qreg_q = QuantumRegister(N, 'q')
+    creg_c = ClassicalRegister(N, 'c')
+    circuit = QuantumCircuit(qreg_q, creg_c)
+    
+    circuit.h(qreg_q)                       #Superposition layer
+    circuit.barrier()
+            
+    for i in range(N):
+        for j in range(i+1, N):             #Start at i+1 since we don't want to double count the similarity measures.
+
+            J = 2*lambda_bal - W[i][j]                                  #Effective coupling matrix. Equivalent to classical Ising energy.
+            circuit.rzz(2*gamma*J, qreg_q[i], qreg_q[j])                #Cost layer. Applies RZZ gates to all connected vertices. Factor of 2 cancels the qiskit convention of a gamma/2.
+    circuit.barrier() 
+                   
+    circuit.rx(2 * beta, qreg_q)            #Mixer layer. Applies RX gates to every qubit. Allows for interference between qubit phases.
+    circuit.barrier()            
+    circuit.measure(qreg_q, creg_c)
+    
+    return circuit
+    
+    
+    
+def run_qaoa(backend, circuit, no_of_shots):
+    result = backend.run(circuit, shots=no_of_shots).result()
+    counts = result.get_counts()
+    #counts is the sampling histogram, e.g. '110101' was meausred 37 times etc.
+    
+    return counts
+
+
+
 def get_groundstate_prob(best_counts, true_groundstate, no_of_shots):
     '''
     Returns the sample probability of measuring the groundstate configuration.
+    
+    Using the endian corrected bitstring as a key, search through the best counts (the collection of no_of_shots) samples for the best
+    beta and gamma parameters.
     '''
-    gs1_counts = best_counts.get(''.join(true_groundstate.astype(str)), 0)
-    gs2_counts = best_counts.get(''.join(true_groundstate[::-1].astype(str)), 0)
+    
+    gs1_counts = best_counts.get(''.join(true_groundstate[::-1].astype(str)), 0)            
+    gs2_counts = best_counts.get(''.join((true_groundstate^1)[::-1].astype(str)), 0)
     return (gs1_counts + gs2_counts) / no_of_shots
 
 
@@ -90,16 +124,16 @@ def roundtrip_test(W, true_groundstate, true_groundstate_energy, lambda_bal):
     Round trip test checks the decoding-to-energy process using the true groundstate. 
     '''
     
-    true_groundstate = '000000111111'
-    true_groundstate = np.array(true_groundstate, dtype=int)[::-1]
+    true_groundstate = true_groundstate[::-1]
     rt_energy = ising_energy(W, true_groundstate, lambda_bal)
 
     assert np.isclose(rt_energy, true_groundstate_energy)
     
     
         
-def qaoa_results(hit_coords, W, true_groundstate, true_groundstate_energy, lambda_bal, no_of_shots):
-    best_counts, best_gamma, best_beta, time = qaoa(hit_coords, W, lambda_bal, no_of_shots)
+def qaoa_results(W, true_groundstate, true_groundstate_energy, lambda_bal):
+    no_of_shots = 8192
+    best_counts, best_gamma, best_beta, best_qaoa_time = qaoa(W, lambda_bal, no_of_shots)
     best_config = max(best_counts, key=best_counts.get)             #This is the configuration with the highest measurement frequency.
     
     best_config = best_config[::-1]                                 #Qiskit endian correction. Reverses configuration order (not inverting)
@@ -116,7 +150,7 @@ def qaoa_results(hit_coords, W, true_groundstate, true_groundstate_energy, lambd
     ari = ARI_check(true_groundstate, np.array([best_config]))
     
     print(f' Groundstate probability = {groundstate_prob}')
-    return best_config, rel_energy, ari, best_gamma, best_beta, time
+    return best_config, rel_energy, ari, best_gamma, best_beta, best_qaoa_time
 
 
     

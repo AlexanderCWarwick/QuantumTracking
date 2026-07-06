@@ -149,7 +149,7 @@ def run_classical_algorithm(algorithm : str, similarity_params : tuple, i, j):
         best_sa_configs, best_sa_config_energies, best_sa_aris, sa_times_elapsed, sa_energy_histories, sa_number_of_steps, sa_conv_count = sim_annealing_results(*similarity_params, number_of_loops)
         sa_config, sa_rel_energy, sa_ari, sa_time_elapsed = find_optimised_sa_data(best_sa_configs, best_sa_config_energies, similarity_params[2], best_sa_aris, sa_times_elapsed)
        
-        conv_traces(len(sa_config), sa_number_of_steps, sa_energy_histories)
+        #conv_traces(len(sa_config), sa_number_of_steps, sa_energy_histories)
         return sa_config, sa_rel_energy, sa_ari, sa_time_elapsed, (sa_conv_count / number_of_loops) 
     
 

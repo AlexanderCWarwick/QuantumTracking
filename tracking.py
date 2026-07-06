@@ -34,23 +34,22 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
     track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
     #plot.plot_true_toytracks(x, track0, track1, intersection_allowed)
     
-    hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.   
-    number_of_hits = len(hit_coords)                                                 
-    #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Hit coordinates needed for plotting graph representations.
+    hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.                                                   
     
     
     KNN_matrix, nbrs = get_KNN_matrix(hit_coords, nearneighb_n)                      #nbrs only needed for graph visualisation.
     RBF_matrix = get_RBF_matrix(hit_coords)
     
+    
+    #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Hit coordinates needed for plotting graph representations.
     #knn_G, knn_edges = plot.construct_KNN_graphrep(number_of_hits, hit_coords, nbrs)
     #rbf_G, rbf_edges, edge_contrasts = plot.construct_RBF_graphrep(number_of_hits, RBF_matrix)
-    
     #plot.graphrep(knn_G, x, hit_coords_dict, knn_edges, None, 'KNN')
     #plot.graphrep(rbf_G, x, hit_coords_dict, rbf_edges, edge_contrasts, 'RBF')
 #############################################################################################################################
 
     '''
-    Turn problem into an optimisation problem. The optimal track is the one that minimises the energy objective, the ground state. Ideally these are
+    Turn problem into an optimisation problem. The optimal track is the one that minimises the energy objective, the ground state. Ideally, when N=12, these are
     000000111111 and 111111000000, the 'true ground states'.
     Here the energy objective is modelled as an Ising type function.
         
@@ -92,8 +91,6 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
     aris = []
     times = []
     
-    no_of_shots = 1000
-    
     for algorithm in algorithm_types:
         if algorithm != 'QAOA':
             config, rel_energy, ari, time_elapsed, convergence_fraction = cb.run_classical_algorithm(algorithm, params, i, j)
@@ -102,7 +99,7 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
             times.append(time_elapsed)
             optimised_configs.append(config)
         else:
-            q_config, q_rel_energy, q_ari, _, _, q_time_elapsed = s_qaoa.qaoa_results(hit_coords, *params, no_of_shots)
+            q_config, q_rel_energy, q_ari, _, _, q_time_elapsed = s_qaoa.qaoa_results(*params)
             relative_energies.append(q_rel_energy)
             aris.append(q_ari)
             times.append(q_time_elapsed)
@@ -122,7 +119,7 @@ def main():
     relative_benchmark_energies = []
     conv_fractions = []
     
-    hits_array = np.array([6])
+    hits_array = np.array([4])
     
     for hits in hits_array:
         np.random.seed(41)                  #Fixed random seed. Same for every number of track hits
