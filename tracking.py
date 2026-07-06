@@ -1,8 +1,9 @@
 import numpy as np
 from track_generation import construct_toytracks
-from plotting import plot_true_toytracks,  plot_optimised_benchmark_toytracks, print_benchmark_table #plot_energy_landscape
+import plotting as plot
 from similarity import get_KNN_matrix, get_RBF_matrix
 import classical_benchmarks as cb
+import simple_qaoa as s_qaoa
 
     
 #######################################################     Main workflow     #######################################################
@@ -28,22 +29,27 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
     sigma_noise = 1e-2                      #External noise 
     nearneighb_n = 3                       #Number of nearest neighbours to consider in the KNN matrix
     
-    lambda_bal = 1.0                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
+    lambda_bal = 0.5                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     
     track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
-    plot_true_toytracks(x, track0, track1, intersection_allowed)
+    #plot.plot_true_toytracks(x, track0, track1, intersection_allowed)
     
-    hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.   
-    #number_of_hits = len(hit_coords)                                                 
-    #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Hit coordinates needed for plotting graph representations.
+    hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.                                                   
+    
     
     KNN_matrix, nbrs = get_KNN_matrix(hit_coords, nearneighb_n)                      #nbrs only needed for graph visualisation.
     RBF_matrix = get_RBF_matrix(hit_coords)
     
+    
+    #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Hit coordinates needed for plotting graph representations.
+    #knn_G, knn_edges = plot.construct_KNN_graphrep(number_of_hits, hit_coords, nbrs)
+    #rbf_G, rbf_edges, edge_contrasts = plot.construct_RBF_graphrep(number_of_hits, RBF_matrix)
+    #plot.graphrep(knn_G, x, hit_coords_dict, knn_edges, None, 'KNN')
+    #plot.graphrep(rbf_G, x, hit_coords_dict, rbf_edges, edge_contrasts, 'RBF')
 #############################################################################################################################
 
     '''
-    Turn problem into an optimisation problem. The optimal track is the one that minimises the energy objective, the ground state. Ideally these are
+    Turn problem into an optimisation problem. The optimal track is the one that minimises the energy objective, the ground state. Ideally, when N=12, these are
     000000111111 and 111111000000, the 'true ground states'.
     Here the energy objective is modelled as an Ising type function.
         
@@ -62,7 +68,7 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
     Week 2 Ising optimisation code. Do not run if testing higher values of track_hits, brute force technique will crash computer due to exponential order.
     
     KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs, RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs = ising_optimisation(number_of_hits, lambda_bal, KNN_matrix, RBF_matrix)
-    plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies)
+    plot.plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies)
     
     KNN_aris = ARI_check(true_groundstate, KNN_groundstate_binary_configs)
     RBF_aris = ARI_check(true_groundstate, RBF_groundstate_binary_configs)
@@ -73,45 +79,59 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
     
 ###############################################################################################################################
     
-    true_groundstate_energy = cb.get_groundstate(RBF_matrix, true_groundstate, lambda_bal)
-    similarity_params = (RBF_matrix, true_groundstate, true_groundstate_energy, lambda_bal)
+    true_groundstate_energy_rbf = cb.get_groundstate_energy(RBF_matrix, true_groundstate, lambda_bal) 
+    true_groundstate_energy_knn = cb.get_groundstate_energy(KNN_matrix, true_groundstate, lambda_bal)
+    
+    params = (RBF_matrix, true_groundstate, true_groundstate_energy_rbf, lambda_bal)
+    
+    i, j = cb.get_mostdissimlar_hits(RBF_matrix)        #Gets the most dissimilar hits for the greedy algorithm. Uses RBF matrix for both RBF and KNN options.
     
     optimised_configs = []
-    relative_benchmark_energies = []
-    benchmark_aris = []
-    benchmark_times = []
-    
+    relative_energies = []
+    aris = []
+    times = []
     
     for algorithm in algorithm_types:
-        config, rel_energy, ari, time_elapsed, convergence_fraction = cb.run_algorithm(algorithm, similarity_params)
+        if algorithm != 'QAOA':
+            config, rel_energy, ari, time_elapsed, convergence_fraction = cb.run_classical_algorithm(algorithm, params, i, j)
+            relative_energies.append(rel_energy)
+            aris.append(ari)
+            times.append(time_elapsed)
+            optimised_configs.append(config)
+        else:
+            q_config, q_rel_energy, q_ari, _, _, q_time_elapsed = s_qaoa.qaoa_results(*params)
+            relative_energies.append(q_rel_energy)
+            aris.append(q_ari)
+            times.append(q_time_elapsed)
+            optimised_configs.append(q_config)
         
-        relative_benchmark_energies.append(rel_energy)
-        benchmark_aris.append(ari)
-        benchmark_times.append(time_elapsed)
-        optimised_configs.append(config)
         
-        
-    plot_optimised_benchmark_toytracks(hit_coords, optimised_configs, algorithm_types)
-    return np.array(relative_benchmark_energies), np.array(benchmark_aris), np.array(benchmark_times), convergence_fraction
+    plot.optimised_benchmark_toytracks(hit_coords, optimised_configs, algorithm_types)
+    
+    return np.array(relative_energies), np.array(aris), np.array(times), convergence_fraction
+
+
 
 def main():
-    algorithm_types = ['Greedy', 'Spectral Clustering', 'Simulated Annealing']
+    algorithm_types = ['Greedy', 'Spectral Clustering', 'Simulated Annealing', 'QAOA']
     benchmark_times = []
     benchmark_aris = []
     relative_benchmark_energies = []
     conv_fractions = []
     
-    hits_array = np.array([6,12,15])
+    hits_array = np.array([4])
     
     for hits in hits_array:
         np.random.seed(41)                  #Fixed random seed. Same for every number of track hits
+    
         rel_energies, aris, times, conv_frac = track_analysis(hits, algorithm_types)
         relative_benchmark_energies.append(rel_energies)
         benchmark_aris.append(aris)
         benchmark_times.append(times)
         conv_fractions.append(conv_frac)
         
-    print_benchmark_table(hits_array, algorithm_types, benchmark_aris, benchmark_times, relative_benchmark_energies, conv_fractions)
+        
+    plot.print_benchmark_table(hits_array, algorithm_types, benchmark_aris, benchmark_times, relative_benchmark_energies, conv_fractions)
         
     
     

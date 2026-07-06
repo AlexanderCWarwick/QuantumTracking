@@ -25,11 +25,10 @@ def plot_similaritymatrix_heatmap(sim_matrix,  matrix_type : str):
     plt.title(f'{matrix_type} Heat map')
     plt.colorbar()
     plt.xlabel('Hit index')
-    plt.show()
      
 ##############################################################################################################################  
 
-def construct_RBF_graphrep(x, number_of_hits,  hit_coords_dict : dict,  RBF_matrix : np.ndarray[np.float64]):
+def construct_RBF_graphrep(number_of_hits,  RBF_matrix : np.ndarray[np.float64]):
     '''
     Create nodes and edges of RBF Graph representation. Edges are weighted and this is shwon via contrast (labels 
     would be too cluttered). A higher contrast means a smaller similarity.
@@ -47,8 +46,8 @@ def construct_RBF_graphrep(x, number_of_hits,  hit_coords_dict : dict,  RBF_matr
     rbf_edge_weights = np.asarray(rbf_edge_weights)                #rbf_edge_weights is the ordered list of RBF matrix weights.
     
     edge_contrasts = get_edge_contrasts(rbf_edge_weights)          #Convert the RBF weights into contrasts for graph edges. Only for visualisation.
-    plot_graphrep(H, x, hit_coords_dict, H.edges(), edge_contrasts, 'RBF')
     
+    return H, H.edges(), edge_contrasts
     
     
 def get_edge_contrasts(rbf_edge_weights : np.ndarray[np.float64])  ->  np.ndarray[np.float64]:
@@ -59,7 +58,7 @@ def get_edge_contrasts(rbf_edge_weights : np.ndarray[np.float64])  ->  np.ndarra
 
 
 
-def construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict,  nbrs):
+def construct_KNN_graphrep(number_of_hits, hit_coords,  nbrs):
     '''
     KNN similarity is discrete so no contrast. Function obtains 2D array with each hits k nearest neighbours. 
     keighbors command returns indices including the hit itself. Hence the first index (closest, being the hit itself)
@@ -73,11 +72,11 @@ def construct_KNN_graphrep(x, number_of_hits, hit_coords, hit_coords_dict,  nbrs
     for i in range(number_of_hits):
         for j in indices[i]:
             H.add_edge(i,j)
+     
+    return H, H.edges()
     
-    plot_graphrep(H, x, hit_coords_dict, H.edges(), None, 'KNN')    #No edge_contrasts needed for KNN matrix.
   
-  
-def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
+def graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
     '''
     Given the hit_coords dictionary, the edges and edge contrasts (for RBF matrix), plot Graph.'''
     
@@ -91,12 +90,14 @@ def plot_graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
     
     plt.title(f'{matrix_type} Graph Representation')
     plt.show()
+    
+    
 
 
 ##############################################################################################################################
 
 
-def plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies): 
+def energy_landscape(lambda_bal, KNN_energies, RBF_energies): 
     
     fig, ax = plt.subplots(2, 2, figsize=(10,6))  
     ax[0,0].plot(np.sort(KNN_energies), color='orange')
@@ -120,8 +121,8 @@ def plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies):
     
 
 ##############################################################################################################################
-def plot_optimised_benchmark_toytracks(hit_coords, optimised_labels, algorithm_type : np.ndarray[str]):
-    fig, ax = plt.subplots(1,3, figsize=(13,8))
+def optimised_benchmark_toytracks(hit_coords, optimised_labels, algorithm_type : np.ndarray[str]):
+    fig, ax = plt.subplots(1,len(algorithm_type), figsize=(13,8))
     
     for i, algorithm in enumerate(algorithm_type):
         ax[i].scatter(hit_coords[:, 0], hit_coords[:, 1], c=optimised_labels[i], cmap='bwr')
@@ -130,12 +131,12 @@ def plot_optimised_benchmark_toytracks(hit_coords, optimised_labels, algorithm_t
     fig.suptitle(f'Optimised Clusterings for Different Benchmark Algorithms: N = {len(hit_coords)}')
     fig.supylabel('y')
     fig.supxlabel('x')
-    plt.savefig(f'plots/ClassicalPlots/optimised_benchmark_clusters_{len(hit_coords)}_hits.png')
+    #plt.savefig(f'plots/ClassicalPlots/optimised_benchmark_clusters_{len(hit_coords)}_hits.png')
     plt.show()
     
     
 
-def plot_conv_traces(N: int, steps : np.ndarray, energy_histories : np.ndarray):
+def conv_traces(N: int, steps : np.ndarray, energy_histories : np.ndarray):
     reps = len(energy_histories)
     fig, ax = plt.subplots(reps, 1, figsize=(12,12))
     if reps > 1:
@@ -148,7 +149,7 @@ def plot_conv_traces(N: int, steps : np.ndarray, energy_histories : np.ndarray):
     fig.suptitle('Convergence Traces with Different Random Starting Points in SA')
     fig.supylabel('Energy')
     fig.supxlabel('Step')
-    plt.savefig(f'plots/ClassicalPlots/{reps}_Convergence_Traces_{N}_hits.png')
+    #plt.savefig(f'plots/ClassicalPlots/{reps}_Convergence_Traces_{N}_hits.png')
     plt.show()
 
     
@@ -181,3 +182,15 @@ def print_benchmark_table(track_hit_array, algorithm_types, benchmark_aris, benc
                     f'{benchmark_times[i][j]:<15.4f}'
                     f'{relative_benchmark_energies[i][j]:<25.4f}') 
             
+
+###############################################################################################################################
+
+def plot_energy_hist(energies, true_groundstate_energy):
+    plt.figure()
+    plt.hist(energies, bins=30)
+    plt.axvline(true_groundstate_energy, color='red', linestyle='--', label='Exact ground state')
+    plt.xlabel('Ising energy')
+    plt.ylabel('Counts')
+    plt.legend()
+    plt.show()
+    
