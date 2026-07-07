@@ -119,7 +119,7 @@ def main():
     relative_benchmark_energies = []
     conv_fractions = []
     
-    hits_array = np.array([4])
+    hits_array = np.array([3])
     
     for hits in hits_array:
         np.random.seed(41)                  #Fixed random seed. Same for every number of track hits
