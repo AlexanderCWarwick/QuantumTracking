@@ -18,7 +18,7 @@ We create a simple toy data set with which we can build example similarity matri
 
 The simplest tracking problem, requiring some level of optimisation, is two non-intersecting tracks in 2-dimensional space. We construct this system so that we have 6 equally spaced detectors on the interval $[0,1]$ as shown. External noise is modelled as a Gaussian for each hit. 
 
-![2D track setup](plots/Toytracks.png)
+![2D track setup](plots/ClassicalPlots/Toytracks_12.png)
 
 The similarity matrix elements $W_{ij}$ quantify the compatibility or correlation between hits i and j. The more correlated two hits, the more likely it is that they correspond to the same particle track. Intuitively, a simialrity matrix should be symmetric. 
 In this project, two main types used are:
@@ -76,9 +76,15 @@ We now implement and compare three new and targeted approaches to finding the be
 
 We compare our choices through runtime, computed groundstate ARI and relative error to the true groundstate energy. We expect Greedy to perform the worst. Being myopic means decisions are made locally which can bias the resultant configuration early in the algorithm. Spectral Clustering on the other hand is a graph-minded approach with global decision making based on Graph topology.
 
-Simulated Annealing can be seen as the classical twin of our later quantum methods. Thus, it will be the most important of our classical comparatives. Based on the well-known Metropolis Acceptance Criterion, a random initial configuration is selected and state-space is traversed stochatsically, all while being tempered by a cooling scheme. Ideally it approaches the global minimum but can very easily get trapped in a local minimum. This we can visualise using convergence traces. Hence optimisation depends on the temperature, $T$, evolution. As $T$ decreases, overcoming energy barriers becomes harder leading to the trapping phenomenon in the energy landscape. 
+Simulated Annealing can be seen as the classical twin of our later quantum methods. Thus, it will be the most important of our classical comparatives. Based on the well-known Metropolis Acceptance Criterion, a random initial configuration is selected and state-space is traversed stochatsically, all while being tempered by a cooling scheme. Ideally it approaches the global minimum but can very easily get trapped in a local minimum. This we can visualise using convergence traces shown below. Hence optimisation depends on the temperature, $T$, evolution. As $T$ decreases, overcoming energy barriers becomes harder leading to the trapping phenomenon in the energy landscape. 
 
+![ConvTraceN=24](plots/ClassicalPlots/3_Convergence_Traces_24_hits.png)
 
+## Week 4
+
+We have formulated four classical reference algorithms. Now we turn to formulating a simple quantum algorithm to tackle our problem! 
+
+The approach we use is Quantum Approximation Optimisation Algorithm (QAOA).
 
 
 
