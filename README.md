@@ -64,6 +64,25 @@ Our expectation is of course that 000000111111 and its flipped state 11111100000
 Visualisation of the system's energy landscape can be achieved by converting each configuration's binary string into its decimal equivalent and ordering the states numerically. 
 
 
+## Week 3
+
+Our exhaustive brute force method from Week 2 works well for small values of N. If $N=12$ then there are only $2^{N} = 4096$ possible cluster configurations, but this expoential growth severely caps performance. Even at $N=20$, there would be over one million possible configurations! 
+
+We now implement and compare three new and targeted approaches to finding the best clustering for our simple tracking problem. These will serve as our classical baselines that we will compare with later quantum-based algorithms.
+
+1. Greedy Algorithm
+2. Spectral Clustering
+3. Simulated Annealing
+
+We compare our choices through runtime, computed groundstate ARI and relative error to the true groundstate energy. We expect Greedy to perform the worst. Being myopic means decisions are made locally which can bias the resultant configuration early in the algorithm. Spectral Clustering on the other hand is a graph-minded approach with global decision making based on Graph topology.
+
+Simulated Annealing can be seen as the classical twin of our later quantum methods. Thus, it will be the most important of our classical comparatives. Based on the well-known Metropolis Acceptance Criterion, a random initial configuration is selected and state-space is traversed stochatsically, all while being tempered by a cooling scheme. Ideally it approaches the global minimum but can very easily get trapped in a local minimum. This we can visualise using convergence traces. Hence optimisation depends on the temperature, $T$, evolution. As $T$ decreases, overcoming energy barriers becomes harder leading to the trapping phenomenon in the energy landscape. 
+
+
+
+
+
+
 
 
 
