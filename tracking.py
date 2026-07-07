@@ -4,6 +4,7 @@ import plotting as plot
 from similarity import get_KNN_matrix, get_RBF_matrix
 import classical_benchmarks as cb
 import simple_qaoa as s_qaoa
+from ising import ising_optimisation
 
     
 #######################################################     Main workflow     #######################################################
@@ -62,18 +63,15 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
         
     The ARI check is symmetric to bit flops hence only need to use one of the two true groundstate tracks, true_groundstates[0] is used
     here but true_groundstates[1].
-    
+    '''
     ###############################################################################
-    
+    '''
     Week 2 Ising optimisation code. Do not run if testing higher values of track_hits, brute force technique will crash computer due to exponential order.
+    '''
     
-    KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs, RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs = ising_optimisation(number_of_hits, lambda_bal, KNN_matrix, RBF_matrix)
+    KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs, RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs = ising_optimisation(len(RBF_matrix), lambda_bal, KNN_matrix, RBF_matrix)
     plot.plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies)
     
-    KNN_aris = ARI_check(true_groundstate, KNN_groundstate_binary_configs)
-    RBF_aris = ARI_check(true_groundstate, RBF_groundstate_binary_configs)
-    
-    '''
     true_groundstate = np.array(np.concatenate([track0_truthlabels, track1_truthlabels]))
     #The reference groundstate we use is 000000111111, but could just as well be the inverted state.
     
@@ -119,7 +117,7 @@ def main():
     relative_benchmark_energies = []
     conv_fractions = []
     
-    hits_array = np.array([3])
+    hits_array = np.array([2])
     
     for hits in hits_array:
         np.random.seed(41)                  #Fixed random seed. Same for every number of track hits

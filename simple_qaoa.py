@@ -8,92 +8,61 @@ from ising import ising_energy, ARI_check
 from plotting import plot_energy_hist
 import time
 
-def qaoa(W : np.ndarray,  lambda_bal : float, no_of_shots : int) -> tuple[tuple, tuple]:
+def qaoa(W : np.ndarray,  lambda_bal : float, no_of_shots : int, p : int) -> tuple[float, float, float, dict, float]:
     '''
     The QAOA is a hybrid QC algorithm. The variational part where parameters are tweaked is controlled by the classical 
     computer.
     
-    Two algorithms for this tweaking are used: Grid Search and COBYLA minimisation.
+    Two algorithms for this tweaking are used: Grid Search and COBYLA minimisation. (Week 5) we move forward from Grid Search 
+    p=1 circuit to COBYLA p >= 1.
     '''
     
     backend = Aer.get_backend('aer_simulator')
     backend.set_options(seed_simulator=44)
     
-    gamma = Parameter('g')
-    beta = Parameter('b')
+    gamma = [Parameter(f'g{i+1}') for i in range(p)]
+    beta = [Parameter(f'b{i+1}') for i in range(p)]
+    
+    
     circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
     
-    grid_best_energy, grid_best_gamma, grid_best_beta, grid_best_counts, grid_runtime = grid_optimised_qaoa(W, circuit,  backend,  gamma, beta,  lambda_bal,  no_of_shots)
-    
-    cobyla_best_gamma, cobyla_best_beta, cobyla_best_energy, cobyla_best_counts, cobyla_runtime = cobyla_optimised_qaoa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots)
-    
-
-    grid_results = grid_best_energy, grid_best_gamma, grid_best_beta, grid_best_counts, grid_runtime
-    cobyla_results = cobyla_best_gamma, cobyla_best_beta, cobyla_best_energy, cobyla_best_counts, cobyla_runtime
-    
-    return grid_results, cobyla_results
-    
+    return cobyla_optimised_qaoa(W,  circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots,  p)    
 
 
 
-def cobyla_optimised_qaoa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots):
+def cobyla_optimised_qaoa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, p):
 
     def eval_cobyla(params):
-        gamma_value, beta_value = params
-        return evaluate(W, circuit,  backend,  gamma,  beta,  gamma_value, beta_value, lambda_bal,  no_of_shots)
+        gamma_values = params[:p]
+        beta_values = params[p:]
+        return evaluate(W, circuit,  backend,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
     
-    x0 = [0.5, 0.5]
+    x0 = np.concatenate([np.random.uniform(0,np.pi,p), np.random.uniform(0,np.pi/2,p)])
+    
     cobyla_runtime_start = time.time()
     result = minimize(eval_cobyla, x0, method='COBYLA', options={'maxiter' : 50})
     cobyla_runtime_end = time.time()
 
-    cobyla_best_gamma = result.x[0]
-    cobyla_best_beta = result.x[1]
+    cobyla_best_gammas = result.x[:p]
+    cobyla_best_betas = result.x[p:]
     cobyla_best_energy = result.fun
     
-    paramed_circuit = circuit.assign_parameters({gamma: cobyla_best_gamma, beta: cobyla_best_beta})  
-    cobyla_best_counts = run_qaoa(backend, paramed_circuit, no_of_shots)
+    best_paramed_circuit = circuit.assign_parameters({gamma[i]: cobyla_best_gammas[i] for i in range(p)} |
+                                                     {beta[i]: cobyla_best_betas[i] for i in range(p)})
+    cobyla_best_counts = run_qaoa(backend, best_paramed_circuit, no_of_shots)
     
-    return cobyla_best_gamma, cobyla_best_beta, cobyla_best_energy, cobyla_best_counts, (cobyla_runtime_end - cobyla_runtime_start)
-    
-    
+    return cobyla_best_gammas, cobyla_best_betas, cobyla_best_energy, cobyla_best_counts, (cobyla_runtime_end - cobyla_runtime_start)
     
 
-def grid_optimised_qaoa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots):
-    '''
-    Grid search optimisation. Compare to COBYLA.
-    '''
-    best_energy = np.inf
-    grid_best_gamma = 0
-    grid_best_beta = 0
-    grid_counts = 20
-    gamma_range = np.linspace(0, np.pi, grid_counts)
-    beta_range = np.linspace(0, np.pi/2, grid_counts)
-    
-    grid_runtime_start = time.time()
-    for gamma_value in gamma_range:              #Grid search optimisation for tuning parameters beta and gamma.
-        for beta_value in beta_range:
-            avg_energy = evaluate(W,  circuit,  backend,  gamma,  beta,  gamma_value, beta_value, lambda_bal,  no_of_shots)   
-                        
-            if avg_energy < best_energy:
-                #If this 'shot' measures a better expectation value of the energy, it replaces the previous best shot.
-                grid_best_energy = avg_energy
-                grid_best_gamma = gamma_value
-                grid_best_beta = beta_value
-    grid_runtime_end = time.time() 
-    
-    paramed_circuit = circuit.assign_parameters({gamma: grid_best_gamma, beta: grid_best_beta})  
-    grid_best_counts = run_qaoa(backend, paramed_circuit, no_of_shots)
-    
-    return grid_best_energy, grid_best_gamma, grid_best_beta, grid_best_counts, (grid_runtime_end - grid_runtime_start)
-                
 
-
-def evaluate(W,  circuit,  backend,  gamma,  beta, gamma_value, beta_value, lambda_bal,  no_of_shots)  ->  float:
+def evaluate(W,  circuit,  backend,  gamma,  beta, gamma_values, beta_values, lambda_bal,  no_of_shots, p)  ->  float:
     '''
     Evaluation step. Returns the average energy and the counts of the current grid search point.
     '''
-    paramed_circuit = circuit.assign_parameters({gamma: gamma_value, beta: beta_value})          
+
+    paramed_circuit = circuit.assign_parameters({gamma[i]: gamma_values[i] for i in range(p)} |
+                                                {beta[i]: beta_values[i] for i in range(p)})
+     
     counts = run_qaoa(backend, paramed_circuit, no_of_shots)
             
     avg_energy = 0 
@@ -107,7 +76,7 @@ def evaluate(W,  circuit,  backend,  gamma,  beta, gamma_value, beta_value, lamb
 
 
 
-def build_qaoa_circuit(W, lambda_bal, gamma, beta):
+def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
     '''
     Builds the p=1 QAOA circuitw using the generalised parameters. 
     Only one circuit is ever built, only the RZZ and RX gate input angle parameters change. 
@@ -120,17 +89,22 @@ def build_qaoa_circuit(W, lambda_bal, gamma, beta):
     
     circuit.h(qreg_q)                       #Superposition layer
     circuit.barrier()
-            
-    for i in range(N):
-        for j in range(i+1, N):             #Start at i+1 since we don't want to double count the similarity measures.
+    for layer in range(p):
+        
+        for i in range(N):
+            for j in range(i+1, N):             #Start at i+1 since we don't want to double count the similarity measures.
 
-            J = 2*lambda_bal - W[i][j]                                  #Effective coupling matrix. Equivalent to classical Ising energy.
-            circuit.rzz(2*gamma*J, qreg_q[i], qreg_q[j])                #Cost layer. Applies RZZ gates to all connected vertices. Factor of 2 cancels the qiskit convention of a gamma/2.
-    circuit.barrier() 
-                   
-    circuit.rx(2 * beta, qreg_q)            #Mixer layer. Applies RX gates to every qubit. Allows for interference between qubit phases.
-    circuit.barrier()            
+                J = 2*lambda_bal - W[i][j]                                  #Effective coupling matrix. Equivalent to classical Ising energy.
+                circuit.rzz(2*gamma[layer]*J, qreg_q[i], qreg_q[j])                #Cost layer. Applies RZZ gates to all connected vertices. Factor of 2 cancels the qiskit convention of a gamma/2.
+        circuit.barrier() 
+                    
+        circuit.rx(2 * beta[layer], qreg_q)            #Mixer layer. Applies RX gates to every qubit. Allows for interference between qubit phases.
+        circuit.barrier()   
+                 
     circuit.measure(qreg_q, creg_c)
+    
+    circuit.draw('mpl')
+    plt.show()
     
     return circuit
     
@@ -190,30 +164,23 @@ def roundtrip_test(W, true_groundstate, true_groundstate_energy, lambda_bal):
         
 def qaoa_results(W, true_groundstate, true_groundstate_energy, lambda_bal):
     no_of_shots = 4096
-    p = 1           #Number of layers
-    grid_results, cobyla_results = qaoa(W, lambda_bal, no_of_shots)
+    p = 2           #Number of layers
+    cobyla_best_gammas, cobyla_best_betas, cobyla_best_energy, cobyla_best_counts, cobyla_runtime = qaoa(W, lambda_bal, no_of_shots, p)
     
+    cobyla_best_config = max(cobyla_best_counts, key=cobyla_best_counts.get)             #This is the configuration with the highest measurement frequency.
     
+    cobyla_best_config = cobyla_best_config[::-1]                                 #Qiskit endian correction. Reverses configuration order (not inverting)
+    cobyla_best_config = np.array(list(cobyla_best_config), dtype=int)            #Convert string to numpy array of integers.
+    groundstate_prob = get_groundstate_prob(cobyla_best_counts, true_groundstate, no_of_shots)
     
-    '''
-    best_config = max(best_counts, key=best_counts.get)             #This is the configuration with the highest measurement frequency.
+    cobyla_best_config_energy = ising_energy(W, cobyla_best_config, lambda_bal)
+    cobyla_best_rel_energy = abs((cobyla_best_config_energy - true_groundstate_energy) / true_groundstate_energy)
+    cobyla_best_ari = ARI_check(true_groundstate, np.array([cobyla_best_config]))
+    energy_data(cobyla_best_counts, W, lambda_bal, true_groundstate_energy)
     
-    best_config = best_config[::-1]                                 #Qiskit endian correction. Reverses configuration order (not inverting)
-    best_config = np.array(list(best_config), dtype=int)            #Convert string to numpy array of integers.
+    print(groundstate_prob)
+    return cobyla_best_config, cobyla_best_rel_energy, cobyla_best_ari, cobyla_best_gammas, cobyla_best_betas, cobyla_runtime 
     
-    
-    roundtrip_test(W, true_groundstate, true_groundstate_energy, lambda_bal)
-    
-    energy_data(best_counts, W, lambda_bal, true_groundstate_energy)
-    groundstate_prob = get_groundstate_prob(best_counts, true_groundstate, no_of_shots)
-    
-    config_energy = ising_energy(W, best_config, lambda_bal)
-    rel_energy = abs((config_energy - true_groundstate_energy) / true_groundstate_energy)
-    ari = ARI_check(true_groundstate, np.array([best_config]))
-    
-    print(f' Groundstate probability = {groundstate_prob}')
-    return best_config, rel_energy, ari, best_gamma, best_beta, 0
-    '''
 
 
     
