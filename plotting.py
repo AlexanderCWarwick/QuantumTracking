@@ -114,7 +114,7 @@ def energy_landscape(lambda_bal, KNN_energies, RBF_energies):
     ax[1,1].set_title('RBF lowest 10 energy states')
     ax[1,1].set_xlabel('Rank')
     
-    fig.suptitle(f'Energy landscapes for lambda={lambda_bal}')
+    fig.suptitle(f'Bruteforce Ising Energy landscapes for lambda={lambda_bal}')
     fig.supylabel('Energy')
     plt.tight_layout()
     plt.show()

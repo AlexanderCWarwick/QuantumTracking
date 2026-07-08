@@ -8,50 +8,69 @@ from ising import ising_energy, ARI_check
 from plotting import plot_energy_hist
 import time
 
-def qaoa(W : np.ndarray,  lambda_bal : float, no_of_shots : int, p : int) -> tuple[float, float, float, dict, float]:
+def qaoa_pipeline(W : np.ndarray, lambda_bal : float, no_of_shots : int, seed : int, p : int, circuit, gamma, beta):
     '''
     The QAOA is a hybrid QC algorithm. The variational part where parameters are tweaked is controlled by the classical 
     computer.
     
-    Two algorithms for this tweaking are used: Grid Search and COBYLA minimisation. (Week 5) we move forward from Grid Search 
+    Two algorithms for this tweaking are used: Grid Search (see Week 4) and COBYLA minimisation. (Week 5) we move forward from Grid Search 
     p=1 circuit to COBYLA p >= 1.
     '''
     
     backend = Aer.get_backend('aer_simulator')
-    backend.set_options(seed_simulator=44)
+    backend.set_options(seed_simulator=seed)
     
-    gamma = [Parameter(f'g{i+1}') for i in range(p)]
-    beta = [Parameter(f'b{i+1}') for i in range(p)]
+    cobyla_result, cobyla_runtime = cobyla_optimised_qaoa(W,  circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots,  p)
+    gammas = cobyla_result.x[:p]
+    betas = cobyla_result.x[p:]
     
+    best_paramed_circuit = circuit.assign_parameters({gamma[i]: gammas[i] for i in range(p)} |
+                                                {beta[i]: betas[i] for i in range(p)})
+    cobyla_best_counts = run_qaoa(backend, best_paramed_circuit, no_of_shots)
     
-    circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
+    return cobyla_result, cobyla_best_counts, cobyla_runtime
+        
+        
+
+def get_counts_data(cobyla_best_counts, W, true_groundstate, true_groundstate_energy, lambda_bal, no_of_shots):
+    cobyla_best_config = max(cobyla_best_counts, key=cobyla_best_counts.get)             #This is the configuration with the highest measurement frequency.
+    cobyla_best_config = cobyla_best_config[::-1]                                 #Qiskit endian correction. Reverses configuration order (not inverting)
+    cobyla_best_config = np.array(list(cobyla_best_config), dtype=int)            #Convert string to numpy array of integers.
+    groundstate_prob = get_groundstate_prob(cobyla_best_counts, true_groundstate, no_of_shots)
     
-    return cobyla_optimised_qaoa(W,  circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots,  p)    
+    cobyla_best_config_energy = ising_energy(W, cobyla_best_config, lambda_bal)
+    
+    cobyla_best_rel_energy = abs((cobyla_best_config_energy - true_groundstate_energy) / true_groundstate_energy)
+    cobyla_best_ari = ARI_check(true_groundstate, np.array([cobyla_best_config]))        
+        
+    return cobyla_best_config, cobyla_best_rel_energy, cobyla_best_ari, groundstate_prob
+        
 
 
-
-def cobyla_optimised_qaoa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, p):
+def cobyla_optimised_qaoa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, p)  ->  tuple:
 
     def eval_cobyla(params):
         gamma_values = params[:p]
         beta_values = params[p:]
         return evaluate(W, circuit,  backend,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
     
-    x0 = np.concatenate([np.random.uniform(0,np.pi,p), np.random.uniform(0,np.pi/2,p)])
+    cobyla_starts = 2
+    cobyla_avg_energy = np.inf
+    best_result = None
+    cobyla_best_time = None
+    for _ in range(cobyla_starts):
+        x0 = np.concatenate([np.random.uniform(0,np.pi,p), np.random.uniform(0,np.pi/2,p)])
     
-    cobyla_runtime_start = time.time()
-    result = minimize(eval_cobyla, x0, method='COBYLA', options={'maxiter' : 50})
-    cobyla_runtime_end = time.time()
-
-    cobyla_best_gammas = result.x[:p]
-    cobyla_best_betas = result.x[p:]
-    cobyla_best_energy = result.fun
+        cobyla_runtime_start = time.time()
+        result = minimize(eval_cobyla, x0, method='COBYLA', options={'maxiter' : 50})
+        cobyla_runtime_end = time.time()
+        
+        if result.fun < cobyla_avg_energy:
+            cobyla_avg_energy = result.fun
+            best_result = result
+            cobyla_best_time = (cobyla_runtime_end - cobyla_runtime_start) 
     
-    best_paramed_circuit = circuit.assign_parameters({gamma[i]: cobyla_best_gammas[i] for i in range(p)} |
-                                                     {beta[i]: cobyla_best_betas[i] for i in range(p)})
-    cobyla_best_counts = run_qaoa(backend, best_paramed_circuit, no_of_shots)
-    
-    return cobyla_best_gammas, cobyla_best_betas, cobyla_best_energy, cobyla_best_counts, (cobyla_runtime_end - cobyla_runtime_start)
+    return best_result, cobyla_best_time
     
 
 
@@ -100,10 +119,9 @@ def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
                     
         circuit.rx(2 * beta[layer], qreg_q)            #Mixer layer. Applies RX gates to every qubit. Allows for interference between qubit phases.
         circuit.barrier()   
-                 
+    
     circuit.measure(qreg_q, creg_c)
     
-    circuit.draw('mpl')
     plt.show()
     
     return circuit
@@ -161,26 +179,54 @@ def roundtrip_test(W, true_groundstate, true_groundstate_energy, lambda_bal):
     assert np.isclose(rt_energy, true_groundstate_energy)
     
     
+def cobyla_stats(rel_energies, aris, runtimes, groundstate_probs):
+    metrics = [rel_energies, aris, runtimes, groundstate_probs]
+    means = [np.mean(metric) for metric in metrics]
+    std_metrics = [np.mean(metric) for metric in metrics]
+
+    return np.array(means), np.array(std_metrics)
+        
+        
         
 def qaoa_results(W, true_groundstate, true_groundstate_energy, lambda_bal):
-    no_of_shots = 4096
-    p = 2           #Number of layers
-    cobyla_best_gammas, cobyla_best_betas, cobyla_best_energy, cobyla_best_counts, cobyla_runtime = qaoa(W, lambda_bal, no_of_shots, p)
+    no_of_shots = 100
+    p = 1           #Number of layers
+    seed_lim = 2
     
-    cobyla_best_config = max(cobyla_best_counts, key=cobyla_best_counts.get)             #This is the configuration with the highest measurement frequency.
+    cobyla_configs =[]
+    cobyla_rel_energies = []
+    cobyla_aris = []
+    cobyla_runtimes = []
+    cobyla_groundstate_probs = []
     
-    cobyla_best_config = cobyla_best_config[::-1]                                 #Qiskit endian correction. Reverses configuration order (not inverting)
-    cobyla_best_config = np.array(list(cobyla_best_config), dtype=int)            #Convert string to numpy array of integers.
-    groundstate_prob = get_groundstate_prob(cobyla_best_counts, true_groundstate, no_of_shots)
+    gamma = [Parameter(f'g{i+1}') for i in range(p)]
+    beta = [Parameter(f'b{i+1}') for i in range(p)]
+        
+    circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
     
-    cobyla_best_config_energy = ising_energy(W, cobyla_best_config, lambda_bal)
-    cobyla_best_rel_energy = abs((cobyla_best_config_energy - true_groundstate_energy) / true_groundstate_energy)
-    cobyla_best_ari = ARI_check(true_groundstate, np.array([cobyla_best_config]))
-    energy_data(cobyla_best_counts, W, lambda_bal, true_groundstate_energy)
+    for seed in range(seed_lim):
+        cobyla_result, cobyla_best_counts, cobyla_runtime = qaoa_pipeline(W, lambda_bal, no_of_shots, seed, p, circuit, gamma, beta)
+        cobyla_best_config, cobyla_best_rel_energy, cobyla_best_ari, groundstate_prob = get_counts_data(cobyla_best_counts,
+                                                                                                        W, 
+                                                                                                        true_groundstate, 
+                                                                                                        true_groundstate_energy, 
+                                                                                                        lambda_bal, 
+                                                                                                        no_of_shots)
+        
+        cobyla_configs.append(cobyla_best_config)
+        cobyla_aris.append(cobyla_best_ari)
+        cobyla_rel_energies.append(cobyla_best_rel_energy)
+        cobyla_runtimes.append(cobyla_runtime)
+        cobyla_groundstate_probs.append(groundstate_prob)
+        
+    cobyla_means, cobyla_stds = cobyla_stats(np.array(cobyla_rel_energies), 
+                                             np.array(cobyla_aris),
+                                             np.array(cobyla_runtimes), 
+                                             np.array(cobyla_groundstate_probs))
     
-    print(groundstate_prob)
-    return cobyla_best_config, cobyla_best_rel_energy, cobyla_best_ari, cobyla_best_gammas, cobyla_best_betas, cobyla_runtime 
-    
+    return (cobyla_configs, cobyla_means[0], cobyla_means[1], cobyla_means[2], cobyla_means[3], 
+            cobyla_stds[0], cobyla_stds[1], cobyla_stds[2], cobyla_stds[3])
+
 
 
     

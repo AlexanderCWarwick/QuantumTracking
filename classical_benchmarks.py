@@ -68,7 +68,7 @@ def spectral(W : np.ndarray[float]):
     Makes globally informed choices using graph Laplacian followed by eigen analysis.
     '''
     spectral_start_time = time.time()
-    clustering = SpectralClustering(n_clusters=2, affinity='precomputed', random_state=41).fit_predict(W)
+    clustering = SpectralClustering(n_clusters=2, affinity='precomputed', random_state=43).fit_predict(W)
     spectral_end_time = time.time()   
     return clustering, (spectral_end_time - spectral_start_time)
 
@@ -151,10 +151,6 @@ def run_classical_algorithm(algorithm : str, similarity_params : tuple, i, j):
        
         #conv_traces(len(sa_config), sa_number_of_steps, sa_energy_histories)
         return sa_config, sa_rel_energy, sa_ari, sa_time_elapsed, (sa_conv_count / number_of_loops) 
-    
-
-def get_groundstate_energy(W, true_groundstate, lambda_bal):
-    return ising_energy(W, true_groundstate, lambda_bal)
 
 
 
