@@ -194,3 +194,20 @@ def plot_energy_hist(energies, true_groundstate_energy):
     plt.legend()
     plt.show()
     
+    
+def depth_scan_metric_scatter(layers : np.ndarray[int], metric : np.ndarray[float], metric_std : np.ndarray[float], optimiser_name : str, metric_name : str):
+    print(metric)
+    print(metric_std)
+    print('\n')
+   
+    plt.figure(figsize=(7,5))
+    plt.errorbar(layers, metric, yerr=metric_std, fmt='o-', capsize=5)
+    plt.title(f'{metric_name} scatter plot: Optimiser = {optimiser_name}')
+    plt.xticks(layers)
+    plt.grid(True, alpha=0.3)
+    plt.xlabel('Number of layers')
+    plt.ylabel(f'{metric_name}')
+    plt.tight_layout()
+    plt.show()
+    
+    

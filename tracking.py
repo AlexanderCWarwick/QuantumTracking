@@ -3,13 +3,16 @@ from track_generation import construct_toytracks
 import plotting as plot
 from similarity import get_KNN_matrix, get_RBF_matrix
 import classical_benchmarks as cb
-import simple_qaoa as s_qaoa
+from simple_qaoa import qaoa_grid_results, qaoa_COBYLA_results
 from ising import ising_optimisation
 
     
 #######################################################     Main workflow     #######################################################
 
-def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]): 
+def track_analysis(track_hits : int,  classical_algs : np.ndarray[str], qaoa_optimisers : dict) -> tuple[np.ndarray[float],
+                                                                                                                      np.ndarray[float],
+                                                                                                                      np.ndarray[float],
+                                                                                                                      np.ndarray[float]]: 
     '''
     Problem: Two particles pass through a detector each leaving N 'hits'. Using these 'hits' as coordinate
     locations of the particles, can we resolve the two tracks from each other and hence determine each particle's
@@ -82,33 +85,67 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
     params = (RBF_matrix, true_groundstate, RBF_groundstate_energy, lambda_bal)
     i, j = cb.get_mostdissimlar_hits(RBF_matrix)        #Gets the most dissimilar hits for the greedy algorithm. Uses RBF matrix for both RBF and KNN options.
     
-    optimised_configs = []
-    relative_energies = []
-    aris = []
-    times = []
+    c_rel_energy_errors = []
+    c_aris = []
+    c_runtimes = []
     
-    for algorithm in algorithm_types:
-        if algorithm != 'QAOA':
-            config, rel_energy, ari, time_elapsed, convergence_fraction = cb.run_classical_algorithm(algorithm, params, i, j)
-            relative_energies.append(rel_energy)
-            aris.append(ari)
-            times.append(time_elapsed)
-            optimised_configs.append(config)
-        else:
-            q_config, q_rel_energy, q_ari, q_runtime, groundstate_prob, q_rel_energy_std, q_ari_std, q_runtime_std, groundstate_prob_std = s_qaoa.qaoa_results(*params)
-          
-            relative_energies.append(q_rel_energy)
-            aris.append(np.array([q_ari]))
-            times.append(q_runtime)
-            optimised_configs.append(q_config)
+    
+
+    
+    no_of_shots = 10
+    layers = np.arange(1, 3)
+    
+    seed_lim = 10
+    
+    for algorithm in classical_algs:
+        
+        config, rel_energy_error, ari, time_elapsed, convergence_fraction = cb.run_classical_algorithm(algorithm, params, i, j)
+        c_rel_energy_errors.append(rel_energy_error)
+        c_aris.append(ari)
+        c_runtimes.append(time_elapsed)
+        
+    for optimiser_name, optimiser in qaoa_optimisers.items():
+        q_rel_energy_errors = []
+        q_aris = []
+        q_runtimes = []
+        groundstate_probs = []
+    
+        rel_energy_stds = []
+        ari_stds = []
+        runtime_stds = []
+        groundstate_prob_stds = []
+            
+        for p in layers:
+            q_config, q_rel_energy_error, q_ari, q_runtime, groundstate_prob, q_rel_energy_std, q_ari_std, q_runtime_std, groundstate_prob_std = optimiser(*params, optimiser_name, no_of_shots, p, seed_lim)
+            
+            q_rel_energy_errors.append(q_rel_energy_error)
+            q_aris.append(np.array([q_ari]))
+            q_runtimes.append(q_runtime)    
+            groundstate_probs.append(groundstate_prob)  
+            
+            rel_energy_stds.append(q_rel_energy_std)
+            ari_stds.append(q_ari_std)
+            runtime_stds.append(q_runtime_std)
+            groundstate_prob_stds.append(groundstate_prob_std)
+            
+        q_aris = [float(x[0]) for x in q_aris]
+            
+        plot.depth_scan_metric_scatter(layers, q_rel_energy_errors, rel_energy_stds, optimiser_name, 'Relative Energy Error')
+        plot.depth_scan_metric_scatter(layers, q_aris, ari_stds, optimiser_name, 'ARI')
+        plot.depth_scan_metric_scatter(layers, q_runtimes, runtime_stds, optimiser_name, 'Runtime')
+        plot.depth_scan_metric_scatter(layers, groundstate_probs, groundstate_prob_stds, optimiser_name, 'Groundstate Probability')
+        
         
     #plot.optimised_benchmark_toytracks(hit_coords, optimised_configs, algorithm_types)
-    return np.array(relative_energies), np.array(aris), np.array(times), convergence_fraction
+    return np.array(c_rel_energy_errors), np.array(c_aris), np.array(c_runtimes), convergence_fraction
 
 
 
 def main():
-    algorithm_types = ['Greedy', 'Spectral Clustering', 'Simulated Annealing', 'QAOA']
+    alg_types = ['Greedy', 'Spectral Clustering', 'Simulated Annealing']
+    
+    qaoa_optimisers = {'Grid' : qaoa_grid_results, 'COBYLA' : qaoa_COBYLA_results}
+    
     benchmark_times = []
     benchmark_aris = []
     relative_benchmark_energies = []
@@ -119,14 +156,15 @@ def main():
     for hits in hits_array:
         np.random.seed(41)                  #Fixed random seed. Same for every number of track hits
     
-        rel_energies, aris, times, conv_frac = track_analysis(hits, algorithm_types)
+        rel_energies, aris, times, conv_frac = track_analysis(hits, alg_types, qaoa_optimisers)
+        
         relative_benchmark_energies.append(rel_energies)
         benchmark_aris.append(aris)
         benchmark_times.append(times)
         conv_fractions.append(conv_frac)
         
         
-    plot.print_benchmark_table(hits_array, algorithm_types, benchmark_aris, benchmark_times, relative_benchmark_energies, conv_fractions)
+    plot.print_benchmark_table(hits_array, alg_types, benchmark_aris, benchmark_times, relative_benchmark_energies, conv_fractions)
         
     
     
