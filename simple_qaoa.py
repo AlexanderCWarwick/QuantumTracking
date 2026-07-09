@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
 from qiskit.circuit import Parameter
@@ -9,7 +8,7 @@ from plotting import plot_energy_hist
 from itertools import product
 import time
 
-def qaoa_pipeline(W : np.ndarray, lambda_bal : float, no_of_shots : int, backend, seed : int, p : int, name, circuit, gamma, beta):
+def qaoa_pipeline(W : np.ndarray,  lambda_bal : float,  no_of_shots : int,  seed : int,  p : int,  backend,  optimiser,  circuit,  beta,  gamma):
     '''
     The QAOA is a hybrid QC algorithm. The variational part where parameters are tweaked is controlled by the classical 
     computer.
@@ -17,26 +16,16 @@ def qaoa_pipeline(W : np.ndarray, lambda_bal : float, no_of_shots : int, backend
     Two algorithms for this tweaking are used: Grid Search (see Week 4) and COBYLA minimisation. (Week 5) we move forward from Grid Search 
     p=1 circuit to COBYLA p >= 1.
     '''
+    gamma_range = (0,np.pi)
+    beta_range = (0,np.pi/2)
     
-    backend.set_options(seed_simulator=seed)
-    
-    if name == 'Grid':
-            
-        grid_gammas, grid_betas, grid_runtime = grid_optimised_qaoa(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, p)
+    backend.set_options(seed_simulator=seed)            
+    best_gammas, best_betas, best_runtime = optimiser(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, seed, p, 
+                                                        gamma_range, beta_range)
         
-        best_grid_paramed_circuit = bind_params(circuit, gamma, beta, grid_gammas, grid_betas, p)
-        grid_best_counts = run_qaoa(backend, best_grid_paramed_circuit, no_of_shots)
-        return grid_best_counts, grid_runtime
-    
-    else:
-        cobyla_result, cobyla_runtime = cobyla_optimised_qaoa(W,  circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots,  p)
-        cobyla_gammas = cobyla_result.x[:p]
-        cobyla_betas = cobyla_result.x[p:]
-
-        best_cobyla_paramed_circuit = bind_params(circuit, gamma, beta, cobyla_gammas, cobyla_betas, p)
-        
-        cobyla_best_counts = run_qaoa(backend, best_cobyla_paramed_circuit, no_of_shots)
-        return cobyla_best_counts, cobyla_runtime
+    best_paramed_circuit = bind_params(circuit, gamma, beta, best_gammas, best_betas, p)
+    best_counts = run_qaoa(backend, best_paramed_circuit, no_of_shots)
+    return best_counts, best_runtime
     
         
         
@@ -56,10 +45,10 @@ def get_counts_data(best_counts, W, true_groundstate, true_groundstate_energy, l
         
         
         
-def grid_optimised_qaoa(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, p):
+def grid(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, seed, p, gamma_range, beta_range):
     grid_counts = 3
-    gamma_range = np.linspace(0, np.pi, grid_counts)
-    beta_range = np.linspace(0, np.pi/2, grid_counts)
+    gamma_range = np.linspace(*gamma_range, grid_counts)
+    beta_range = np.linspace(*beta_range, grid_counts)
     
     A = [gamma_range for _ in range(p)]
     B = [beta_range for _ in range(p)]
@@ -85,7 +74,7 @@ def grid_optimised_qaoa(W, circuit, backend, gamma, beta, lambda_bal, no_of_shot
             
     
 
-def cobyla_optimised_qaoa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, p)  ->  tuple:
+def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range)  ->  tuple:
 
     def eval_cobyla(params):
         gamma_values = params[:p]
@@ -96,11 +85,14 @@ def cobyla_optimised_qaoa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_
     cobyla_avg_energy = np.inf
     best_result = None
     cobyla_best_time = None
+    
+    rng = np.random.default_rng(seed)
+    
     for _ in range(cobyla_starts):
-        x0 = np.concatenate([np.random.uniform(0,np.pi,p), np.random.uniform(0,np.pi/2,p)])
+        x0 = np.concatenate([rng.uniform(*gamma_range,p), rng.uniform(*beta_range,p)])
     
         cobyla_runtime_start = time.time()
-        result = minimize(eval_cobyla, x0, method='COBYLA', options={'maxiter' : 50})
+        result = minimize(eval_cobyla, x0, method='COBYLA', options={'maxiter' : 100})
         cobyla_runtime_end = time.time()
         
         if result.fun < cobyla_avg_energy:
@@ -108,7 +100,7 @@ def cobyla_optimised_qaoa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_
             best_result = result
             cobyla_best_time = (cobyla_runtime_end - cobyla_runtime_start) 
     
-    return best_result, cobyla_best_time
+    return best_result.x[:p], best_result.x[p:], cobyla_best_time
     
 
 def bind_params(circuit, gamma, beta, gamma_values, beta_values, p):
@@ -217,72 +209,22 @@ def roundtrip_test(W, true_groundstate, true_groundstate_energy, lambda_bal):
     assert np.isclose(rt_energy, true_groundstate_energy)
     
     
-def metric_stats(rel_energies, aris, runtimes, groundstate_probs):
-    metrics = [rel_energies, aris, runtimes, groundstate_probs]
-    means = [np.mean(metric) for metric in metrics]
-    std_metrics = [np.std(metric) for metric in metrics]
+    
+def metric_stats(metrics_dict : dict):
+    metrics = metrics_dict.values()
+    means = [np.mean(metric_values) for metric_values in metrics]
+    std_metrics = [np.std(metric_values) for metric_values in metrics]
 
     return np.array(means), np.array(std_metrics)
-        
-
-        
-def qaoa_grid_results(W, true_groundstate, true_groundstate_energy, lambda_bal, name, no_of_shots, p, seed_lim):
     
-    grid_configs =[]
-    grid_rel_energies = []
-    grid_aris = []
-    grid_runtimes = []
-    grid_groundstate_probs = []
     
-    gamma = [Parameter(f'g{i+1}') for i in range(p)]
-    beta = [Parameter(f'b{i+1}') for i in range(p)]
-        
-    circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
     
-    backend = Aer.get_backend('aer_simulator')
-    for seed in range(seed_lim):
-        grid_best_counts, grid_runtime = qaoa_pipeline(W, 
-                                                        lambda_bal, 
-                                                        no_of_shots, 
-                                                        backend,
-                                                        seed,
-                                                        p, 
-                                                        name, 
-                                                        circuit, gamma, beta)
-        
-        grid_best_config, grid_best_rel_energy, grid_best_ari, grid_groundstate_prob = get_counts_data(grid_best_counts,
-                                                                                                        W, 
-                                                                                                        true_groundstate, 
-                                                                                                        true_groundstate_energy, 
-                                                                                                        lambda_bal, 
-                                                                                                        no_of_shots)
-        
-        grid_configs.append(grid_best_config)
-        grid_aris.append(grid_best_ari)
-        grid_rel_energies.append(grid_best_rel_energy)
-        grid_runtimes.append(grid_runtime)
-        grid_groundstate_probs.append(grid_groundstate_prob)
-        
-        
-    grid_means, grid_stds = metric_stats(np.array(grid_rel_energies),
-                                         np.array(grid_aris),
-                                         np.array(grid_runtimes),
-                                         np.array(grid_groundstate_probs))
+def qaoa_results(W, true_groundstate, true_groundstate_energy, lambda_bal, no_of_shots, p, seed_lim, optimiser):
     
-    return (grid_configs, grid_means[0], grid_means[1], grid_means[2], grid_means[3],
-            grid_stds[0], grid_stds[1], grid_stds[2], grid_stds[3])
-
-
-    
-
-def qaoa_COBYLA_results(W, true_groundstate, true_groundstate_energy, lambda_bal, name, no_of_shots, p, seed_lim):
-    
-    cobyla_configs =[]
-    cobyla_rel_energies = []
-    cobyla_aris = []
-    cobyla_runtimes = []
-    cobyla_groundstate_probs = []
-
+    metrics_dict = {'rel_errors' : [],
+               'aris' : [],
+               'runtimes' : [],
+               'gs_prob' : []}
     
     gamma = [Parameter(f'g{i+1}') for i in range(p)]
     beta = [Parameter(f'b{i+1}') for i in range(p)]
@@ -291,35 +233,19 @@ def qaoa_COBYLA_results(W, true_groundstate, true_groundstate_energy, lambda_bal
     
     backend = Aer.get_backend('aer_simulator')
     for seed in range(seed_lim):
-        cobyla_best_counts, cobyla_runtime = qaoa_pipeline(W, 
-                                                            lambda_bal, 
-                                                            no_of_shots, 
-                                                            backend, 
-                                                            seed,
-                                                            p, 
-                                                            name,
-                                                            circuit, gamma, beta)
-        
-        cobyla_best_config, cobyla_best_rel_energy, cobyla_best_ari, cobyla_groundstate_prob = get_counts_data(cobyla_best_counts,
-                                                                                                        W, 
-                                                                                                        true_groundstate, 
-                                                                                                        true_groundstate_energy, 
-                                                                                                        lambda_bal,
-                                                                                                        no_of_shots)
-                                            
-        
-          
-        cobyla_configs.append(cobyla_best_config)
-        cobyla_aris.append(cobyla_best_ari)
-        cobyla_rel_energies.append(cobyla_best_rel_energy)
-        cobyla_runtimes.append(cobyla_runtime)
-        cobyla_groundstate_probs.append(cobyla_groundstate_prob)
+        best_counts, runtime = qaoa_pipeline(W,  lambda_bal,  no_of_shots,  seed,  p,  backend,  optimiser,  circuit,  beta,  gamma)
         
         
-    cobyla_means, cobyla_stds = metric_stats(np.array(cobyla_rel_energies), 
-                                             np.array(cobyla_aris),
-                                             np.array(cobyla_runtimes), 
-                                             np.array(cobyla_groundstate_probs))
-    
-    return (cobyla_configs, cobyla_means[0], cobyla_means[1], cobyla_means[2], cobyla_means[3], 
-            cobyla_stds[0], cobyla_stds[1], cobyla_stds[2], cobyla_stds[3])
+        best_config, best_rel_energy, best_ari, gs_prob = get_counts_data(best_counts,
+                                                                                    W, 
+                                                                                    true_groundstate, 
+                                                                                    true_groundstate_energy, 
+                                                                                    lambda_bal,
+                                                                                    no_of_shots)
+        
+        metrics_dict['rel_errors'].append(best_rel_energy)
+        metrics_dict['aris'].append(best_ari)
+        metrics_dict['runtimes'].append(runtime)
+        metrics_dict['gs_prob'].append(gs_prob)
+        
+        return metric_stats(metrics_dict)

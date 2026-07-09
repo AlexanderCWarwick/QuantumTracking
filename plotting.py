@@ -201,7 +201,7 @@ def depth_scan_metric_scatter(layers : np.ndarray[int], metric : np.ndarray[floa
     print('\n')
    
     plt.figure(figsize=(7,5))
-    plt.errorbar(layers, metric, yerr=metric_std, fmt='o-', capsize=5)
+    plt.errorbar(layers, metric, yerr=metric_std, fmt='o-', capsize=5,  alpha=0.5)
     plt.title(f'{metric_name} scatter plot: Optimiser = {optimiser_name}')
     plt.xticks(layers)
     plt.grid(True, alpha=0.3)
