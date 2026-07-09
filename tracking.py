@@ -96,15 +96,11 @@ def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]):
             optimised_configs.append(config)
         else:
             q_config, q_rel_energy, q_ari, q_runtime, groundstate_prob, q_rel_energy_std, q_ari_std, q_runtime_std, groundstate_prob_std = s_qaoa.qaoa_results(*params)
-            print(q_ari)
-            print(q_rel_energy)
-            print(q_runtime)
-            
+          
             relative_energies.append(q_rel_energy)
-            aris.append(np.array([q_ari[0]]))
-            times.append(q_runtime[0])
+            aris.append(np.array([q_ari]))
+            times.append(q_runtime)
             optimised_configs.append(q_config)
-
         
     #plot.optimised_benchmark_toytracks(hit_coords, optimised_configs, algorithm_types)
     return np.array(relative_energies), np.array(aris), np.array(times), convergence_fraction
