@@ -9,7 +9,7 @@ from plotting import plot_energy_hist
 from itertools import product
 import time
 
-def qaoa_pipeline(W : np.ndarray, lambda_bal : float, no_of_shots : int, seed : int, p : int, name, circuit, gamma, beta):
+def qaoa_pipeline(W : np.ndarray, lambda_bal : float, no_of_shots : int, backend, seed : int, p : int, name, circuit, gamma, beta):
     '''
     The QAOA is a hybrid QC algorithm. The variational part where parameters are tweaked is controlled by the classical 
     computer.
@@ -18,14 +18,13 @@ def qaoa_pipeline(W : np.ndarray, lambda_bal : float, no_of_shots : int, seed : 
     p=1 circuit to COBYLA p >= 1.
     '''
     
-    backend = Aer.get_backend('aer_simulator')
     backend.set_options(seed_simulator=seed)
     
     if name == 'Grid':
             
         grid_gammas, grid_betas, grid_runtime = grid_optimised_qaoa(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, p)
-        best_grid_paramed_circuit = circuit.assign_parameters({gamma[i]: grid_gammas[i] for i in range(p)} |
-                                                            {beta[i]: grid_betas[i] for i in range(p)})
+        
+        best_grid_paramed_circuit = bind_params(circuit, gamma, beta, grid_gammas, grid_betas, p)
         grid_best_counts = run_qaoa(backend, best_grid_paramed_circuit, no_of_shots)
         return grid_best_counts, grid_runtime
     
@@ -34,8 +33,8 @@ def qaoa_pipeline(W : np.ndarray, lambda_bal : float, no_of_shots : int, seed : 
         cobyla_gammas = cobyla_result.x[:p]
         cobyla_betas = cobyla_result.x[p:]
 
-        best_cobyla_paramed_circuit = circuit.assign_parameters({gamma[i]: cobyla_gammas[i] for i in range(p)} |
-                                                                {beta[i]: cobyla_betas[i] for i in range(p)})
+        best_cobyla_paramed_circuit = bind_params(circuit, gamma, beta, cobyla_gammas, cobyla_betas, p)
+        
         cobyla_best_counts = run_qaoa(backend, best_cobyla_paramed_circuit, no_of_shots)
         return cobyla_best_counts, cobyla_runtime
     
@@ -112,15 +111,18 @@ def cobyla_optimised_qaoa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_
     return best_result, cobyla_best_time
     
 
+def bind_params(circuit, gamma, beta, gamma_values, beta_values, p):
+    return circuit.assign_parameters({gamma[i]: gamma_values[i] for i in range(p)} |
+                                    {beta[i]: beta_values[i] for i in range(p)})
+
 
 def evaluate(W,  circuit,  backend,  gamma,  beta, gamma_values, beta_values, lambda_bal,  no_of_shots, p)  ->  float:
     '''
     Evaluation step. Binds parameter inputs to the general QAOA circuit.
     Returns the average energy of the such circuit after no_of_shots samples.
     '''
-
-    paramed_circuit = circuit.assign_parameters({gamma[i]: gamma_values[i] for i in range(p)} |
-                                                {beta[i]: beta_values[i] for i in range(p)})
+    
+    paramed_circuit = bind_params(circuit, gamma, beta, gamma_values, beta_values, p)
      
     counts = run_qaoa(backend, paramed_circuit, no_of_shots)
             
@@ -132,7 +134,6 @@ def evaluate(W,  circuit,  backend,  gamma,  beta, gamma_values, beta_values, la
         avg_energy += config_energy * (count / no_of_shots)
         
     return avg_energy
-
 
 
 def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
@@ -148,21 +149,18 @@ def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
     
     circuit.h(qreg_q)                       #Superposition layer
     circuit.barrier()
+    J = 2*lambda_bal - W                    #Effective coupling matrix. Equivalent to classical Ising energy.
     for layer in range(p):
         
         for i in range(N):
             for j in range(i+1, N):             #Start at i+1 since we don't want to double count the similarity measures.
-
-                J = 2*lambda_bal - W[i][j]                                  #Effective coupling matrix. Equivalent to classical Ising energy.
-                circuit.rzz(2*gamma[layer]*J, qreg_q[i], qreg_q[j])                #Cost layer. Applies RZZ gates to all connected vertices. Factor of 2 cancels the qiskit convention of a gamma/2.
+                circuit.rzz(2*gamma[layer]*J[i][j], qreg_q[i], qreg_q[j])                #Cost layer. Applies RZZ gates to all connected vertices. Factor of 2 cancels the qiskit convention of a gamma/2.
         circuit.barrier() 
                     
         circuit.rx(2 * beta[layer], qreg_q)            #Mixer layer. Applies RX gates to every qubit. Allows for interference between qubit phases.
         circuit.barrier()   
     
     circuit.measure(qreg_q, creg_c)
-    
-    plt.show()
     
     return circuit
     
@@ -241,14 +239,16 @@ def qaoa_grid_results(W, true_groundstate, true_groundstate_energy, lambda_bal, 
         
     circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
     
+    backend = Aer.get_backend('aer_simulator')
     for seed in range(seed_lim):
         grid_best_counts, grid_runtime = qaoa_pipeline(W, 
-                                                            lambda_bal, 
-                                                            no_of_shots, 
-                                                            seed,
-                                                            p, 
-                                                            name, 
-                                                            circuit, gamma, beta)
+                                                        lambda_bal, 
+                                                        no_of_shots, 
+                                                        backend,
+                                                        seed,
+                                                        p, 
+                                                        name, 
+                                                        circuit, gamma, beta)
         
         grid_best_config, grid_best_rel_energy, grid_best_ari, grid_groundstate_prob = get_counts_data(grid_best_counts,
                                                                                                         W, 
@@ -289,10 +289,12 @@ def qaoa_COBYLA_results(W, true_groundstate, true_groundstate_energy, lambda_bal
         
     circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
     
+    backend = Aer.get_backend('aer_simulator')
     for seed in range(seed_lim):
         cobyla_best_counts, cobyla_runtime = qaoa_pipeline(W, 
                                                             lambda_bal, 
                                                             no_of_shots, 
+                                                            backend, 
                                                             seed,
                                                             p, 
                                                             name,

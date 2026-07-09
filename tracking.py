@@ -94,7 +94,6 @@ def track_analysis(track_hits : int,  classical_algs : np.ndarray[str], qaoa_opt
     
     no_of_shots = 10
     layers = np.arange(1, 3)
-    
     seed_lim = 10
     
     for algorithm in classical_algs:
@@ -119,7 +118,7 @@ def track_analysis(track_hits : int,  classical_algs : np.ndarray[str], qaoa_opt
             q_config, q_rel_energy_error, q_ari, q_runtime, groundstate_prob, q_rel_energy_std, q_ari_std, q_runtime_std, groundstate_prob_std = optimiser(*params, optimiser_name, no_of_shots, p, seed_lim)
             
             q_rel_energy_errors.append(q_rel_energy_error)
-            q_aris.append(np.array([q_ari]))
+            q_aris.append(float(q_ari))
             q_runtimes.append(q_runtime)    
             groundstate_probs.append(groundstate_prob)  
             
@@ -128,7 +127,6 @@ def track_analysis(track_hits : int,  classical_algs : np.ndarray[str], qaoa_opt
             runtime_stds.append(q_runtime_std)
             groundstate_prob_stds.append(groundstate_prob_std)
             
-        q_aris = [float(x[0]) for x in q_aris]
             
         plot.depth_scan_metric_scatter(layers, q_rel_energy_errors, rel_energy_stds, optimiser_name, 'Relative Energy Error')
         plot.depth_scan_metric_scatter(layers, q_aris, ari_stds, optimiser_name, 'ARI')
