@@ -173,7 +173,7 @@ def print_benchmark_table(track_hit_array, algorithm_types, benchmark_aris, benc
                     f'{benchmark_aris[i][j][0]:<12.4f}'
                     f'{benchmark_times[i][j]:<15.4f}'
                     f'{relative_benchmark_energies[i][j]:<25.4f}'
-                    f'{conv_fractions[i]:<15.2f}')
+                    f'{conv_fractions[0][j]:<15.2f}')
                 
             else:
                 print(f'{2*hits:<8}'
@@ -181,8 +181,32 @@ def print_benchmark_table(track_hit_array, algorithm_types, benchmark_aris, benc
                     f'{benchmark_aris[i][j][0]:<12.4f}'
                     f'{benchmark_times[i][j]:<15.4f}'
                     f'{relative_benchmark_energies[i][j]:<25.4f}') 
-            
-
+    
+    
+    
+def scaling_scan(track_hits : np.ndarray[int],  raw_results : dict,  raw_errors : dict,
+                                                rel_results : dict, rel_errors : dict):
+    
+    fig, ax = plt.subplots(2, figsize=(7,7))
+    
+    for name in raw_results.keys():
+        ax[0].errorbar(track_hits, raw_results[name], yerr=raw_errors[name], fmt='-o', capsize=3, label=name)
+        ax[1].errorbar(track_hits, rel_results[name], yerr=rel_errors[name], fmt='-o', capsize=3, label=name)
+        
+    ax[0].set_xticks(track_hits)
+    ax[1].set_xticks(track_hits)
+    
+    ax[0].set_title('Raw GSP')
+    ax[1].set_title('Relative GSP')
+    
+    fig.supxlabel('Number of hits, N')
+    fig.supylabel('Groundstate Probability')
+    fig.suptitle('GS Probability Dependency on N')
+    ax[0].legend()
+    ax[1].legend()
+    plt.show()
+    
+    
 ###############################################################################################################################
 
 def plot_energy_hist(energies, true_groundstate_energy):
@@ -195,19 +219,25 @@ def plot_energy_hist(energies, true_groundstate_energy):
     plt.show()
     
     
-def depth_scan_metric_scatter(layers : np.ndarray[int], metric : np.ndarray[float], metric_std : np.ndarray[float], optimiser_name : str, metric_name : str):
-    print(metric)
-    print(metric_std)
-    print('\n')
-   
-    plt.figure(figsize=(7,5))
-    plt.errorbar(layers, metric, yerr=metric_std, fmt='o-', capsize=5,  alpha=0.5)
-    plt.title(f'{metric_name} scatter plot: Optimiser = {optimiser_name}')
-    plt.xticks(layers)
-    plt.grid(True, alpha=0.3)
-    plt.xlabel('Number of layers')
-    plt.ylabel(f'{metric_name}')
-    plt.tight_layout()
+    
+def depth_scan_metric_scatter(layers, metric : np.ndarray[float, float], metric_std, metric_name):
+    fig, ax = plt.subplots(2,1,figsize=(8,5))
+    
+    grid_metric = metric[0]
+    grid_metric_std = metric_std[0]
+    
+    cobyla_metric = metric[1]
+    cobyla_metric_std = metric_std[1]
+    
+    ax[0].errorbar(layers, grid_metric, yerr=grid_metric_std, fmt='o-', capsize=2,  alpha=0.7, elinewidth=1)
+    ax[0].set_title(f'Grid optimiser for {metric_name}')
+    ax[0].set_xticks(layers)
+    
+    ax[1].errorbar(layers, cobyla_metric, yerr=cobyla_metric_std, fmt='o-', capsize=2,  alpha=0.5, elinewidth=0.3)
+    ax[1].set_title(f'COBYLA optimiser for {metric_name}')
+    ax[1].set_xticks(layers)
+    
+    fig.suptitle('Side-by-side Comparison of Grid and COBYLA Performance')
+    fig.supylabel(f'{metric_name}')
+    fig.supxlabel('Number of layers')
     plt.show()
-    
-    

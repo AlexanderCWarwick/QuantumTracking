@@ -53,12 +53,12 @@ def grid(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, seed, p, gam
     A = [gamma_range for _ in range(p)]
     B = [beta_range for _ in range(p)]
     
-    product_space = list(product(*A, *B))
-    
     best_params = None
     best_energy = np.inf
+    
     grid_runtime_start = time.time()
-    for param_state in product_space:
+    
+    for param_state in product(*A, *B):
         gamma_values = param_state[:p]
         beta_values = param_state[p:]
         state_avg_energy = evaluate(W, circuit,  backend,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
@@ -103,9 +103,11 @@ def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed,
     return best_result.x[:p], best_result.x[p:], cobyla_best_time
     
 
+
 def bind_params(circuit, gamma, beta, gamma_values, beta_values, p):
     return circuit.assign_parameters({gamma[i]: gamma_values[i] for i in range(p)} |
                                     {beta[i]: beta_values[i] for i in range(p)})
+
 
 
 def evaluate(W,  circuit,  backend,  gamma,  beta, gamma_values, beta_values, lambda_bal,  no_of_shots, p)  ->  float:
@@ -115,7 +117,6 @@ def evaluate(W,  circuit,  backend,  gamma,  beta, gamma_values, beta_values, la
     '''
     
     paramed_circuit = bind_params(circuit, gamma, beta, gamma_values, beta_values, p)
-     
     counts = run_qaoa(backend, paramed_circuit, no_of_shots)
             
     avg_energy = 0 
@@ -211,10 +212,11 @@ def roundtrip_test(W, true_groundstate, true_groundstate_energy, lambda_bal):
     
     
 def metric_stats(metrics_dict : dict):
+
     metrics = metrics_dict.values()
     means = [np.mean(metric_values) for metric_values in metrics]
     std_metrics = [np.std(metric_values) for metric_values in metrics]
-
+    
     return np.array(means), np.array(std_metrics)
     
     
@@ -247,5 +249,4 @@ def qaoa_results(W, true_groundstate, true_groundstate_energy, lambda_bal, no_of
         metrics_dict['aris'].append(best_ari)
         metrics_dict['runtimes'].append(runtime)
         metrics_dict['gs_prob'].append(gs_prob)
-        
-        return metric_stats(metrics_dict)
+    return metric_stats(metrics_dict)

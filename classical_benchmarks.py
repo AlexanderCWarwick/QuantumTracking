@@ -137,16 +137,16 @@ def sim_annealing(W, init, lambda_bal):
 
 ##################################################      Handling functions      ################################################## 
 
-def run_classical_algorithm(algorithm : str, similarity_params : tuple, i, j):
+def run_classical_algorithm(algorithm : str, similarity_params : tuple, lambda_bal, i, j):
     if algorithm == 'Greedy':
-        return greedy_results(*similarity_params, i, j)
+        return greedy_results(*similarity_params, lambda_bal, i, j)
     
     elif algorithm == 'Spectral Clustering':
-        return spectral_results(*similarity_params)
+        return spectral_results(*similarity_params, lambda_bal)
     
     else:
         number_of_loops = 2
-        best_sa_configs, best_sa_config_energies, best_sa_aris, sa_times_elapsed, sa_energy_histories, sa_number_of_steps, sa_conv_count = sim_annealing_results(*similarity_params, number_of_loops)
+        best_sa_configs, best_sa_config_energies, best_sa_aris, sa_times_elapsed, sa_energy_histories, sa_number_of_steps, sa_conv_count = sim_annealing_results(*similarity_params, lambda_bal, number_of_loops)
         sa_config, sa_rel_energy, sa_ari, sa_time_elapsed = find_optimised_sa_data(best_sa_configs, best_sa_config_energies, similarity_params[2], best_sa_aris, sa_times_elapsed)
        
         #conv_traces(len(sa_config), sa_number_of_steps, sa_energy_histories)
