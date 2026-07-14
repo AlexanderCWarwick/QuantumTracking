@@ -47,32 +47,32 @@ def exhaustive_ising_method(RBF_matrix, KNN_matrix, lambda_bal):
 
 
     
-def classical_scan(classical_algs, params, lambda_bal):
+def classical_scan(classical_algs, lambda_bal, hits):
+    params = generate_toyproblem(hits, lambda_bal)
     i, j = cb.get_mostdissimlar_hits(params[0])        #Gets the most dissimilar hits for the greedy algorithm. Uses RBF matrix for both RBF and KNN options.
-
-    c_rel_energy_errors = []
-    c_aris = []
-    c_runtimes = []
-    conv_fracs = []
+    classical_metrics = {alg : {'rel_error' :[],
+                         'ari' : [],
+                         'runtime' : [],
+                         'conv_frac' : []} for alg in classical_algs}
+    
     
 
-    for algorithm in classical_algs:
+    for alg in classical_algs:
         
-        best_config, rel_energy_error, ari, time_elapsed, convergence_fraction = cb.run_classical_algorithm(algorithm, params, lambda_bal, i, j)
-        c_rel_energy_errors.append(rel_energy_error)
-        c_aris.append(ari)
-        c_runtimes.append(time_elapsed)
-        conv_fracs.append(convergence_fraction)
+        _, rel_energy_error, ari, runtime, convergence_fraction = cb.run_classical_algorithm(alg, params, lambda_bal, i, j)
+        classical_metrics[alg]['rel_error'] = rel_energy_error
+        classical_metrics[alg]['ari'] = ari[0]
+        classical_metrics[alg]['runtime'] = runtime
+        classical_metrics[alg]['conv_frac'] = convergence_fraction
         
-    classical_results = [np.array(c_rel_energy_errors), np.array(c_aris), np.array(c_runtimes), np.array(conv_fracs)]
     
-    return classical_results
+    return classical_metrics
 
 
-def depth_scan(fixed_hits, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim):
+def depth_scan(fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim):
     
     params = generate_toyproblem(fixed_hits, lambda_bal)
-    layers = np.arange(1, 3)
+    
     metric_means = {'rel_errors' : [[] for _ in range(2)],
                         'aris' : [[] for _ in range(2)],
                         'runtimes' : [[] for _ in range(2)],
@@ -90,7 +90,7 @@ def depth_scan(fixed_hits, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim):
     
     for metric_idx, (optimiser_name, optimiser) in enumerate(qaoa_optimisers.items()):
         for p in layers:
-            means, stds = qaoa_results(*params, no_of_shots, p, seed_lim, optimiser)
+            means, stds = qaoa_results(*params, lambda_bal, no_of_shots, p, seed_lim, optimiser)
 
             metric_means['rel_errors'][metric_idx].append(means[0])
             metric_means['aris'][metric_idx].append(means[1])
@@ -140,14 +140,31 @@ def scale_scan(track_hits : np.ndarray[int], qaoa_optimisers : dict, no_of_shots
     
     
     
+def quantum_scan(qaoa_optimisers : dict,  lambda_bal : float,  hits : int, no_of_shots : int, p : int, seed_lim : int):
+    params = generate_toyproblem(hits, lambda_bal)
     
+    quantum_metrics = {name: {'rel_error': None,
+                            'ari': None,
+                            'runtime': None,
+                            'gsp': None}
+                            for name in qaoa_optimisers.keys()}
+    
+    for optimiser_name, optimiser in qaoa_optimisers.items():
+        means, errors = qaoa_results(*params, lambda_bal, no_of_shots, p, seed_lim, optimiser)
+        for metric, mean, std in zip(quantum_metrics[optimiser_name].keys(), means, errors):
+            quantum_metrics[optimiser_name][metric] = {'mean': mean,
+                                                        'error': std}
+    return quantum_metrics
+   
+   
+   
 def generate_toyproblem(hits : int, lambda_bal : float):
-    np.random.seed(41)                  #Fixed random seed. Same for every number of track hits
+    np.random.seed(45)                  #Fixed random seed. Same for every number of track hits
     x = np.linspace(0,1,hits)         #Positions of detectors
                 
     track0, track0_truthlabels, track1, track1_truthlabels = toy_track_generation(hits, x)
     KNN_matrix, RBF_matrix = sim_matrices_calculation(x, track0, track1)
-            
+    #Choose to use the RBF matrix over KNN as similarity measure.
     _, RBF_true_gs_energy = exhaustive_ising_method(RBF_matrix, KNN_matrix, lambda_bal)
                 
     true_groundstate = np.array(np.concatenate([track0_truthlabels, track1_truthlabels]))
@@ -156,39 +173,37 @@ def generate_toyproblem(hits : int, lambda_bal : float):
     
     
 def main():
-    option = 'scale'
-    no_of_shots = 100
-    seed_lim = 3
+    option = 'class'                  #This is the identifier for which 'task' we want to do.
+    
+    no_of_shots = 100                 #Number of measurements the quantum simulator will make of the circuit (all independent).
+    seed_lim = 3                      #Number of runs of the QAOA to calculate means and errors.
     lambda_bal = 0.75                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     classical_algs = ['Greedy', 'Spectral Clustering', 'Simulated Annealing']
-    
     qaoa_optimisers = {'Grid' : grid, 'COBYLA' : cobyla}
 
-
-    hits_array = np.array([3,4,5,6])
-            
+    
     if option == 'depth':
         #Depth Scan fixes N varies p.
         fixed_hits = 6
-        depth_scan(fixed_hits, qaoa_optimisers, no_of_shots, seed_lim)        
+        layers = np.arange(1, 3)
+        depth_scan(fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim)        
             
     elif option == 'scale':
         #Scaling Scan fixes p varies N.
+        hits_array = np.array([3,4,5,6])
         fixed_layers = 1
         scale_scan(hits_array, qaoa_optimisers, no_of_shots, fixed_layers, seed_lim, lambda_bal)
         
-    else:
-        #Branch to new function. Output should be a table with a comparison between all methods (Task 4).
-        classical_results = classical_scan(classical_algs, params, lambda_bal)
-        relative_benchmark_energies.append(classical_results[0])
-        benchmark_aris.append(classical_results[1])
-        benchmark_times.append(classical_results[2])
-        conv_fractions.append(classical_results[3])
-        plot.print_benchmark_table(hits_array, classical_algs, benchmark_aris, benchmark_times, relative_benchmark_energies, conv_fractions)
-    
+    elif option == 'class':
+        #For a fixed N and p, compare all algorithms in one table.
+        hits = 5
+        layers = 1
+        classical_results = classical_scan(classical_algs, lambda_bal, hits)
+        plot.print_benchmark_table(hits, classical_results)
         
-    
+        quantum_results = quantum_scan(qaoa_optimisers, lambda_bal, hits, no_of_shots, layers, seed_lim)
+        plot.print_quantum_table(hits, quantum_results)
         
-    
+        
 if __name__ == "__main__":
     main()

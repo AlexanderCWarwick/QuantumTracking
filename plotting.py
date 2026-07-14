@@ -154,35 +154,59 @@ def conv_traces(N: int, steps : np.ndarray, energy_histories : np.ndarray):
 
     
     
-def print_benchmark_table(track_hit_array, algorithm_types, benchmark_aris, benchmark_times, relative_benchmark_energies, conv_fractions):
+def print_benchmark_table(hits, classical_results : dict[dict]):
+    
     header = (f'{'Hits':<8}'
         f'{'Algorithm':<25}'
         f'{'ARI':<12}'
-        f'{'Time (s)':<15}'
+        f'{'Full Time (s)':<20}'
         f'{'Relative Energy Error':<25}'
-        f'{'Convergence Fraction':<15}')
-
+        f'{'Convergence Fraction':<22}')
+    
     print(header)
+    print('-' * len(header))
+    
+    
+    for alg, metrics in classical_results.items():
+        success = classical_results[alg]['conv_frac']
+        
+        if success is None:
+            success = "-"
+        else:
+            success = f"{success:.2f}"
+            
+        print(f"{2*hits:<8}"
+            f"{alg:<25}"
+            f"{metrics['ari']:<12.4f}"
+            f"{metrics['runtime']:<20.4f}"
+            f"{metrics['rel_error']:<25.4f}"
+            f"{success:<22}")
+    
+    print('\n')
+        
+        
+def print_quantum_table(hits : int, quantum_results : dict):
+    def format_metric(metric):
+        return f'{metric['mean']:.4f} \u00b1 {metric['error']:.4f}'
+    
+    header = (f'{'Hits':<8}'
+        f'{'QAOA Optimiser':<20}'
+        f'{'ARI':<20}'
+        f'{'Time (s)':<20}'
+        f'{'Relative Energy Error':<30}'
+        f'{'GS Prob':<20}')
+    
+    print(header)
+    print('-' * len(header))
+    
+    for optimiser_name, metrics in quantum_results.items():
+        print(f'{2*hits:<8}'
+            f'{optimiser_name:<20}'
+            f'{format_metric(metrics['ari']):<20}'
+            f'{format_metric(metrics['runtime']):<20}'
+            f'{format_metric(metrics['rel_error']):<30}'
+            f'{format_metric(metrics['gsp']):<20}')
 
-    for i, hits in enumerate(track_hit_array):
-        print('-' * len(header))
-        for j, algorithm in enumerate(algorithm_types):
-            if algorithm == 'Simulated Annealing' or j == 2:
-                print(f'{2*hits:<8}'
-                    f'{algorithm:<25}'
-                    f'{benchmark_aris[i][j][0]:<12.4f}'
-                    f'{benchmark_times[i][j]:<15.4f}'
-                    f'{relative_benchmark_energies[i][j]:<25.4f}'
-                    f'{conv_fractions[0][j]:<15.2f}')
-                
-            else:
-                print(f'{2*hits:<8}'
-                    f'{algorithm:<25}'
-                    f'{benchmark_aris[i][j][0]:<12.4f}'
-                    f'{benchmark_times[i][j]:<15.4f}'
-                    f'{relative_benchmark_energies[i][j]:<25.4f}') 
-    
-    
     
 def scaling_scan(track_hits : np.ndarray[int],  raw_results : dict,  raw_errors : dict,
                                                 rel_results : dict, rel_errors : dict):
