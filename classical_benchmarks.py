@@ -145,7 +145,7 @@ def run_classical_algorithm(algorithm : str, similarity_params : tuple, lambda_b
         return spectral_results(*similarity_params, lambda_bal)
     
     else:
-        number_of_loops = 2
+        number_of_loops = 10
         best_sa_configs, best_sa_config_energies, best_sa_aris, sa_times_elapsed, sa_energy_histories, sa_number_of_steps, sa_conv_count = sim_annealing_results(*similarity_params, lambda_bal, number_of_loops)
         sa_config, sa_rel_energy, sa_ari, sa_time_elapsed = find_optimised_sa_data(best_sa_configs, best_sa_config_energies, similarity_params[2], best_sa_aris, sa_times_elapsed)
        

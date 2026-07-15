@@ -45,11 +45,11 @@ def get_counts_data(best_counts, W, true_groundstate, true_groundstate_energy, l
         
         
         
-def grid(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, seed, p, gamma_range, beta_range):
-    grid_counts = 3
-    gamma_range = np.linspace(*gamma_range, grid_counts)
-    beta_range = np.linspace(*beta_range, grid_counts)
-    
+def grid(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, seed, p, gamma_lims, beta_lims):
+    grid_counts = 2
+    gamma_range = np.linspace(*gamma_lims, grid_counts)
+    beta_range = np.linspace(*beta_lims, grid_counts)
+     
     A = [gamma_range for _ in range(p)]
     B = [beta_range for _ in range(p)]
     
@@ -81,7 +81,7 @@ def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed,
         beta_values = params[p:]
         return evaluate(W, circuit,  backend,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
     
-    cobyla_starts = 2
+    cobyla_starts = 4
     cobyla_avg_energy = np.inf
     best_result = None
     cobyla_best_time = None
@@ -154,7 +154,7 @@ def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
         circuit.barrier()   
     
     circuit.measure(qreg_q, creg_c)
-    
+
     return circuit
     
     
@@ -238,7 +238,7 @@ def qaoa_results(W, true_groundstate, true_groundstate_energy, lambda_bal, no_of
         best_counts, runtime = qaoa_pipeline(W,  lambda_bal,  no_of_shots,  seed,  p,  backend,  optimiser,  circuit,  beta,  gamma)
         
         
-        best_config, best_rel_energy, best_ari, gs_prob = get_counts_data(best_counts,
+        _, best_rel_energy, best_ari, gs_prob = get_counts_data(best_counts,
                                                                                     W, 
                                                                                     true_groundstate, 
                                                                                     true_groundstate_energy, 

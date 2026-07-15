@@ -73,39 +73,41 @@ def depth_scan(fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, see
     
     params = generate_toyproblem(fixed_hits, lambda_bal)
     
-    metric_means = {'rel_errors' : [[] for _ in range(2)],
-                        'aris' : [[] for _ in range(2)],
-                        'runtimes' : [[] for _ in range(2)],
-                        'gs_probs' :[[] for _ in range(2)]}
-        
-    metric_stds = {'rel_errors' : [[] for _ in range(2)],
-                       'aris' : [[] for _ in range(2)],
-                       'runtimes' : [[] for _ in range(2)], 
-                       'gs_probs' :[[] for _ in range(2)]}
+    metric_means = {p  : {name : {'rel_error' :[],
+                                'ari' : [],
+                                'runtime' : [],
+                                'gsp' : []} for name in qaoa_optimisers.keys()} for p in layers}
+    
+    
+    metric_errors = {p  : {name : {'rel_error' :[],
+                                'ari' : [],
+                                'runtime' : [],
+                                'gsp' : []} for name in qaoa_optimisers.keys()} for p in layers}
+    
+    
     '''
     Above dictionaries are arranged like this:
     Metric : [[Grid search p=1, Grid search p=2, ...], [COBYLA p=1, COBYLA p=2, ...]]
     Where for each p in the COBYLA list the mean (or std) is given for seed_lim samples. 
     '''
     
-    for metric_idx, (optimiser_name, optimiser) in enumerate(qaoa_optimisers.items()):
+    for optimiser_name, optimiser in qaoa_optimisers.items():
         for p in layers:
-            means, stds = qaoa_results(*params, lambda_bal, no_of_shots, p, seed_lim, optimiser)
+            means, errors = qaoa_results(*params, lambda_bal, no_of_shots, p, seed_lim, optimiser)
 
-            metric_means['rel_errors'][metric_idx].append(means[0])
-            metric_means['aris'][metric_idx].append(means[1])
-            metric_means['runtimes'][metric_idx].append(means[2])
-            metric_means['gs_probs'][metric_idx].append(means[3])
-
-            metric_stds['rel_errors'][metric_idx].append(stds[0])
-            metric_stds['aris'][metric_idx].append(stds[1])
-            metric_stds['runtimes'][metric_idx].append(stds[2])
-            metric_stds['gs_probs'][metric_idx].append(stds[3])
+            metric_means[p][optimiser_name]['rel_error'] = means[0]
+            metric_means[p][optimiser_name]['ari'] = means[1]
+            metric_means[p][optimiser_name]['runtime'] = means[2]
+            metric_means[p][optimiser_name]['gsp'] = means[3]
+            
+            
+            metric_errors[p][optimiser_name]['rel_error'] = errors[0]
+            metric_errors[p][optimiser_name]['ari'] = errors[1]
+            metric_errors[p][optimiser_name]['runtime'] = errors[2]
+            metric_errors[p][optimiser_name]['gsp'] = errors[3]
+            
     
-    plot.depth_scan_metric_scatter(layers, metric_means['rel_errors'], metric_stds['rel_errors'], 'Relative Energy Error')
-    plot.depth_scan_metric_scatter(layers, metric_means['aris'], metric_stds['aris'], 'ARI')
-    plot.depth_scan_metric_scatter(layers, metric_means['runtimes'], metric_stds['runtimes'], 'Runtime')
-    plot.depth_scan_metric_scatter(layers, metric_means['gs_probs'], metric_stds['gs_probs'], 'Groundstate Probability')
+    plot.depth_scan_metric_scatter(layers, metric_means, metric_errors)
         
         
         
@@ -125,6 +127,7 @@ def scale_scan(track_hits : np.ndarray[int], qaoa_optimisers : dict, no_of_shots
             means, stds = qaoa_results(*params, lambda_bal, no_of_shots, fixed_layers, seed_lim, optimiser)
             
             baseline = 2 / (2**(2*hits))
+            #The groundstate probability is the final entry of the means/std output arrays of the qaoa_results
             relative_gs_prob = means[-1] / baseline
             relative_error = stds[-1] / baseline
             
@@ -173,18 +176,19 @@ def generate_toyproblem(hits : int, lambda_bal : float):
     
     
 def main():
-    option = 'class'                  #This is the identifier for which 'task' we want to do.
+    option = 'scale'                  #This is the identifier for which 'task' we want to do.
     
-    no_of_shots = 100                 #Number of measurements the quantum simulator will make of the circuit (all independent).
-    seed_lim = 3                      #Number of runs of the QAOA to calculate means and errors.
+    no_of_shots = 8192                 #Number of measurements the quantum simulator will make of the circuit (all independent).
+    seed_lim = 8                  #Number of runs of the QAOA to calculate means and errors.
     lambda_bal = 0.75                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     classical_algs = ['Greedy', 'Spectral Clustering', 'Simulated Annealing']
     qaoa_optimisers = {'Grid' : grid, 'COBYLA' : cobyla}
 
+
     
     if option == 'depth':
         #Depth Scan fixes N varies p.
-        fixed_hits = 6
+        fixed_hits = 4
         layers = np.arange(1, 3)
         depth_scan(fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim)        
             
@@ -196,12 +200,14 @@ def main():
         
     elif option == 'class':
         #For a fixed N and p, compare all algorithms in one table.
-        hits = 5
+        hits = 6
         layers = 1
+        
         classical_results = classical_scan(classical_algs, lambda_bal, hits)
         plot.print_benchmark_table(hits, classical_results)
         
         quantum_results = quantum_scan(qaoa_optimisers, lambda_bal, hits, no_of_shots, layers, seed_lim)
+        
         plot.print_quantum_table(hits, quantum_results)
         
         
