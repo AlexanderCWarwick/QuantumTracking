@@ -140,6 +140,8 @@ def scaling_scan(track_hits : np.ndarray[int],  raw_results : dict,  raw_errors 
     fig.suptitle('GS Probability Dependency on N')
     ax[0].legend()
     ax[1].legend()
+    ax[0].yaxis.grid(True)
+    ax[1].yaxis.grid(True)
     plt.show()
     
     
@@ -156,7 +158,7 @@ def plot_energy_hist(energies, true_groundstate_energy):
     
     
     
-def depth_scan_metric_scatter(layers, metric_means : np.ndarray[float, float], metric_errors : np.ndarray[float, float]):
+def depth_scan_metric_scatter(layers, metric_means : np.ndarray[float, float], metric_errors : np.ndarray[float, float], hits):
     fig, ax = plt.subplots(2,2,figsize=(8,5))
     ax = ax.flatten()
     metrics = ['rel_error', 'ari', 'runtime', 'gsp']
@@ -169,6 +171,9 @@ def depth_scan_metric_scatter(layers, metric_means : np.ndarray[float, float], m
             
             ax[idx].errorbar(layers, means, yerr=errors, fmt='o-', capsize=3, alpha=0.7, label=optimiser_name)
             
+        if metric == 'gsp':
+            baseline = 2 / (2**(2*hits))
+            ax[idx].axhline(baseline)
         ax[idx].set_title(f'{metric}')
         ax[idx].set_xticks(layers)
         ax[idx].grid(True)

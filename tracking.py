@@ -58,8 +58,8 @@ def classical_scan(classical_algs, lambda_bal, hits):
     
 
     for alg in classical_algs:
-        
         _, rel_energy_error, ari, runtime, convergence_fraction = cb.run_classical_algorithm(alg, params, lambda_bal, i, j)
+        
         classical_metrics[alg]['rel_error'] = rel_energy_error
         classical_metrics[alg]['ari'] = ari[0]
         classical_metrics[alg]['runtime'] = runtime
@@ -107,7 +107,7 @@ def depth_scan(fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, see
             metric_errors[p][optimiser_name]['gsp'] = errors[3]
             
     
-    plot.depth_scan_metric_scatter(layers, metric_means, metric_errors)
+    plot.depth_scan_metric_scatter(layers, metric_means, metric_errors, fixed_hits)
         
         
         
@@ -120,7 +120,6 @@ def scale_scan(track_hits : np.ndarray[int], qaoa_optimisers : dict, no_of_shots
     rel_errors = {name : [] for name in qaoa_optimisers.keys()}
     
     for hits in track_hits:
-         
         params = generate_toyproblem(hits, lambda_bal)
          
         for optimiser_name, optimiser in qaoa_optimisers.items():
@@ -176,32 +175,32 @@ def generate_toyproblem(hits : int, lambda_bal : float):
     
     
 def main():
-    option = 'scale'                  #This is the identifier for which 'task' we want to do.
+    option = 'depth'                  #This is the identifier for which 'task' we want to do.
     
-    no_of_shots = 8192                 #Number of measurements the quantum simulator will make of the circuit (all independent).
-    seed_lim = 8                  #Number of runs of the QAOA to calculate means and errors.
+    no_of_shots =  4096               #Number of measurements the quantum simulator will make of the circuit (all independent).
+    seed_lim = 10                  #Number of runs of the QAOA to calculate means and errors.
     lambda_bal = 0.75                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     classical_algs = ['Greedy', 'Spectral Clustering', 'Simulated Annealing']
-    qaoa_optimisers = {'Grid' : grid, 'COBYLA' : cobyla}
+    qaoa_optimisers = {'COBYLA' : cobyla}
 
 
     
     if option == 'depth':
         #Depth Scan fixes N varies p.
-        fixed_hits = 4
-        layers = np.arange(1, 3)
+        fixed_hits = 5
+        layers = np.arange(1, 4)
         depth_scan(fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim)        
             
     elif option == 'scale':
         #Scaling Scan fixes p varies N.
         hits_array = np.array([3,4,5,6])
-        fixed_layers = 1
+        fixed_layers = 2
         scale_scan(hits_array, qaoa_optimisers, no_of_shots, fixed_layers, seed_lim, lambda_bal)
         
     elif option == 'class':
         #For a fixed N and p, compare all algorithms in one table.
-        hits = 6
-        layers = 1
+        hits = 5
+        layers = 2
         
         classical_results = classical_scan(classical_algs, lambda_bal, hits)
         plot.print_benchmark_table(hits, classical_results)

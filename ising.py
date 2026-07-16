@@ -89,7 +89,7 @@ def ising_optimisation(number_of_hits : int,  lambda_bal : float,  KNN_matrix : 
 
 #######################     ARI calculation and check       ####################### 
 
-def ARI_check(true_groundstate : np.ndarray,  optimised_tracks : np.ndarray) -> np.ndarray:
+def ARI_check(true_groundstate : np.ndarray,  optimised_tracks : np.ndarray) -> np.ndarray[float]:
     '''
     Adjusted random score measures randomness of the cluster labels. It compares the computed groundstate and the true answer
     and returns: 

@@ -10,7 +10,7 @@ def plot_true_toytracks(x, track0, track1, intersection_allowed):
     plt.xlim(-0.1, 1.1)
     plt.title(f'Particle track plot with intersection = {intersection_allowed}')
     plt.grid(axis='x')
-    plt.xlabel('x')
+    plt.xlabel('Detector positions')
     plt.ylabel('y')
     plt.savefig(f'plots/ClassicalPlots/TrueTracks_{len(np.concatenate([track0, track1]))}')
     plt.show()
