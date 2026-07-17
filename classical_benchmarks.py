@@ -160,7 +160,7 @@ def run_classical_algorithm(algorithm : str, similarity_params : tuple, lambda_b
 
 def greedy_results(W, true_groundstate, true_groundstate_energy, lambda_bal, i, j):
     optimised_config, time_elapsed = greedy(W, i, j)
-
+    print(type(optimised_config))
     ari = ARI_check(true_groundstate, np.array([optimised_config]))
     energy = ising_energy(W, optimised_config, lambda_bal)
     rel_energy = abs((true_groundstate_energy - energy) / true_groundstate_energy)
