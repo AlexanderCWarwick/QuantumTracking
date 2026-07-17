@@ -67,8 +67,9 @@ def spectral(W : np.ndarray[float]):
     '''
     Makes globally informed choices using graph Laplacian followed by eigen analysis.
     '''
+    #First clustering is a 'warm-up' call. Otherwie full runtime is order 2 seconds (longer than sim ann) which shouln't be the case.
+    clustering = SpectralClustering(n_clusters=2, affinity='precomputed').fit_predict(W)
     
-    clustering = SpectralClustering(n_clusters=2, affinity='precomputed', n_init=3).fit_predict(W)
     spectral_start_time = time.time()
     clustering = SpectralClustering(n_clusters=2, affinity='precomputed', n_init=3).fit_predict(W)
     spectral_end_time = time.time()  

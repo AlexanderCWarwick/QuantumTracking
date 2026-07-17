@@ -1,38 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-def energy_landscape(lambda_bal, KNN_energies, RBF_energies): 
-    '''
-    ENergy landscape plots for both the KNN and the RBF. 
-    Each similarity matrix gets two plots:
-    1. 2^N states and their energies (all ordered by energy).
-    2. 10 lowest energy states to view groundstate degeneracy.
-    '''
-    
-    fig, ax = plt.subplots(2, 2, figsize=(10,6))  
-    ax[0,0].plot(np.sort(KNN_energies), color='orange')
-    ax[0,0].set_title('KNN all states')
-    
-    ax[0,1].plot(np.sort(RBF_energies), color='red')
-    ax[0,1].set_title('RBF all states')
-    
-    ax[1,0].plot(np.sort(KNN_energies)[:10], color='orange')
-    ax[1,0].set_title('KNN lowest 10 energy states')
-    ax[1,0].set_xlabel('Rank')
-    
-    ax[1,1].plot(np.sort(RBF_energies)[:10], color='red')
-    ax[1,1].set_title('RBF lowest 10 energy states')
-    ax[1,1].set_xlabel('Rank')
-    
-    fig.suptitle(f'Bruteforce Ising Energy landscapes for lambda={lambda_bal}')
-    fig.supylabel('Energy')
-    plt.tight_layout()
-    plt.show()
-    
-
-##############################################################################################################################
-
 def optimised_benchmark_toytracks(hit_coords, optimised_labels, algorithm_type : np.ndarray[str]):
     fig, ax = plt.subplots(1,len(algorithm_type), figsize=(13,8))
     
@@ -64,7 +32,8 @@ def conv_traces(N: int, steps : np.ndarray, energy_histories : np.ndarray):
     #plt.savefig(f'plots/ClassicalPlots/{reps}_Convergence_Traces_{N}_hits.png')
     plt.show()
 
-    
+##############################################################################################################################
+
     
 def print_benchmark_table(hits, classical_results : dict[dict]):
     
@@ -145,8 +114,6 @@ def scaling_scan(track_hits : np.ndarray[int],  raw_results : dict,  raw_errors 
     plt.show()
     
     
-###############################################################################################################################
-
 def plot_energy_hist(energies, true_groundstate_energy):
     plt.figure()
     plt.hist(energies, bins=30)
@@ -183,5 +150,26 @@ def depth_scan_metric_scatter(layers, metric_means : np.ndarray[float, float], m
     fig.suptitle("QAOA Depth Scan")
 
     plt.tight_layout()
+    plt.show()
+    
+##############################################################################################################################
+
+    
+def cobyla_energy_trace(cobyla_restarts : int,  cobyla_histories : np.ndarray[float],  best_history_idx : int):
+    fig, ax = plt.subplots(cobyla_restarts, 1, figsize=(14,14))
+    for j, history in enumerate(cobyla_histories):
+        ax[j].plot(history)
+        ax[j].set_ylabel('Energy')
+        
+        if j == best_history_idx:
+            ax[j].annotate('Best result', xy=(25,7))
+            
+    fig.suptitle('Energy traces')
+    plt.show()
+    
+    
+def cobyla_result_energies(cobyla_final_energies):
+    plt.figure()
+    plt.plot(cobyla_final_energies)
     plt.show()
     

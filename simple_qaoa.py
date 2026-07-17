@@ -4,7 +4,7 @@ from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
 from qiskit.circuit import Parameter
 from qiskit_aer import Aer
 from ising import ising_energy, ARI_check
-from plotting import plot_energy_hist
+from plotting import plot_energy_hist, cobyla_energy_trace, cobyla_result_energies
 from itertools import product
 import time
 
@@ -16,8 +16,8 @@ def qaoa_pipeline(W : np.ndarray,  lambda_bal : float,  no_of_shots : int,  seed
     Two algorithms for this tweaking are used: Grid Search (see Week 4) and COBYLA minimisation. (Week 5) we move forward from Grid Search 
     p=1 circuit to COBYLA p >= 1.
     '''
-    gamma_range = (0,np.pi)
-    beta_range = (0,np.pi/2)
+    gamma_range = (0, 2*np.pi)
+    beta_range = (0, np.pi)
     
     backend.set_options(seed_simulator=seed)            
     best_gammas, best_betas, best_runtime = optimiser(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, seed, p, 
@@ -92,30 +92,47 @@ def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed,
     it uses a shrinking trust region to estimate better values for the tuning parameters to get a better estimate.
     ''' 
     
-    def eval_cobyla(params):
-        gamma_values = params[:p]
-        beta_values = params[p:]
-        return evaluate(W, circuit,  backend,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
-    
-    cobyla_starts = 5                       #Number of random restarts
+    cobyla_restarts = 5                       #Number of random restarts
     cobyla_avg_energy = np.inf
     best_result = None
     cobyla_best_time = None
     
-    rng = np.random.default_rng(seed)
+    cobyla_histories = []
+    cobyla_final_energies = []
     
-    for i in range(cobyla_starts):
+    param_bounds = [gamma_range] * p + [beta_range] * p
+    rng = np.random.default_rng(seed)
+    best_history_idx = None
+    
+    for i in range(cobyla_restarts):
         x0 = np.concatenate([rng.uniform(*gamma_range,p), rng.uniform(*beta_range,p)])
+        restart_energies = []
+        
+        def eval_cobyla(params):
+            gamma_values = params[:p]
+            beta_values = params[p:]
+            energy = evaluate(W, circuit,  backend,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
+            
+            restart_energies.append(energy)
+            return energy
     
         cobyla_runtime_start = time.time()
-        result = minimize(eval_cobyla, x0, method='COBYLA', options={'maxiter' : 250})
+        result = minimize(eval_cobyla, x0, method='COBYLA', bounds=param_bounds, options={'maxiter' : 100})
+        result_energy = result.fun
         cobyla_runtime_end = time.time()
         
-        if result.fun < cobyla_avg_energy:
-            cobyla_avg_energy = result.fun
+        if result_energy < cobyla_avg_energy:
+            cobyla_avg_energy = result_energy
             best_result = result
             cobyla_best_time = (cobyla_runtime_end - cobyla_runtime_start)
-        print(i) 
+            best_history_idx = i
+            cobyla_final_energies.append(result_energy)   
+            
+        cobyla_histories.append(restart_energies)
+    
+    cobyla_energy_trace(cobyla_restarts, cobyla_histories, best_history_idx)
+    cobyla_result_energies(cobyla_final_energies)
+    
     return best_result.x[:p], best_result.x[p:], cobyla_best_time
     
 

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 
-def plot_true_toytracks(x, track0, track1, intersection_allowed):
+def true_toytracks(x, track0, track1, intersection_allowed):
   
     plt.scatter(x, track0, c='blue', s=40, marker='o')
     plt.scatter(x, track1, c='red', s=40, marker='o')
@@ -17,7 +17,7 @@ def plot_true_toytracks(x, track0, track1, intersection_allowed):
     
 ##############################################################################################################################
 
-def plot_similaritymatrix_heatmap(sim_matrix,  matrix_type : str):
+def similaritymatrix_heatmap(sim_matrix,  matrix_type : str):
     '''
     Plot heat map representation of any input similarity matrix. The more correlated hits i and j are, the brighter the (ij)th 
     coordinate in the heat map.
@@ -91,3 +91,33 @@ def graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
     
     plt.title(f'{matrix_type} Graph Representation')
     plt.show()
+
+
+def energy_landscape(lambda_bal, KNN_energies, RBF_energies): 
+    '''
+    ENergy landscape plots for both the KNN and the RBF. 
+    Each similarity matrix gets two plots:
+    1. 2^N states and their energies (all ordered by energy).
+    2. 10 lowest energy states to view groundstate degeneracy.
+    '''
+    
+    fig, ax = plt.subplots(2, 2, figsize=(10,6))  
+    ax[0,0].plot(np.sort(KNN_energies), color='orange')
+    ax[0,0].set_title('KNN all states')
+    
+    ax[0,1].plot(np.sort(RBF_energies), color='red')
+    ax[0,1].set_title('RBF all states')
+    
+    ax[1,0].plot(np.sort(KNN_energies)[:10], color='orange')
+    ax[1,0].set_title('KNN lowest 10 energy states')
+    ax[1,0].set_xlabel('Rank')
+    
+    ax[1,1].plot(np.sort(RBF_energies)[:10], color='red')
+    ax[1,1].set_title('RBF lowest 10 energy states')
+    ax[1,1].set_xlabel('Rank')
+    
+    fig.suptitle(f'Bruteforce Ising Energy landscapes for lambda={lambda_bal}')
+    fig.supylabel('Energy')
+    plt.tight_layout()
+    plt.show()
+    

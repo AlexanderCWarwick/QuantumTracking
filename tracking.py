@@ -1,6 +1,7 @@
 import numpy as np
 from track_generation import construct_toytracks
 import plotting as plot
+import plotting_baseprob as plot_base
 from similarity import get_KNN_matrix, get_RBF_matrix
 import classical_benchmarks as cb
 from simple_qaoa import grid, cobyla, qaoa_results
@@ -14,7 +15,7 @@ def toy_track_generation(track_hits : int, x : np.ndarray) -> tuple[list[float],
     sigma_noise = 1e-2                      #External noise 
     
     track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
-    #plot.plot_true_toytracks(x, track0, track1, intersection_allowed)
+    #plot_base.true_toytracks(x, track0, track1, intersection_allowed)
     
     return track0, track0_truthlabels, track1, track1_truthlabels
     
@@ -29,19 +30,20 @@ def sim_matrices_calculation(x, track0, track1):
     KNN_matrix, nbrs = get_KNN_matrix(hit_coords, nearneighb_n)                      #nbrs only needed for graph visualisation.
     RBF_matrix = get_RBF_matrix(hit_coords)
     
+    #number_of_hits = len(RBF_matrix)
     #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Hit coordinates needed for plotting graph representations.
-    #knn_G, knn_edges = plot.construct_KNN_graphrep(number_of_hits, hit_coords, nbrs)
-    #rbf_G, rbf_edges, edge_contrasts = plot.construct_RBF_graphrep(number_of_hits, RBF_matrix)
-    #plot.graphrep(knn_G, x, hit_coords_dict, knn_edges, None, 'KNN')
-    #plot.graphrep(rbf_G, x, hit_coords_dict, rbf_edges, edge_contrasts, 'RBF')
+    #knn_G, knn_edges = plot_base.construct_KNN_graphrep(number_of_hits, hit_coords, nbrs)
+    #rbf_G, rbf_edges, edge_contrasts = plot_base.construct_RBF_graphrep(number_of_hits, RBF_matrix)
+    #plot_base.graphrep(knn_G, x, hit_coords_dict, knn_edges, None, 'KNN')
+    #plot_base.graphrep(rbf_G, x, hit_coords_dict, rbf_edges, edge_contrasts, 'RBF')
     
     return KNN_matrix, RBF_matrix
 
 
 
 def exhaustive_ising_method(RBF_matrix, KNN_matrix, lambda_bal):
-    KNN_energies, KNN_groundstate_energy, _, RBF_energies, RBF_groundstate_energy, _ = ising_optimisation(len(RBF_matrix), lambda_bal, KNN_matrix, RBF_matrix)
-    #plot.energy_landscape(lambda_bal, KNN_energies, RBF_energies)
+    KNN_energies, KNN_groundstate_energy, KNN_groundstate_configs, RBF_energies, RBF_groundstate_energy, RBF_groundstate_configs = ising_optimisation(len(RBF_matrix), lambda_bal, KNN_matrix, RBF_matrix)
+    #plot_base.energy_landscape(lambda_bal, KNN_energies, RBF_energies)
     
     return KNN_groundstate_energy, RBF_groundstate_energy
 
@@ -175,15 +177,13 @@ def generate_toyproblem(hits : int, lambda_bal : float):
     
     
 def main():
-    option = 'depth'                  #This is the identifier for which 'task' we want to do.
+    option = 'class'                  #This is the identifier for which 'task' we want to do.
     
     no_of_shots =  4096               #Number of measurements the quantum simulator will make of the circuit (all independent).
-    seed_lim = 10                  #Number of runs of the QAOA to calculate means and errors.
-    lambda_bal = 0.75                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
+    seed_lim = 5                  #Number of runs of the QAOA to calculate means and errors.
+    lambda_bal = 0.5                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     classical_algs = ['Greedy', 'Spectral Clustering', 'Simulated Annealing']
     qaoa_optimisers = {'COBYLA' : cobyla}
-
-
     
     if option == 'depth':
         #Depth Scan fixes N varies p.
@@ -199,8 +199,8 @@ def main():
         
     elif option == 'class':
         #For a fixed N and p, compare all algorithms in one table.
-        hits = 5
-        layers = 2
+        hits = 6
+        layers = 1
         
         classical_results = classical_scan(classical_algs, lambda_bal, hits)
         plot.print_benchmark_table(hits, classical_results)
