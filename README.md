@@ -7,18 +7,20 @@ A quantum based optimization method may offer an alternative to established clas
 
 The project will run for 8 weeks. Each week developing an optimisation toolset and building the combinartorial complexity of the problem. We begin with a classical formulation of a simplified particle tracking simulation. Then, once the classical approach is clear, we will move to studying quantum approaches, implementing simple quantum optimisation algorithms such as the Quantum Approximate Optimization Algorithm (QAOA) or quantum variational circuits applied to combinatorial optimisation problems.
 
+## Prerequisites 
+- Python version 3.12.0 or higher
 
 ![LHCb Proton Tracks](Images/ProtonCollisionTracks.jpg)
 
 *Image from LHCb experiment, CERN.*
 
-##Week 1
+## Week 1
 
 We create a simple toy data set with which we can build example similarity matrices. We use heat maps and graph networks as visualisation tools.
 
 The simplest tracking problem, requiring some level of optimisation, is two non-intersecting tracks in 2-dimensional space. We construct this system so that we have 6 equally spaced detectors on the interval $[0,1]$ as shown. External noise is modelled as a Gaussian for each hit. 
 
-![2D track setup](plots/Toytracks.png)
+![2D track setup](plots/ClassicalPlots/Toytracks_12.png)
 
 The similarity matrix elements $W_{ij}$ quantify the compatibility or correlation between hits i and j. The more correlated two hits, the more likely it is that they correspond to the same particle track. Intuitively, a simialrity matrix should be symmetric. 
 In this project, two main types used are:
@@ -64,10 +66,35 @@ Our expectation is of course that 000000111111 and its flipped state 11111100000
 Visualisation of the system's energy landscape can be achieved by converting each configuration's binary string into its decimal equivalent and ordering the states numerically. 
 
 
+## Week 3
+
+The exhaustive brute force method from Week 2 works well for small values of N. If $N=12$ then there are only $2^{N} = 4096$ possible cluster configurations, but this expoential growth severely caps performance. Even at $N=20$, there would be over one million possible configurations! 
+
+We now implement and compare three new and targeted approaches to finding the best clustering for our simple tracking problem. These will serve as our classical baselines that we will compare with later quantum-based algorithms.
+
+1. Greedy Algorithm
+2. Spectral Clustering
+3. Simulated Annealing
+
+Performance metrics used to numerically compare each algorithm are runtime, ARI (of estimated groundstate against true groundstate) and relative error to the true groundstate energy. We expect Greedy to perform the worst. Being myopic means decisions are made locally which can severely bias the resultant configuration early in the algorithm leading to near-poor clusterings. Spectral Clustering on the other hand is a graph-minded approach with global decision making based on Graph topology.
+
+Simulated Annealing can be seen as the classical twin of our later quantum methods. Thus, it will be the most important of our classical comparatives. Based on the well-known Metropolis Acceptance Criterion, a random initial configuration is selected and state-space is traversed stochatsically, all while being tempered by a cooling scheme. Ideally it approaches the global minimum but can very easily get trapped in a local minimum. Convergence traces, shown below, detail the energy evolution through the algorithm. Hence optimisation depends on the temperature, $T$, evolution. As $T$ decreases, overcoming energy barriers becomes harder leading to the trapping phenomenon in the energy landscape. 
+
+![ConvTraceN=24](plots/ClassicalPlots/3_Convergence_Traces_24_hits.png)
+
+## Week 4
+
+We have formulated and compared four classical baseline algorithms. In our small scale problem Simulated Annealing and Spectral Clustering perform brilliantly compared to Greedy Clustering, both returning the correct clusterings at the cost of slightly slower overall runtimes. Now we turn to formulating a simple quantum algorithm to tackle our problem! 
+
+Our approach relies on the well-known Quantum Approximation Optimisation Algorithm (QAOA). Established by Farhi et al. in 2014, QAOA was applied to the Maximum Cut problem, where given a weighted undirected graph we seek to find the best partition of the graph into two compementary node sets. We optimise to find the maximum sum of weights of the cut edges. 
+To gain familiarity with QAOA, this was my starting point. 
+
+### The simplest QAOA
 
 
 
 
 
-For the purposes of simulating quantum circuits, the project uses the [Qiskit](https://github.com/Qiskit) and [Quiskit-aer](https://github.com/Qiskit/qiskit-aer) libraries. 
+
+
 
