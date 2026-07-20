@@ -101,26 +101,28 @@ def quantum_scan(qaoa_optimisers : dict,  lambda_bal : float,  hits : int, no_of
 
 
     
-def classical_scan(classical_algs, lambda_bal, hits):
-    #params = (similarity_matrix, true_groundstate, groundstate_energy)
+def classical_scan(classical_algs : dict, lambda_bal, hits):
+    '''
+    Classical scan over all listed algorithms in dictionary classical_algs. Symmetric with quantum_scan.
+    params ordering:
+    1. similarity matrix (KNN OR RBF)
+    2. the true gs, [0...01...1]
+    3. the true gs energy.
+    '''
+
     params = generate_toyproblem_params(hits, lambda_bal)
     
-    i, j = cb.get_mostdissimlar_hits(params[0])        #Gets the most dissimilar hits for the greedy algorithm. Uses RBF matrix for both RBF and KNN options.
-    classical_metrics = {alg : {'rel_error' :[],
+    classical_metrics = {alg_name : {'rel_error' :[],
                          'ari' : [],
                          'runtime' : [],
-                         'conv_frac' : []} for alg in classical_algs}
+                         'conv_frac' : []} for alg_name in classical_algs}
     
-    
-
-    for alg in classical_algs:
-        _, rel_energy_error, ari, runtime, convergence_fraction = cb.run_classical_algorithm(alg, params, lambda_bal, i, j)
-        
-        classical_metrics[alg]['rel_error'] = rel_energy_error
-        classical_metrics[alg]['ari'] = ari[0]
-        classical_metrics[alg]['runtime'] = runtime
-        classical_metrics[alg]['conv_frac'] = convergence_fraction
-        
+    classical_alg_loops = 10
+    for alg_name, alg in classical_algs.items():
+        means, errors = alg(*params, lambda_bal, classical_alg_loops)
+        for metric, mean, std in zip(classical_metrics[alg_name].keys(), means, errors):
+            classical_metrics[alg_name][metric] = {'mean': mean,
+                                                'error': std}
     return classical_metrics
     
     
@@ -129,10 +131,10 @@ def main():
     option = 'class'                  #This is the identifier for which 'task' we want to do.
     no_of_shots =  4096               #Number of measurements the quantum simulator will make of the circuit (all independent).
     seed_lim = 5                  #Number of runs of the QAOA to calculate means and errors.
-    lambda_bal = 0.7                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
+    lambda_bal = 0.4                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     
     #Names of the classical algorithms used.
-    classical_algs = ['Greedy', 'Spectral Clustering', 'Simulated Annealing']
+    classical_algs = {'Greedy' : cb.greedy_results, 'Spectral Clustering': cb.spectral_results, 'Simulated Annealing' : cb.sim_annealing_results}
     
     #All the different optimisers used in the qaoa.
     qaoa_optimisers = {'COBYLA' : cobyla}
@@ -168,13 +170,14 @@ def main():
         #For a fixed N and p, compare all algorithms in one table.
         hits = 6
         layers = 1
+        
         classical_results = classical_scan(classical_algs, lambda_bal, hits)
+        print(classical_results)
         plot.print_benchmark_table(hits, classical_results)
-        
+        '''
         quantum_results = quantum_scan(qaoa_optimisers, lambda_bal, hits, no_of_shots, layers, seed_lim)
-        
         plot.print_quantum_table(hits, quantum_results)
-        
+        '''        
         
 if __name__ == "__main__":
     main()

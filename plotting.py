@@ -33,48 +33,44 @@ def conv_traces(N: int, steps : np.ndarray, energy_histories : np.ndarray):
     plt.show()
 
 ##############################################################################################################################
-
+def format_metric(metric):
+    return f'{metric['mean']:.4f} \u00b1 {metric['error']:.4f}'
     
 def print_benchmark_table(hits, classical_results : dict[dict]):
-    
     header = (f'{'Hits':<8}'
-        f'{'Algorithm':<25}'
-        f'{'ARI':<12}'
-        f'{'Full Time (s)':<20}'
-        f'{'Relative Energy Error':<25}'
-        f'{'Convergence Fraction':<22}')
+        f'{'QAOA Optimiser':<30}'
+        f'{'Relative Energy Error':<30}'
+        f'{'ARI':<20}'
+        f'{'Time (s)':<20}'
+        f'{'Convergence Fraction':<30}')
     
     print(header)
     print('-' * len(header))
     
-    
-    for alg, metrics in classical_results.items():
-        success = classical_results[alg]['conv_frac']
-        
-        if success is None:
-            success = "-"
+    for optimiser_name, metrics in classical_results.items():
+        if optimiser_name == 'Simulated Annealing':
+            print(f'{2*hits:<8}'
+                f'{optimiser_name:<30}'
+                f'{format_metric(metrics['rel_error']):<30}'
+                f'{format_metric(metrics['ari']):<20}'
+                f'{format_metric(metrics['runtime']):<20}'
+                f'{format_metric(metrics['conv_frac']):<30}')
         else:
-            success = f"{success:.2f}"
+            print(f'{2*hits:<8}'
+                f'{optimiser_name:<30}'
+                f'{format_metric(metrics['rel_error']):<30}'
+                f'{format_metric(metrics['ari']):<20}'
+                f'{format_metric(metrics['runtime']):<20}'
+                '-')
             
-        print(f"{2*hits:<8}"
-            f"{alg:<25}"
-            f"{metrics['ari']:<12.4f}"
-            f"{metrics['runtime']:<20.4f}"
-            f"{metrics['rel_error']:<25.4f}"
-            f"{success:<22}")
-    
-    print('\n')
         
         
 def print_quantum_table(hits : int, quantum_results : dict):
-    def format_metric(metric):
-        return f'{metric['mean']:.4f} \u00b1 {metric['error']:.4f}'
-    
     header = (f'{'Hits':<8}'
         f'{'QAOA Optimiser':<20}'
+        f'{'Relative Energy Error':<30}'
         f'{'ARI':<20}'
         f'{'Time (s)':<20}'
-        f'{'Relative Energy Error':<30}'
         f'{'GS Prob':<20}')
     
     print(header)
@@ -83,15 +79,14 @@ def print_quantum_table(hits : int, quantum_results : dict):
     for optimiser_name, metrics in quantum_results.items():
         print(f'{2*hits:<8}'
             f'{optimiser_name:<20}'
+            f'{format_metric(metrics['rel_error']):<30}'
             f'{format_metric(metrics['ari']):<20}'
             f'{format_metric(metrics['runtime']):<20}'
-            f'{format_metric(metrics['rel_error']):<30}'
             f'{format_metric(metrics['gsp']):<20}')
 
     
 def scaling_scan(track_hits : np.ndarray[int],  raw_results : dict,  raw_errors : dict,
                                                 rel_results : dict, rel_errors : dict):
-    
     fig, ax = plt.subplots(2, figsize=(7,7))
     
     for name in raw_results.keys():
@@ -165,11 +160,16 @@ def cobyla_energy_trace(cobyla_restarts : int,  cobyla_histories : np.ndarray[fl
             ax[j].annotate('Best result', xy=(25,7))
             
     fig.suptitle('Energy traces')
+    fig.supxlabel('COBYLA iteration')
     plt.show()
     
     
 def cobyla_result_energies(cobyla_final_energies):
     plt.figure()
-    plt.plot(cobyla_final_energies)
+    x = np.arange(1,len(cobyla_final_energies) + 1)
+    plt.title('COBYLA best energy evolution.')
+    plt.xlabel('Restart iteration')
+    plt.ylabel('COBYLA energy')
+    plt.plot(x, cobyla_final_energies)
     plt.show()
     

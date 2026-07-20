@@ -49,7 +49,7 @@ def sim_matrices_calculation(x, track0, track1):
 
 
 
-def exhaustive_ising_method(true_gs, RBF_matrix, KNN_matrix, lambda_bal):
+def exhaustive_ising_method(true_gs : float, RBF_matrix : np.ndarray[float], KNN_matrix : np.ndarray[float], lambda_bal : float) -> tuple[float, float]:
     '''
     Brute force ising landscape method.
     
@@ -87,6 +87,7 @@ def generate_toyproblem_params(hits : int, lambda_bal : float):
     true_groundstate = np.array(np.concatenate([track0_truthlabels, track1_truthlabels]))
     #Choose to use the RBF matrix over KNN as similarity measure.
     
-    _, RBF_true_gs_energy = exhaustive_ising_method(true_groundstate, RBF_matrix, KNN_matrix, lambda_bal)
+    KNN_true_gs_energy, RBF_true_gs_energy = exhaustive_ising_method(true_groundstate, RBF_matrix, KNN_matrix, lambda_bal)
                 
-    return RBF_matrix, true_groundstate, RBF_true_gs_energy
+    return KNN_matrix, true_groundstate, KNN_true_gs_energy
+    #return RBF_matrix, true_groundstate, RBF_true_gs_energy

@@ -97,8 +97,8 @@ def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed,
     best_result = None
     cobyla_best_time = None
     
-    cobyla_histories = []
-    cobyla_final_energies = []
+    cobyla_histories = []                       #List to hold the evolution of each random restarts energy. 
+    cobyla_final_energies = []                  #List to hold the returned best energies from each restart.
     
     param_bounds = [gamma_range] * p + [beta_range] * p
     rng = np.random.default_rng(seed)
@@ -126,11 +126,17 @@ def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed,
             best_result = result
             cobyla_best_time = (cobyla_runtime_end - cobyla_runtime_start)
             best_history_idx = i
-            cobyla_final_energies.append(result_energy)   
+            cobyla_final_energies.append(result_energy)  
+        
+        else:
+            cobyla_final_energies.append(cobyla_avg_energy) 
             
         cobyla_histories.append(restart_energies)
     
+    #Plot energy trace of each restart.
     cobyla_energy_trace(cobyla_restarts, cobyla_histories, best_history_idx)
+
+    #Plot how the cobyla_avg_energy changes through the cobyla_restarts number of repitions.
     cobyla_result_energies(cobyla_final_energies)
     
     return best_result.x[:p], best_result.x[p:], cobyla_best_time
