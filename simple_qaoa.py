@@ -4,11 +4,12 @@ from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
 from qiskit.circuit import Parameter
 from qiskit_aer import Aer
 from ising import ising_energy, ARI_check
-from plotting import plot_energy_hist, cobyla_energy_trace, cobyla_result_energies
+from plotting import plot_energy_hist, optimiser_energy_trace, optimiser_result_energies
 from itertools import product
 import time
 
-def qaoa_pipeline(W : np.ndarray,  lambda_bal : float,  no_of_shots : int,  seed : int,  p : int,  backend,  optimiser,  circuit,  beta,  gamma):
+def qaoa_pipeline(W : np.ndarray,  lambda_bal : float,  no_of_shots : int,  seed : int,  p : int,  backend,  optimiser,  circuit,  
+                  beta,  gamma, warm_restart):
     '''
     The QAOA is a hybrid QC algorithm. The variational part where parameters are tweaked is controlled by the classical 
     computer.
@@ -21,11 +22,11 @@ def qaoa_pipeline(W : np.ndarray,  lambda_bal : float,  no_of_shots : int,  seed
     
     backend.set_options(seed_simulator=seed)            
     best_gammas, best_betas, best_runtime = optimiser(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, seed, p, 
-                                                        gamma_range, beta_range)
+                                                        gamma_range, beta_range, warm_restart)
         
     best_paramed_circuit = bind_params(circuit, gamma, beta, best_gammas, best_betas, p)
     best_counts = run_qaoa(backend, best_paramed_circuit, no_of_shots)
-    return best_counts, best_runtime
+    return best_counts, best_gammas, best_betas, best_runtime
     
         
         
@@ -50,20 +51,19 @@ def get_counts_data(best_counts, W, true_groundstate, true_groundstate_energy, l
         
         
         
-def grid(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, _seed, p, gamma_lims, beta_lims):
+def grid(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, _seed, p, gamma_lims, beta_lims, _warm_restart):
     '''
     Basic iterative search in hypercuboid of 2p dimensional parameter space. 
     seed is unused here but is needed for general optimiser call in qaoa function.
     '''
     
-    grid_counts = 5                                             #Number of points along each axes to sample from. In total 2*2p points.
+    grid_counts = 2                                             #Number of points along each axes to sample from. In total 2*2p points.
     gamma_range = np.linspace(*gamma_lims, grid_counts)
     beta_range = np.linspace(*beta_lims, grid_counts)
      
     A = [gamma_range for _ in range(p)]
     B = [beta_range for _ in range(p)]
     #A and B are the subspaces of the parameter space A x B. 
-    
     
     best_params = None
     best_energy = np.inf
@@ -82,33 +82,71 @@ def grid(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, _seed, p, ga
     return best_params[:p], best_params[p:], (grid_runtime_end - grid_runtime_start)
     
     
+def expand_warm_start(warm_start, p, gamma_range, beta_range, rng):
+    
+    if warm_start is None:
+        return None
+
+    old_p = len(warm_start) // 2
+
+    old_gammas = warm_start[:old_p]
+    old_betas = warm_start[old_p:]
+
+    new_gamma = rng.uniform(*gamma_range)
+    new_beta = rng.uniform(*beta_range)
+
+    return np.concatenate([old_gammas, [new_gamma], old_betas, [new_beta]])  
+    
+    
+def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
+            warm_restart):
+    return scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
+                        warm_restart, 'COBYLA')
+    
+    
+    
+def cobyqa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
+            warm_restart):
+     return scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
+                        warm_restart, 'COBYQA')
             
-def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range)  ->  tuple:
+            
+            
+def scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
+                        warm_restart, method)  ->  tuple:
     '''
     COBYLA optimised QAOA. 
     COBYLA minimisation does not use the gradient (since we don't know the ising hmailtonian gradient)
     
     Instead, working through the evaluate function output space (the avg energy of the returned sampled distribution)
     it uses a shrinking trust region to estimate better values for the tuning parameters to get a better estimate.
+    
+    Warm restarts now use the best parameters from the previous p scan as a new starting point.
     ''' 
-    
-    cobyla_restarts = 5                       #Number of random restarts
-    cobyla_avg_energy = np.inf
+    restarts = 5                       #Number of random restarts
+    avg_energy = np.inf
     best_result = None
-    cobyla_best_time = None
+    best_time = None
     
-    cobyla_histories = []                       #List to hold the evolution of each random restarts energy. 
-    cobyla_final_energies = []                  #List to hold the returned best energies from each restart.
+    histories = []                       #List to hold the evolution of each random restarts energy. 
+    final_energies = []                  #List to hold the returned best energies from each restart.
     
     param_bounds = [gamma_range] * p + [beta_range] * p
     rng = np.random.default_rng(seed)
     best_history_idx = None
     
-    for i in range(cobyla_restarts):
-        x0 = np.concatenate([rng.uniform(*gamma_range,p), rng.uniform(*beta_range,p)])
+    for i in range(restarts):
+
+        if i == 0 and warm_restart is not None:
+            #First restart = warm start, the rest are normal random restarts.
+            x0 = expand_warm_start(warm_restart, p, gamma_range, beta_range, rng)
+        else:
+            # Remaining restarts = random
+            x0 = np.concatenate([rng.uniform(*gamma_range, p), rng.uniform(*beta_range, p)])
+            
         restart_energies = []
         
-        def eval_cobyla(params):
+        def eval(params):
             gamma_values = params[:p]
             beta_values = params[p:]
             energy = evaluate(W, circuit,  backend,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
@@ -116,32 +154,31 @@ def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed,
             restart_energies.append(energy)
             return energy
     
-        cobyla_runtime_start = time.time()
-        result = minimize(eval_cobyla, x0, method='COBYLA', bounds=param_bounds, options={'maxiter' : 100})
+        runtime_start = time.time()
+        result = minimize(eval, x0, method=method, bounds=param_bounds, options={'maxiter' : 100})
         result_energy = result.fun
-        cobyla_runtime_end = time.time()
+        runtime_end = time.time()
         
-        if result_energy < cobyla_avg_energy:
-            cobyla_avg_energy = result_energy
+        if result_energy < avg_energy:
+            avg_energy = result_energy
             best_result = result
-            cobyla_best_time = (cobyla_runtime_end - cobyla_runtime_start)
+            best_time = (runtime_end - runtime_start)
             best_history_idx = i
-            cobyla_final_energies.append(result_energy)  
+            final_energies.append(result_energy)  
         
         else:
-            cobyla_final_energies.append(cobyla_avg_energy) 
+            final_energies.append(avg_energy) 
             
-        cobyla_histories.append(restart_energies)
+        histories.append(restart_energies)
     
     #Plot energy trace of each restart.
-    cobyla_energy_trace(cobyla_restarts, cobyla_histories, best_history_idx)
+    #optimiser_energy_trace(restarts, histories, best_history_idx, method, p, len(W))
 
     #Plot how the cobyla_avg_energy changes through the cobyla_restarts number of repitions.
-    cobyla_result_energies(cobyla_final_energies)
-    
-    return best_result.x[:p], best_result.x[p:], cobyla_best_time
-    
+    #optimiser_result_energies(final_energies, method, p, len(W))
 
+    return best_result.x[:p], best_result.x[p:], best_time
+    
 
 def bind_params(circuit, gamma, beta, gamma_values, beta_values, p):
     '''
@@ -278,7 +315,8 @@ def metric_stats(metrics_dict : dict) -> tuple[np.ndarray[np.float64], np.ndarra
     
 def qaoa_results(W : np.ndarray[float],  true_groundstate : np.ndarray[int], 
                  true_groundstate_energy : float,  lambda_bal : float, 
-                 no_of_shots : int,  p : int,  seed_lim : int,  optimiser) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
+                 no_of_shots : int,  p : int,  seed_lim : int,  optimiser,
+                 warm_restart : np.ndarray[float]) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
     '''
     Build the generalised circuit wih parameters gamma and beta (for each layer). Each time we generate parameter values
     e.g. iterating through points in the grid search or adaptive optimiser finds a new parameter set, we bind them to the circuit.
@@ -303,18 +341,19 @@ def qaoa_results(W : np.ndarray[float],  true_groundstate : np.ndarray[int],
     
     backend = Aer.get_backend('aer_simulator')
     for seed in range(seed_lim):
-        best_counts, runtime = qaoa_pipeline(W,  lambda_bal,  no_of_shots,  seed,  p,  backend,  optimiser,  circuit,  beta,  gamma)
+        best_counts, best_gammas, best_betas, runtime = qaoa_pipeline(W,  lambda_bal,  
+                                                                      no_of_shots,  seed,  p,  
+                                                                      backend,  optimiser,  circuit, 
+                                                                      beta,  gamma,  warm_restart)
         
         
         _, best_rel_energy, best_ari, gs_prob = get_counts_data(best_counts,
-                                                                                    W, 
-                                                                                    true_groundstate, 
-                                                                                    true_groundstate_energy, 
-                                                                                    lambda_bal,
-                                                                                    no_of_shots)
+                                                                W, true_groundstate, true_groundstate_energy, lambda_bal,
+                                                                no_of_shots)
         
         metrics_dict['rel_error'].append(best_rel_energy)
         metrics_dict['ari'].append(best_ari)
         metrics_dict['runtime'].append(runtime)
         metrics_dict['gsp'].append(gs_prob)
-    return metric_stats(metrics_dict)
+        
+    return *metric_stats(metrics_dict), best_gammas, best_betas

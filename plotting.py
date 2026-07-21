@@ -85,7 +85,7 @@ def print_quantum_table(hits : int, quantum_results : dict):
             f'{format_metric(metrics['gsp']):<20}')
 
     
-def scaling_scan(track_hits : np.ndarray[int],  raw_results : dict,  raw_errors : dict,
+def scaling_scan_metric_scatter(track_hits : np.ndarray[int],  raw_results : dict,  raw_errors : dict,
                                                 rel_results : dict, rel_errors : dict):
     fig, ax = plt.subplots(2, figsize=(7,7))
     
@@ -121,28 +121,36 @@ def plot_energy_hist(energies, true_groundstate_energy):
     
     
 def depth_scan_metric_scatter(layers, metric_means : np.ndarray[float, float], metric_errors : np.ndarray[float, float], hits):
-    fig, ax = plt.subplots(2,2,figsize=(8,5))
+    fig, ax = plt.subplots(2,2,figsize=(9,7))
     ax = ax.flatten()
-    metrics = ['rel_error', 'ari', 'runtime', 'gsp']
+    metrics = {'rel_error': 'Relative Energy Error',
+                'ari': 'Adjusted Rand Index (ARI)',
+                'runtime': 'Runtime (s)',
+                'gsp': 'Groundstate Probability'}
+    optimisers = list(metric_means[layers[0]].keys())
     
-    for idx, metric in enumerate(metrics):
+    for idx, (metric, metric_name) in enumerate(metrics.items()):
         for optimiser_name in metric_means[layers[0]].keys():
             means = [metric_means[p][optimiser_name][metric] for p in layers]
-        
             errors = [metric_errors[p][optimiser_name][metric] for p in layers]
             
             ax[idx].errorbar(layers, means, yerr=errors, fmt='o-', capsize=3, alpha=0.7, label=optimiser_name)
             
         if metric == 'gsp':
             baseline = 2 / (2**(2*hits))
-            ax[idx].axhline(baseline)
-        ax[idx].set_title(f'{metric}')
+            ax[idx].axhline(baseline, linestyle='--', label='Uniform baseline')
+            
+        ax[idx].set_title(f'{metric_name}')
         ax[idx].set_xticks(layers)
-        ax[idx].grid(True)
+        ax[idx].grid(True, alpha=0.2)
+        
+    handles, labels = ax[0].get_legend_handles_labels()
+
+    fig.legend(handles, labels, loc='upper right', ncol=len(optimisers), bbox_to_anchor=(0.5, 0.98))
     
-    fig.supxlabel("Number of QAOA layers")
-    fig.supylabel("Metric value")
-    fig.suptitle("QAOA Depth Scan")
+    fig.supxlabel('($p$) Layers')
+    fig.supylabel('Metric value')
+    fig.suptitle(f'QAOA Depth Scan Hits ($ N={hits} $)', x=0.8, fontsize=13)
 
     plt.tight_layout()
     plt.show()
@@ -150,26 +158,34 @@ def depth_scan_metric_scatter(layers, metric_means : np.ndarray[float, float], m
 ##############################################################################################################################
 
     
-def cobyla_energy_trace(cobyla_restarts : int,  cobyla_histories : np.ndarray[float],  best_history_idx : int):
-    fig, ax = plt.subplots(cobyla_restarts, 1, figsize=(14,14))
-    for j, history in enumerate(cobyla_histories):
+def optimiser_energy_trace(restarts : int,  histories : np.ndarray[float],  best_history_idx : int, optimiser : str,
+                           p: int, hits : int):
+    fig, ax = plt.subplots(restarts, 1, figsize=(14,14))
+    for j, history in enumerate(histories):
         ax[j].plot(history)
         ax[j].set_ylabel('Energy')
         
         if j == best_history_idx:
-            ax[j].annotate('Best result', xy=(25,7))
+            best_energy = history[-1]
+
+            ax[j].annotate('Best result',
+                            xy=(len(history) - 1, best_energy),
+                            xytext=(-60, 20),
+                            textcoords='offset points',
+                            arrowprops=dict(arrowstyle='->'))
             
-    fig.suptitle('Energy traces')
+    fig.suptitle(f'{optimiser} Energy traces for ($p={p}$, $N={hits}$)')
     fig.supxlabel('COBYLA iteration')
-    plt.show()
     
     
-def cobyla_result_energies(cobyla_final_energies):
+    
+def optimiser_result_energies(final_energies, optimiser, p, hits):
     plt.figure()
-    x = np.arange(1,len(cobyla_final_energies) + 1)
-    plt.title('COBYLA best energy evolution.')
+    x = np.arange(1,len(final_energies) + 1)
+    plt.title(f'{optimiser} best energy evolution for ($p={p}$, $N={hits}$).')
     plt.xlabel('Restart iteration')
-    plt.ylabel('COBYLA energy')
-    plt.plot(x, cobyla_final_energies)
-    plt.show()
+    plt.xticks(x)
+    plt.ylabel('Energy')
+    plt.plot(x, final_energies)
+    
     

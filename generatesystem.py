@@ -58,11 +58,11 @@ def exhaustive_ising_method(true_gs : float, RBF_matrix : np.ndarray[float], KNN
     This configuration is for N=3 (6 hits in total) = 000111 or 111000.'''
     
     KNN_energies, KNN_gs_energy, _, RBF_energies, RBF_gs_energy, RBF_gs_configs = ising_optimisation(len(RBF_matrix), lambda_bal, KNN_matrix, RBF_matrix)
-    energy_landscape(lambda_bal, KNN_energies, RBF_energies)
+    #energy_landscape(lambda_bal, KNN_energies, RBF_energies)
     
     for gs_config in RBF_gs_configs:
         ari = ARI_check(true_gs, np.array([gs_config]))[0]
-        print(f'ARI check from exhaustive RBF GS search: {gs_config} -> {ari:.4f}')
+        #print(f'ARI check from exhaustive RBF GS search: {gs_config} -> {ari:.4f}')
     
     return KNN_gs_energy, RBF_gs_energy
 
