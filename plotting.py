@@ -93,6 +93,11 @@ def scaling_scan_metric_scatter(track_hits : np.ndarray[int],  raw_results : dic
         ax[0].errorbar(track_hits, raw_results[name], yerr=raw_errors[name], fmt='-o', capsize=3, label=name)
         ax[1].errorbar(track_hits, rel_results[name], yerr=rel_errors[name], fmt='-o', capsize=3, label=name)
         
+    
+    baseline = 2 / (2 ** (2 * track_hits))
+    ax[0].scatter(track_hits, baseline, label='Random Probability', color='r')
+    ax[1].axhline(y=1, label='Random Probability', color='r')
+    
     ax[0].set_xticks(track_hits)
     ax[1].set_xticks(track_hits)
     
@@ -139,10 +144,12 @@ def depth_scan_metric_scatter(layers, metric_means : np.ndarray[float, float], m
         if metric == 'gsp':
             baseline = 2 / (2**(2*hits))
             ax[idx].axhline(baseline, linestyle='--', label='Uniform baseline')
+            ax[idx].legend()
             
         ax[idx].set_title(f'{metric_name}')
         ax[idx].set_xticks(layers)
         ax[idx].grid(True, alpha=0.2)
+    
         
     handles, labels = ax[0].get_legend_handles_labels()
 

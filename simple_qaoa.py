@@ -83,6 +83,9 @@ def grid(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, _seed, p, ga
     
     
 def expand_warm_start(warm_start, p, gamma_range, beta_range, rng):
+    '''
+    minimise function expects parameters in order [gamma_1, ..., gamma_p, beta_1, ..., beta_p]
+    not [gamma_1, beta_1, ... gamma_p, beta_p]. '''
     
     if warm_start is None:
         return None
@@ -100,6 +103,9 @@ def expand_warm_start(warm_start, p, gamma_range, beta_range, rng):
     
 def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
             warm_restart):
+    '''
+    COBYLA operating function
+    '''
     return scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
                         warm_restart, 'COBYLA')
     
@@ -107,7 +113,10 @@ def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed,
     
 def cobyqa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
             warm_restart):
-     return scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
+    '''
+    COBYQA operating function
+    '''
+    return scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
                         warm_restart, 'COBYQA')
             
             
@@ -115,15 +124,30 @@ def cobyqa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed,
 def scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
                         warm_restart, method)  ->  tuple:
     '''
-    COBYLA optimised QAOA. 
-    COBYLA minimisation does not use the gradient (since we don't know the ising hmailtonian gradient)
+    COBYLA/COBYQA optimised QAOA. 
+    COBYLA/COBYQA minimisation does not use the gradient (since we don't know the ising hmailtonian gradient)
+    
+    COBYQA uses quadratic approximation, COBYLA is only linear. 
+    Expect COBYQA to perform better in ARI and relative energy error but slower.
     
     Instead, working through the evaluate function output space (the avg energy of the returned sampled distribution)
     it uses a shrinking trust region to estimate better values for the tuning parameters to get a better estimate.
     
-    Warm restarts now use the best parameters from the previous p scan as a new starting point.
+    Warm restarts now use the best parameters from the previous p scan as a new starting point. 
+    Example: If we have 3 restarts and are (depth) scanning over p=[1,2] , the pattern is: 
+    p = 1
+    restart:
+    1 - random
+    2 - random
+    3 - random
+    
+    p = 2
+    restart:
+    1 - warmstart using best p=1 gamma_1 and beta_1 values.
+    2 - random
+    3 - random
     ''' 
-    restarts = 5                       #Number of random restarts
+    restarts = 3                       #Number of random restarts
     avg_energy = np.inf
     best_result = None
     best_time = None
@@ -135,9 +159,9 @@ def scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_o
     rng = np.random.default_rng(seed)
     best_history_idx = None
     
-    for i in range(restarts):
+    for restart_idx in range(restarts):
 
-        if i == 0 and warm_restart is not None:
+        if restart_idx == 0 and warm_restart is not None:
             #First restart = warm start, the rest are normal random restarts.
             x0 = expand_warm_start(warm_restart, p, gamma_range, beta_range, rng)
         else:
@@ -163,8 +187,8 @@ def scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_o
             avg_energy = result_energy
             best_result = result
             best_time = (runtime_end - runtime_start)
-            best_history_idx = i
             final_energies.append(result_energy)  
+            best_history_idx = restart_idx
         
         else:
             final_energies.append(avg_energy) 
@@ -225,7 +249,7 @@ def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
     circuit.h(qreg_q)                       #Superposition layer
     circuit.barrier()
     J = 2*lambda_bal - W                    #Effective coupling matrix. Equivalent to classical Ising energy.
-    for layer in range(p):
+    for layer in range(p):                  #p Repeated Cost+Mixer layers.
         for i in range(N):
             for j in range(i+1, N):             #Start at i+1 since we don't want to double count the similarity measures.
                 circuit.rzz(2*gamma[layer]*J[i][j], qreg_q[i], qreg_q[j])                #Cost layer. Applies RZZ gates to all connected vertices. Factor of 2 cancels the qiskit convention of a gamma/2.
@@ -283,18 +307,6 @@ def energy_data(best_counts, W, lambda_bal, true_groundstate_energy):
         
     plot_energy_hist(energies, true_groundstate_energy)
     
-
-
-def roundtrip_test(W, true_groundstate, true_groundstate_energy, lambda_bal):
-    '''
-    Round trip test checks the decoding-to-energy process using the true groundstate. 
-    '''
-    
-    true_groundstate = true_groundstate[::-1]
-    rt_energy = ising_energy(W, true_groundstate, lambda_bal)
-
-    assert np.isclose(rt_energy, true_groundstate_energy)
-  
     
     
 def metric_stats(metrics_dict : dict) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:

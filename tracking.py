@@ -78,7 +78,7 @@ def scale_scan(track_hits : np.ndarray[int], qaoa_optimisers : dict, no_of_shots
         params = generate_toyproblem_params(hits, lambda_bal)
          
         for optimiser_name, optimiser in qaoa_optimisers.items():
-            means, stds = qaoa_results(*params, lambda_bal, no_of_shots, fixed_layers, seed_lim, optimiser, None)
+            means, stds, _, _ = qaoa_results(*params, lambda_bal, no_of_shots, fixed_layers, seed_lim, optimiser, None)
             
             baseline = 2 / (2**(2*hits))
             #The groundstate probability is the final entry of the means/std output arrays of the qaoa_results
@@ -146,13 +146,13 @@ def classical_scan(classical_algs : dict, lambda_bal, hits):
 def main():
     option = 'class'                  #This is the identifier for which 'task' we want to do.
     no_of_shots =  4096               #Number of measurements the quantum simulator will make of the circuit (all independent).
-    seed_lim = 5                 #Number of runs of the QAOA to calculate means and errors.
+    seed_lim = 3                 #Number of runs of the QAOA to calculate means and errors.
     lambda_bal = 0.4                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     
     #Names of the classical algorithms used.
     classical_algs = {'Greedy' : cb.greedy_results, 'Spectral Clustering': cb.spectral_results, 'Simulated Annealing' : cb.sim_annealing_results}
     
-    #All the different optimisers used in the qaoa.
+    #All the different optimisers used in the qaoa. simple_qaoa contains three to use: grid, cobyla and cobyqa.
     qaoa_optimisers = {'COBYLA' : cobyla}
     
     '''
