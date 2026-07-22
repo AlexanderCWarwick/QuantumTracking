@@ -14,7 +14,7 @@ def get_mostdissimlar_hits(RBF_matrix):
     return i,j 
 
 
-def greedy(W : np.ndarray[float], i, j):
+def greedy(W : np.ndarray[float]):
     '''
     Greedy algorithm optimisation approach. Greedy makes local (short-sighted) decisions. Given a Yes/No question, go with which every gives the most benefit 
     at time when choosing.
@@ -30,6 +30,9 @@ def greedy(W : np.ndarray[float], i, j):
     n = len(W)
     hits_to_assign = list(range(n))                        #Hits that we have yet to assign. 
     greedy_config = np.zeros_like(hits_to_assign)
+    
+    i = np.random.randint(0, n/2)
+    j = np.random.randint(n/2, n)
     
     hits_to_assign.remove(i)
     hits_to_assign.remove(j)
@@ -65,11 +68,15 @@ def greedy(W : np.ndarray[float], i, j):
 
 def spectral(W : np.ndarray[float]):
     '''
-    Makes globally informed choices using graph Laplacian followed by eigen analysis.
+    Spectral Clustering makes globally informed choices using graph Laplacian followed by eigen analysis.
     '''
+    #First clustering is a 'warm-up' call. Otherwie full runtime is order 2 seconds (longer than sim ann) which shouln't be the case.
+    clustering = SpectralClustering(n_clusters=2, affinity='precomputed').fit_predict(W)
+    
     spectral_start_time = time.time()
-    clustering = SpectralClustering(n_clusters=2, affinity='precomputed', random_state=41).fit_predict(W)
-    spectral_end_time = time.time()   
+    clustering = SpectralClustering(n_clusters=2, affinity='precomputed', n_init=3).fit_predict(W)
+    spectral_end_time = time.time()  
+        
     return clustering, (spectral_end_time - spectral_start_time)
 
 
@@ -137,93 +144,86 @@ def sim_annealing(W, init, lambda_bal):
 
 ##################################################      Handling functions      ################################################## 
 
-def run_classical_algorithm(algorithm : str, similarity_params : tuple, i, j):
-    if algorithm == 'Greedy':
-        return greedy_results(*similarity_params, i, j)
+def metric_stats(metrics_dict : dict) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
+    '''
+    Input: metrics_dict contains lists of (respective algorithm)_loop values for each metric.
+    Compute means and errors for each different metric given
+    Output: Two seperate arrays for means and errors for each metric. The ordering is kept the same as the dictionary.
+    relative energy -> ari -> runtime -> convergence fraction
+    '''
     
-    elif algorithm == 'Spectral Clustering':
-        return spectral_results(*similarity_params)
+    metrics = metrics_dict.values()
+    means = [np.mean(metric_values) for metric_values in metrics]
+    std_metrics = [np.std(metric_values) for metric_values in metrics]
     
-    else:
-        number_of_loops = 2
-        best_sa_configs, best_sa_config_energies, best_sa_aris, sa_times_elapsed, sa_energy_histories, sa_number_of_steps, sa_conv_count = sim_annealing_results(*similarity_params, number_of_loops)
-        sa_config, sa_rel_energy, sa_ari, sa_time_elapsed = find_optimised_sa_data(best_sa_configs, best_sa_config_energies, similarity_params[2], best_sa_aris, sa_times_elapsed)
-       
-        #conv_traces(len(sa_config), sa_number_of_steps, sa_energy_histories)
-        return sa_config, sa_rel_energy, sa_ari, sa_time_elapsed, (sa_conv_count / number_of_loops) 
+    return np.array(means), np.array(std_metrics)
     
 
-def get_groundstate_energy(W, true_groundstate, lambda_bal):
-    return ising_energy(W, true_groundstate, lambda_bal)
-
-
-
-def greedy_results(W, true_groundstate, true_groundstate_energy, lambda_bal, i, j):
-    optimised_config, time_elapsed = greedy(W, i, j)
-
-    ari = ARI_check(true_groundstate, np.array([optimised_config]))
-    energy = ising_energy(W, optimised_config, lambda_bal)
-    rel_energy = abs((true_groundstate_energy - energy) / true_groundstate_energy)
+def greedy_results(W, true_groundstate, true_groundstate_energy, lambda_bal,  loops : int) -> tuple[np.ndarray[np.float64, np.float64]]:
+    metrics = {'rel_error' : [],
+               'ari' : [],
+               'runtime' : [],
+               'conv_frac' : [0 for _ in range(loops)]}
     
-    return optimised_config, rel_energy, ari, time_elapsed, None
+    for _ in range(loops):
+        optimised_config, runtime = greedy(W)
+        energy = ising_energy(W, optimised_config, lambda_bal)
+        rel_energy = abs((true_groundstate_energy - energy) / true_groundstate_energy)
+        
+        metrics['ari'].append(ARI_check(true_groundstate, np.array([optimised_config])))
+        metrics['rel_error'].append(rel_energy)
+        metrics['runtime'].append(runtime)
+            
+    return metric_stats(metrics)
 
 
-def spectral_results(W, true_groundstate, true_groundstate_energy, lambda_bal):
-    optimised_config, time_elapsed = spectral(W)
+
+def spectral_results(W, true_groundstate, true_groundstate_energy, lambda_bal, loops : int) -> tuple[np.ndarray[np.float64, np.float64]]:
+    metrics = {'rel_error' : [],
+               'ari' : [],
+               'runtime' : [],
+               'conv_frac' : [0 for _ in range(loops)]}
     
-    ari = ARI_check(true_groundstate, np.array([optimised_config]))
-    energy = ising_energy(W, optimised_config, lambda_bal)
-    rel_energy = abs((true_groundstate_energy - energy) / true_groundstate_energy)
-    
-    return optimised_config, rel_energy, ari, time_elapsed, None
+    for _ in range(loops):
+        optimised_config, runtime = spectral(W)
+        energy = ising_energy(W, optimised_config, lambda_bal)
+        rel_energy = abs((true_groundstate_energy - energy) / true_groundstate_energy)
+        
+        metrics['ari'].append(ARI_check(true_groundstate, np.array([optimised_config])))
+        metrics['rel_error'].append(rel_energy)
+        metrics['runtime'].append(runtime)
+            
+    return metric_stats(metrics)
 
 
 
-def sim_annealing_results(W, true_groundstate, true_groundstate_energy, lambda_bal, number_of_loops: int):
-
-    energy_histories = []
-    best_configs = []
-    best_config_energies = []
-    aris = []
-    times = []
-    steps = []
+def sim_annealing_results(W, true_gs, true_gs_energy, lambda_bal, loops : int) -> tuple[np.ndarray[np.float64, np.float64]]:
     convergence_counter = 0
+    energy_histories = []
+    steps = []
     
-    for _ in range(number_of_loops):
+    metrics = {'rel_error' : [],
+               'ari' : [],
+               'runtime' : [],
+               'conv_frac' :[]}
+    
+    for _ in range(loops):
         init = np.random.randint(0,2, len(W))
         
         sa_config, sa_energy, energy_history, sa_time_elapsed, no_steps = sim_annealing(W, init, lambda_bal)
-        sa_ari = ARI_check(true_groundstate, np.array([sa_config]))   
-        
-        best_configs.append(sa_config)
+          
         energy_histories.append(energy_history)
-        best_config_energies.append(sa_energy)
-        aris.append(sa_ari)
-        times.append(sa_time_elapsed)
         steps.append(no_steps)
         
-        if np.isclose(sa_energy, true_groundstate_energy):
+        if np.isclose(sa_energy, true_gs_energy):
             convergence_counter += 1
-        
-    return best_configs, best_config_energies, aris, times, energy_histories, steps, convergence_counter
-
-
-def find_optimised_sa_data(best_sa_configs, best_sa_config_energies, true_groundstate_energy, sa_aris, sa_times_elapsed):
-    '''
-    Using all the data we found from performing the sim_annealing algorithm number_of_loops times, we:
-    1. Find the best configuration based on which has the minimum energy.
-    2. Compute the relative error in this energy with the true_groundstate_energy
+            
+        metrics['rel_error'].append(abs(sa_energy - true_gs_energy) / true_gs_energy)
+        metrics['ari'].append(ARI_check(true_gs, np.array([sa_config])))
+        metrics['runtime'].append(sa_time_elapsed)
+    metrics['conv_frac'].append(convergence_counter / loops)
     
-    If multiple loops do actually find the true groundstate, we pick the one which took the least time.
-    3. Return all data: best configuration, best relative error, the configuration ari, the smallest time-to-run.'''
+    #conv_traces(len(sa_config), steps, energy_histories)
     
-    optimum_energy = np.min(best_sa_config_energies)
-    optimum_rel_energy = abs((true_groundstate_energy - optimum_energy) / true_groundstate_energy)
-    
-    optimum_indices = np.where(np.isclose(best_sa_config_energies, optimum_energy))[0]
-    times = [sa_times_elapsed[i] for i in optimum_indices]
-    
-    optimum_index = np.where(np.isclose(sa_times_elapsed, min(times)))[0][0]
-    
-    return best_sa_configs[optimum_index], optimum_rel_energy, sa_aris[optimum_index], sa_times_elapsed[optimum_index]
+    return metric_stats(metrics)
             

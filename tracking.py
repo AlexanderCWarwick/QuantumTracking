@@ -1,139 +1,198 @@
 import numpy as np
-from track_generation import construct_toytracks
 import plotting as plot
-from similarity import get_KNN_matrix, get_RBF_matrix
 import classical_benchmarks as cb
-import simple_qaoa as s_qaoa
+from simple_qaoa import grid, cobyla, cobyqa, qaoa_results
+from generatesystem import generate_toyproblem_params
 
-    
-#######################################################     Main workflow     #######################################################
 
-def track_analysis(track_hits : int, algorithm_types : np.ndarray[str]): 
+def depth_scan(params, fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim):
     '''
-    Problem: Two particles pass through a detector each leaving N 'hits'. Using these 'hits' as coordinate
-    locations of the particles, can we resolve the two tracks from each other and hence determine each particle's
-    trajectory?
-        
-    Method:
-    Two toy tracks (with noise) are randomly generated in 2D plane. 
-    From the tracks obtain two types of similarity matrices:
-    - RBF (radial basis function)
-    - KNN (k nearest neighbours)
-    Matrix elements measure the likelyhood that one hit is compatible to another, i.e. if they are the same particle.
-    Obtain plots of these matrices as heatmaps.
-    Obtain Graph representations of these similarity matrices.
+    DEPTH SCAN -> VARY p
+    
+    In this experiment, we plot how our four success metrics change with p. 
+
     '''
     
-    x = np.linspace(0,1,track_hits)         #Positions of detectors
-    intersection_allowed = False            #Boolean to control whether particles intersect
-    sigma_noise = 1e-2                      #External noise 
-    nearneighb_n = 3                       #Number of nearest neighbours to consider in the KNN matrix
-    
-    lambda_bal = 0.5                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
-    
-    track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
-    #plot.plot_true_toytracks(x, track0, track1, intersection_allowed)
-    
-    hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.                                                   
+    metric_means = {p  : {name : {'rel_error' :[],
+                                'ari' : [],
+                                'runtime' : [],
+                                'gsp' : []} for name in qaoa_optimisers.keys()} for p in layers}
     
     
-    KNN_matrix, nbrs = get_KNN_matrix(hit_coords, nearneighb_n)                      #nbrs only needed for graph visualisation.
-    RBF_matrix = get_RBF_matrix(hit_coords)
-    
-    
-    #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Hit coordinates needed for plotting graph representations.
-    #knn_G, knn_edges = plot.construct_KNN_graphrep(number_of_hits, hit_coords, nbrs)
-    #rbf_G, rbf_edges, edge_contrasts = plot.construct_RBF_graphrep(number_of_hits, RBF_matrix)
-    #plot.graphrep(knn_G, x, hit_coords_dict, knn_edges, None, 'KNN')
-    #plot.graphrep(rbf_G, x, hit_coords_dict, rbf_edges, edge_contrasts, 'RBF')
-#############################################################################################################################
-
+    metric_errors = {p  : {name : {'rel_error' :[],
+                                'ari' : [],
+                                'runtime' : [],
+                                'gsp' : []} for name in qaoa_optimisers.keys()} for p in layers}
+       
     '''
-    Turn problem into an optimisation problem. The optimal track is the one that minimises the energy objective, the ground state. Ideally, when N=12, these are
-    000000111111 and 111111000000, the 'true ground states'.
-    Here the energy objective is modelled as an Ising type function.
-        
-    The configuration space is the set of all possible hit labellings. Since each label is 0 or 1, this equates to assigning every configuration a binary string
-    from 000000000000 up to 111111111111. This forms the binary configuration space with 2^12 = 4096 possibilities. 
-        
-    The objective function depends on a balance parameter, λ, which serves to discourage extreme configurations. 
-    This simple optimisation technique will be tested for different λ values along with a ARI function to act as a numerical check on the randomness 
-    of the calculated ground state. 
-        
-    The ARI check is symmetric to bit flops hence only need to use one of the two true groundstate tracks, true_groundstates[0] is used
-    here but true_groundstates[1].
+    Above dictionaries are arranged like this:
+    Metric : [[Grid search p=1, Grid search p=2, ...], [COBYLA p=1, COBYLA p=2, ...]]
+    Where for each p in the COBYLA list the mean (or std) is given for seed_lim samples. 
+    '''
     
-    ###############################################################################
-    
-    Week 2 Ising optimisation code. Do not run if testing higher values of track_hits, brute force technique will crash computer due to exponential order.
-    
-    KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs, RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs = ising_optimisation(number_of_hits, lambda_bal, KNN_matrix, RBF_matrix)
-    plot.plot_energy_landscape(lambda_bal, KNN_energies, RBF_energies)
-    
-    KNN_aris = ARI_check(true_groundstate, KNN_groundstate_binary_configs)
-    RBF_aris = ARI_check(true_groundstate, RBF_groundstate_binary_configs)
+    previous_params = {name: None for name in qaoa_optimisers.keys()}
     
     '''
-    true_groundstate = np.array(np.concatenate([track0_truthlabels, track1_truthlabels]))
-    #The reference groundstate we use is 000000111111, but could just as well be the inverted state.
+    previous_params stores the best params obtained from the (p-1)th search. 
+    So if p=2, then the first restart used in the cobyla function will use the p=1 best params.
+    The remaining restarts are random.
+    '''
     
-###############################################################################################################################
-    
-    true_groundstate_energy_rbf = cb.get_groundstate_energy(RBF_matrix, true_groundstate, lambda_bal) 
-    true_groundstate_energy_knn = cb.get_groundstate_energy(KNN_matrix, true_groundstate, lambda_bal)
-    
-    params = (RBF_matrix, true_groundstate, true_groundstate_energy_rbf, lambda_bal)
-    
-    i, j = cb.get_mostdissimlar_hits(RBF_matrix)        #Gets the most dissimilar hits for the greedy algorithm. Uses RBF matrix for both RBF and KNN options.
-    
-    optimised_configs = []
-    relative_energies = []
-    aris = []
-    times = []
-    
-    for algorithm in algorithm_types:
-        if algorithm != 'QAOA':
-            config, rel_energy, ari, time_elapsed, convergence_fraction = cb.run_classical_algorithm(algorithm, params, i, j)
-            relative_energies.append(rel_energy)
-            aris.append(ari)
-            times.append(time_elapsed)
-            optimised_configs.append(config)
-        else:
-            q_config, q_rel_energy, q_ari, _, _, q_time_elapsed = s_qaoa.qaoa_results(*params)
-            relative_energies.append(q_rel_energy)
-            aris.append(q_ari)
-            times.append(q_time_elapsed)
-            optimised_configs.append(q_config)
+    for p in layers:
+        for optimiser_name, optimiser in qaoa_optimisers.items():
+            if optimiser_name == 'COBYLA':
+                warm_restart = previous_params[optimiser_name]
+            else:
+                warm_restart = None
+                
+            means, errors, best_gammas, best_betas = qaoa_results(*params, lambda_bal, no_of_shots, p, seed_lim, optimiser, warm_restart)
+            
+            if optimiser_name != 'Grid':
+                previous_params[optimiser_name] = np.concatenate([best_gammas, best_betas])
+            
+            metric_means[p][optimiser_name]['rel_error'] = means[0]
+            metric_means[p][optimiser_name]['ari'] = means[1]
+            metric_means[p][optimiser_name]['runtime'] = means[2]
+            metric_means[p][optimiser_name]['gsp'] = means[3]
+            
+            
+            metric_errors[p][optimiser_name]['rel_error'] = errors[0]
+            metric_errors[p][optimiser_name]['ari'] = errors[1]
+            metric_errors[p][optimiser_name]['runtime'] = errors[2]
+            metric_errors[p][optimiser_name]['gsp'] = errors[3]
+            
+    plot.depth_scan_metric_scatter(layers, metric_means, metric_errors, 2*fixed_hits)
         
         
-    plot.optimised_benchmark_toytracks(hit_coords, optimised_configs, algorithm_types)
+        
+def scale_scan(track_hits : np.ndarray[int], qaoa_optimisers : dict, no_of_shots : int, 
+               fixed_layers : int, seed_lim : int, lambda_bal : float):
     
-    return np.array(relative_energies), np.array(aris), np.array(times), convergence_fraction
+    raw_results = {name : [] for name in qaoa_optimisers.keys()}
+    raw_errors = {name : [] for name in qaoa_optimisers.keys()}
+    
+    rel_results = {name : [] for name in qaoa_optimisers.keys()}
+    rel_errors = {name : [] for name in qaoa_optimisers.keys()}
+    
+    for hits in track_hits:
+        params = generate_toyproblem_params(hits, lambda_bal)
+         
+        for optimiser_name, optimiser in qaoa_optimisers.items():
+            means, stds, _, _ = qaoa_results(*params, lambda_bal, no_of_shots, fixed_layers, seed_lim, optimiser, None)
+            
+            baseline = 2 / (2**(2*hits))
+            #The groundstate probability is the final entry of the means/std output arrays of the qaoa_results
+            relative_gs_prob = means[-1] / baseline
+            relative_error = stds[-1] / baseline
+            
+            raw_results[optimiser_name].append(means[-1])
+            raw_errors[optimiser_name].append(stds[-1])
+            
+            rel_results[optimiser_name].append(relative_gs_prob)
+            rel_errors[optimiser_name].append(relative_error)
+            
+    
+    plot.scaling_scan_metric_scatter(track_hits, raw_results, raw_errors,
+                                  rel_results, rel_errors)
+    
+    
+    
+def quantum_scan(qaoa_optimisers : dict,  lambda_bal : float,  hits : int, no_of_shots : int, p : int, seed_lim : int):
+    #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
+    params = generate_toyproblem_params(hits, lambda_bal)
+    
+    quantum_metrics = {name: {'rel_error': None,
+                            'ari': None,
+                            'runtime': None,
+                            'gsp': None}
+                            for name in qaoa_optimisers.keys()}
+    
+    for optimiser_name, optimiser in qaoa_optimisers.items():
+        means, errors, _, _ = qaoa_results(*params, lambda_bal, no_of_shots, p, seed_lim, optimiser, None)
+        for metric, mean, std in zip(quantum_metrics[optimiser_name].keys(), means, errors):
+            quantum_metrics[optimiser_name][metric] = {'mean': mean,
+                                                        'error': std}
+    return quantum_metrics
 
 
 
+    
+def classical_scan(classical_algs : dict, lambda_bal, hits):
+    '''
+    Classical scan over all listed algorithms in dictionary classical_algs. Symmetric with quantum_scan.
+    params ordering:
+    1. similarity matrix (KNN OR RBF)
+    2. the true gs, [0...01...1]
+    3. the true gs energy.
+    '''
+
+    params = generate_toyproblem_params(hits, lambda_bal)
+    
+    classical_metrics = {alg_name : {'rel_error' :[],
+                         'ari' : [],
+                         'runtime' : [],
+                         'conv_frac' : []} for alg_name in classical_algs}
+    
+    classical_alg_loops = 10
+    for alg_name, alg in classical_algs.items():
+        means, errors = alg(*params, lambda_bal, classical_alg_loops)
+        for metric, mean, std in zip(classical_metrics[alg_name].keys(), means, errors):
+            classical_metrics[alg_name][metric] = {'mean': mean,
+                                                'error': std}
+    return classical_metrics
+    
+    
+    
 def main():
-    algorithm_types = ['Greedy', 'Spectral Clustering', 'Simulated Annealing', 'QAOA']
-    benchmark_times = []
-    benchmark_aris = []
-    relative_benchmark_energies = []
-    conv_fractions = []
+    option = 'class'                  #This is the identifier for which 'task' we want to do.
+    no_of_shots =  4096               #Number of measurements the quantum simulator will make of the circuit (all independent).
+    seed_lim = 3                 #Number of runs of the QAOA to calculate means and errors.
+    lambda_bal = 0.4                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     
-    hits_array = np.array([4])
+    #Names of the classical algorithms used.
+    classical_algs = {'Greedy' : cb.greedy_results, 'Spectral Clustering': cb.spectral_results, 'Simulated Annealing' : cb.sim_annealing_results}
     
-    for hits in hits_array:
-        np.random.seed(41)                  #Fixed random seed. Same for every number of track hits
+    #All the different optimisers used in the qaoa. simple_qaoa contains three to use: grid, cobyla and cobyqa.
+    qaoa_optimisers = {'COBYLA' : cobyla}
     
-        rel_energies, aris, times, conv_frac = track_analysis(hits, algorithm_types)
-        relative_benchmark_energies.append(rel_energies)
-        benchmark_aris.append(aris)
-        benchmark_times.append(times)
-        conv_fractions.append(conv_frac)
+    '''
+    IMPORTANT NAMING CONVENTION:
+    Metrics in this code appear always in the following order: 
+    1. relative energy error
+    2. ari
+    3. full runtime 
+    4. gsp
+    '''
+    
+    if option == 'depth':
+        #Depth Scan fixes N varies p.
+        fixed_hits = 4
+        layers = np.arange(1, 4)
         
+        #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
+        #Can include before the depth_scan call since params doesn't change with p.
+        params = generate_toyproblem_params(fixed_hits, lambda_bal)
         
-    plot.print_benchmark_table(hits_array, algorithm_types, benchmark_aris, benchmark_times, relative_benchmark_energies, conv_fractions)
+        depth_scan(params, fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim)        
+            
+    elif option == 'scale':
+        #Scaling Scan fixes p varies N.
+        hits_array = np.array([3,4,5,6])
+        fixed_layers = 2
         
-    
-    
+        scale_scan(hits_array, qaoa_optimisers, no_of_shots, fixed_layers, seed_lim, lambda_bal)
+        
+    elif option == 'class':
+        #For a fixed N and p, compare all algorithms in one table.
+        hits = 6
+        layers = 2
+        
+        classical_results = classical_scan(classical_algs, lambda_bal, hits)
+        plot.print_benchmark_table(hits, classical_results)
+        
+        quantum_results = quantum_scan(qaoa_optimisers, lambda_bal, hits, no_of_shots, layers, seed_lim)
+        plot.print_quantum_table(hits, quantum_results)
+                
+        
 if __name__ == "__main__":
     main()
