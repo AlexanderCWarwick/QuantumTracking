@@ -85,7 +85,6 @@ def generate_toyproblem_params(hits : int, lambda_bal : float):
     KNN_matrix, RBF_matrix = sim_matrices_calculation(x, track0, track1)
     
     true_groundstate = np.array(np.concatenate([track0_truthlabels, track1_truthlabels]))
-    #Choose to use the RBF matrix over KNN as similarity measure.
     
     KNN_true_gs_energy, RBF_true_gs_energy = exhaustive_ising_method(true_groundstate, RBF_matrix, KNN_matrix, lambda_bal)
                 

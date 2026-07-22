@@ -5,12 +5,18 @@ from simple_qaoa import grid, cobyla, cobyqa, qaoa_results
 from generatesystem import generate_toyproblem_params
 
 
-def depth_scan(params, fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim):
+def depth_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], float], 
+               fixed_hits : int, 
+               layers : np.ndarray[int], 
+               lambda_bal : float, 
+               qaoa_optimisers : dict, 
+               no_of_shots : int, 
+               seed_lim : int, 
+               noisy_or_clean : bool):
     '''
     DEPTH SCAN -> VARY p
     
     In this experiment, we plot how our four success metrics change with p. 
-
     '''
     
     metric_means = {p  : {name : {'rel_error' :[],
@@ -45,7 +51,14 @@ def depth_scan(params, fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_sh
             else:
                 warm_restart = None
                 
-            means, errors, best_gammas, best_betas = qaoa_results(*params, lambda_bal, no_of_shots, p, seed_lim, optimiser, warm_restart)
+            means, errors, best_gammas, best_betas = qaoa_results(*params, 
+                                                                  lambda_bal, 
+                                                                  no_of_shots, 
+                                                                  p, 
+                                                                  seed_lim, 
+                                                                  optimiser, 
+                                                                  warm_restart, 
+                                                                  noisy_or_clean)
             
             if optimiser_name != 'Grid':
                 previous_params[optimiser_name] = np.concatenate([best_gammas, best_betas])
@@ -65,8 +78,20 @@ def depth_scan(params, fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_sh
         
         
         
-def scale_scan(track_hits : np.ndarray[int], qaoa_optimisers : dict, no_of_shots : int, 
-               fixed_layers : int, seed_lim : int, lambda_bal : float):
+def scale_scan(track_hits : np.ndarray[int], 
+               qaoa_optimisers : dict, 
+               no_of_shots : int, 
+               fixed_layers : int, 
+               seed_lim : int, 
+               lambda_bal : float,
+               noisy_or_clean : bool):
+    
+    '''
+    SCALE SCAN -> VARY N
+    
+    In this experiment we plot how the groundstate probability changes with N for a given number of QAOA layers p.
+    '''
+    
     
     raw_results = {name : [] for name in qaoa_optimisers.keys()}
     raw_errors = {name : [] for name in qaoa_optimisers.keys()}
@@ -74,11 +99,20 @@ def scale_scan(track_hits : np.ndarray[int], qaoa_optimisers : dict, no_of_shots
     rel_results = {name : [] for name in qaoa_optimisers.keys()}
     rel_errors = {name : [] for name in qaoa_optimisers.keys()}
     
+    warm_restart = None     #Scale scan does not use warm restarts.
+    
     for hits in track_hits:
         params = generate_toyproblem_params(hits, lambda_bal)
          
         for optimiser_name, optimiser in qaoa_optimisers.items():
-            means, stds, _, _ = qaoa_results(*params, lambda_bal, no_of_shots, fixed_layers, seed_lim, optimiser, None)
+            means, stds, _, _ = qaoa_results(*params, 
+                                             lambda_bal, 
+                                             no_of_shots, 
+                                             fixed_layers, 
+                                             seed_lim, 
+                                             optimiser, 
+                                             warm_restart, 
+                                             noisy_or_clean)
             
             baseline = 2 / (2**(2*hits))
             #The groundstate probability is the final entry of the means/std output arrays of the qaoa_results
@@ -97,9 +131,20 @@ def scale_scan(track_hits : np.ndarray[int], qaoa_optimisers : dict, no_of_shots
     
     
     
-def quantum_scan(qaoa_optimisers : dict,  lambda_bal : float,  hits : int, no_of_shots : int, p : int, seed_lim : int):
-    #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
-    params = generate_toyproblem_params(hits, lambda_bal)
+def quantum_scan(qaoa_optimisers : dict,  
+                 params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], float], 
+                 lambda_bal : float,
+                 no_of_shots : int, 
+                 p : int, 
+                 seed_lim : int, 
+                 noisy_or_clean : bool) -> dict:
+    '''
+    Quantum scan over all listed optimiser in dictionary qaoa_optimiser.
+    params ordering:
+    1. similarity matrix (KNN OR RBF)
+    2. the true gs, [0...01...1]
+    3. the true gs energy.
+    '''
     
     quantum_metrics = {name: {'rel_error': None,
                             'ari': None,
@@ -107,8 +152,10 @@ def quantum_scan(qaoa_optimisers : dict,  lambda_bal : float,  hits : int, no_of
                             'gsp': None}
                             for name in qaoa_optimisers.keys()}
     
+    warm_restarts = None
+    
     for optimiser_name, optimiser in qaoa_optimisers.items():
-        means, errors, _, _ = qaoa_results(*params, lambda_bal, no_of_shots, p, seed_lim, optimiser, None)
+        means, errors, _, _ = qaoa_results(*params, lambda_bal, no_of_shots, p, seed_lim, optimiser, warm_restarts, noisy_or_clean)
         for metric, mean, std in zip(quantum_metrics[optimiser_name].keys(), means, errors):
             quantum_metrics[optimiser_name][metric] = {'mean': mean,
                                                         'error': std}
@@ -117,40 +164,39 @@ def quantum_scan(qaoa_optimisers : dict,  lambda_bal : float,  hits : int, no_of
 
 
     
-def classical_scan(classical_algs : dict, lambda_bal, hits):
+def classical_scan(classical_algs : dict, 
+                   params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], float],
+                   lambda_bal : float) -> dict:
     '''
     Classical scan over all listed algorithms in dictionary classical_algs. Symmetric with quantum_scan.
-    params ordering:
-    1. similarity matrix (KNN OR RBF)
-    2. the true gs, [0...01...1]
-    3. the true gs energy.
     '''
-
-    params = generate_toyproblem_params(hits, lambda_bal)
-    
     classical_metrics = {alg_name : {'rel_error' :[],
                          'ari' : [],
                          'runtime' : [],
                          'conv_frac' : []} for alg_name in classical_algs}
     
-    classical_alg_loops = 10
+    classical_alg_loops = 10         #How many times to run each classical algorithm to obtain metric statistics.
+    
     for alg_name, alg in classical_algs.items():
         means, errors = alg(*params, lambda_bal, classical_alg_loops)
         for metric, mean, std in zip(classical_metrics[alg_name].keys(), means, errors):
-            classical_metrics[alg_name][metric] = {'mean': mean,
-                                                'error': std}
+            classical_metrics[alg_name][metric] = {'mean': mean, 'error': std}
+            
     return classical_metrics
     
     
     
 def main():
     option = 'class'                  #This is the identifier for which 'task' we want to do.
-    no_of_shots =  4096               #Number of measurements the quantum simulator will make of the circuit (all independent).
-    seed_lim = 3                 #Number of runs of the QAOA to calculate means and errors.
-    lambda_bal = 0.4                 #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
+    no_of_shots =  8192               #Number of measurements the quantum simulator will make of the circuit (all independent).
+    seed_lim = 5                      #Number of runs of the QAOA to calculate means and errors.
+    lambda_bal = 0.3                  #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
+    noisy_or_clean = False            #Bool for whether or not to run on a noisy or clean circuit.
     
     #Names of the classical algorithms used.
-    classical_algs = {'Greedy' : cb.greedy_results, 'Spectral Clustering': cb.spectral_results, 'Simulated Annealing' : cb.sim_annealing_results}
+    classical_algs = {'Greedy' : cb.greedy_results, 
+                      'Spectral Clustering': cb.spectral_results, 
+                      'Simulated Annealing' : cb.sim_annealing_results}
     
     #All the different optimisers used in the qaoa. simple_qaoa contains three to use: grid, cobyla and cobyqa.
     qaoa_optimisers = {'COBYLA' : cobyla}
@@ -173,24 +219,25 @@ def main():
         #Can include before the depth_scan call since params doesn't change with p.
         params = generate_toyproblem_params(fixed_hits, lambda_bal)
         
-        depth_scan(params, fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim)        
+        depth_scan(params, fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim, noisy_or_clean)        
             
     elif option == 'scale':
         #Scaling Scan fixes p varies N.
         hits_array = np.array([3,4,5,6])
         fixed_layers = 2
         
-        scale_scan(hits_array, qaoa_optimisers, no_of_shots, fixed_layers, seed_lim, lambda_bal)
+        scale_scan(hits_array, qaoa_optimisers, no_of_shots, fixed_layers, seed_lim, lambda_bal, noisy_or_clean)
         
     elif option == 'class':
         #For a fixed N and p, compare all algorithms in one table.
-        hits = 6
+        hits = 4
         layers = 2
-        
-        classical_results = classical_scan(classical_algs, lambda_bal, hits)
+        params = generate_toyproblem_params(hits, lambda_bal)
+    
+        classical_results = classical_scan(classical_algs, params, lambda_bal)
         plot.print_benchmark_table(hits, classical_results)
         
-        quantum_results = quantum_scan(qaoa_optimisers, lambda_bal, hits, no_of_shots, layers, seed_lim)
+        quantum_results = quantum_scan(qaoa_optimisers, params, lambda_bal, no_of_shots, layers, seed_lim, noisy_or_clean)
         plot.print_quantum_table(hits, quantum_results)
                 
         

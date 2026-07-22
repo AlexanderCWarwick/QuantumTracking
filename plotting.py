@@ -38,7 +38,7 @@ def format_metric(metric):
     
 def print_benchmark_table(hits, classical_results : dict[dict]):
     header = (f'{'Hits':<8}'
-        f'{'QAOA Optimiser':<30}'
+        f'{'Classical Algorithm':<30}'
         f'{'Relative Energy Error':<30}'
         f'{'ARI':<20}'
         f'{'Time (s)':<20}'
@@ -114,16 +114,6 @@ def scaling_scan_metric_scatter(track_hits : np.ndarray[int],  raw_results : dic
     plt.show()
     
     
-def plot_energy_hist(energies, true_groundstate_energy):
-    plt.figure()
-    plt.hist(energies, bins=30)
-    plt.axvline(true_groundstate_energy, color='red', linestyle='--', label='Exact ground state')
-    plt.xlabel('Ising energy')
-    plt.ylabel('Counts')
-    plt.legend()
-    plt.show()
-    
-    
     
 def depth_scan_metric_scatter(layers, metric_means : np.ndarray[float, float], metric_errors : np.ndarray[float, float], hits):
     fig, ax = plt.subplots(2,2,figsize=(9,7))
@@ -194,5 +184,34 @@ def optimiser_result_energies(final_energies, optimiser, p, hits):
     plt.xticks(x)
     plt.ylabel('Energy')
     plt.plot(x, final_energies)
+    
+    
+def plot_energy_hist(energies, true_groundstate_energy):
+    plt.figure()
+    plt.hist(energies, bins=30)
+    plt.axvline(true_groundstate_energy, color='red', linestyle='--', label=f'Exact GS energy = {true_groundstate_energy:.2f}')
+    plt.xlabel('Ising energy')
+    plt.ylabel('Counts')
+    plt.legend()
+    plt.show()
+        
+            
+def top_ten_states(counts):
+    top_10 = dict(sorted(counts.items(), key=lambda item: item[1], reverse=True)[:10])
+    states = list(top_10.keys())
+    frequencies = list(top_10.values())
+    
+    bar_colors = ["red" if state == "00001111" or state == "11110000" else "blue" for state in states]
+        
+    plt.bar(states, frequencies, color = bar_colors)
+    plt.xlabel("Measured configuration")
+    plt.ylabel("Counts")
+    plt.title("10 Most Frequently Measured Configurations")
+        
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+                
+        
     
     
