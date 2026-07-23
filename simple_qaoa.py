@@ -17,7 +17,6 @@ def qaoa_pipeline(W : np.ndarray,
                   seed : int,  
                   p : int,  
                   backend,  
-                  noise_model,
                   optimiser,  
                   circuit,  
                   beta,  
@@ -37,7 +36,6 @@ def qaoa_pipeline(W : np.ndarray,
     best_gammas, best_betas, best_runtime = optimiser(W, 
                                                       circuit, 
                                                       backend, 
-                                                      noise_model,
                                                       gamma, 
                                                       beta, 
                                                       lambda_bal, 
@@ -49,7 +47,7 @@ def qaoa_pipeline(W : np.ndarray,
                                                       warm_restart)
         
     best_paramed_circuit = bind_params(circuit, gamma, beta, best_gammas, best_betas, p)
-    best_counts = run_qaoa(backend, noise_model, best_paramed_circuit, no_of_shots)
+    best_counts = run_qaoa(backend, best_paramed_circuit, no_of_shots)
     
     return best_counts, best_gammas, best_betas, best_runtime
     
@@ -82,8 +80,7 @@ def get_counts_data(best_counts,
         
 def grid(W, 
          circuit, 
-         backend, 
-         noise_model, 
+         backend,  
          gamma, 
          beta, 
          lambda_bal, 
@@ -115,7 +112,7 @@ def grid(W,
     for param_state in product(*A, *B):
         gamma_values = param_state[:p]
         beta_values = param_state[p:]
-        state_avg_energy = evaluate(W, circuit,  backend,  noise_model,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
+        state_avg_energy = evaluate(W, circuit,  backend,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
 
         if state_avg_energy < best_energy:
             best_params = param_state
@@ -151,8 +148,7 @@ def expand_warm_start(warm_start,
     
 def cobyla(W, 
            circuit,  
-           backend, 
-           noise_model, 
+           backend,  
            gamma,  
            beta,  
            lambda_bal,  
@@ -165,14 +161,13 @@ def cobyla(W,
     '''
     COBYLA operating function
     '''
-    return scipy_qaoa_optimiser(W, circuit,  backend, noise_model, gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
+    return scipy_qaoa_optimiser(W, circuit,  backend, gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
                         warm_restart, 'COBYLA')
     
     
 def cobyqa(W, 
            circuit, 
-           backend,  
-           noise_model, 
+           backend,   
            gamma, 
            beta,  
            lambda_bal, 
@@ -185,14 +180,13 @@ def cobyqa(W,
     '''
     COBYQA operating function
     '''
-    return scipy_qaoa_optimiser(W, circuit,  backend,  noise_model,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
+    return scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
                         warm_restart, 'COBYQA')
             
             
 def scipy_qaoa_optimiser(W, 
                          circuit,  
-                         backend, 
-                         noise_model,  
+                         backend,   
                          gamma,  
                          beta,  
                          lambda_bal,  
@@ -227,10 +221,9 @@ def scipy_qaoa_optimiser(W,
     2 - random
     3 - random
     ''' 
-    restarts = 3                       #Number of random restarts
+    restarts = 5                       #Number of random restarts
     avg_energy = np.inf
     best_result = None
-    best_time = None
     
     histories = []                       #List to hold the evolution of each random restarts energy. 
     final_energies = []                  #List to hold the returned best energies from each restart.
@@ -239,8 +232,9 @@ def scipy_qaoa_optimiser(W,
     rng = np.random.default_rng(seed)
     best_history_idx = None             #Holds the restart that gave the lowest energy configuration. Only used for plotting.
     
+    seed_runtime_start = perf_counter()
+    
     for restart_idx in range(restarts):
-
         if restart_idx == 0 and warm_restart is not None:
             #First restart = warm start, the rest are normal random restarts.
             x0 = expand_warm_start(warm_restart, p, gamma_range, beta_range, rng)
@@ -253,12 +247,11 @@ def scipy_qaoa_optimiser(W,
         def eval(params):
             gamma_values = params[:p]
             beta_values = params[p:]
-            energy = evaluate(W, circuit,  backend,  noise_model,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
+            energy = evaluate(W, circuit,  backend,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
             
             restart_energies.append(energy)
             return energy
     
-        runtime_start = perf_counter()
         result = minimize(eval, x0, method=method, bounds=param_bounds, options={'maxiter' : 100})
         result_energy = result.fun
     
@@ -271,16 +264,17 @@ def scipy_qaoa_optimiser(W,
         else:
             final_energies.append(avg_energy) 
         
-        best_time = perf_counter() - runtime_start
+        print(f'Restart {restart_idx+1} / {restarts} complete')
         histories.append(restart_energies)
     
+    seed_time = perf_counter() - seed_runtime_start
     #Plot energy trace of each restart.
     #optimiser_energy_trace(restarts, histories, best_history_idx, method, p, len(W))
 
     #Plot how the cobyla_avg_energy changes through the cobyla_restarts number of repitions.
     #optimiser_result_energies(final_energies, method, p, len(W))
 
-    return best_result.x[:p], best_result.x[p:], best_time
+    return best_result.x[:p], best_result.x[p:], seed_time
     
     
 def bind_params(circuit, 
@@ -297,8 +291,7 @@ def bind_params(circuit,
 
 def evaluate(W,  
              circuit,  
-             backend, 
-             noise_model,  
+             backend,   
              gamma,  
              beta, 
              gamma_values, 
@@ -313,7 +306,6 @@ def evaluate(W,
     
     paramed_circuit = bind_params(circuit, gamma, beta, gamma_values, beta_values, p)
     counts = run_qaoa(backend, 
-                      noise_model,
                       paramed_circuit, 
                       no_of_shots)
             
@@ -359,15 +351,14 @@ def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
     
     
     
-def run_qaoa(backend, noise_model, circuit, no_of_shots):
+def run_qaoa(backend, circuit, no_of_shots):
     '''
     Input: The simulator standing in for the quantum computer, the binded circuit and the number of shots.
     Output: The sampled probability distribution for that circuit with those specific parameter values.
     '''
     
     result = backend.run(circuit, 
-                         shots=no_of_shots,
-                         noise_model = noise_model).result()
+                         shots=no_of_shots).result()
     counts = result.get_counts()
     #counts is the sampling histogram, e.g. '110101' was meausred 37 times etc.
     
@@ -452,32 +443,35 @@ def qaoa_results(W : np.ndarray[float],
     beta = [Parameter(f'b{i+1}') for i in range(p)]
         
     circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
-    backend = Aer.get_backend('aer_simulator')
     noise_model = None
     
     if noisy_or_clean:
         #noise_or_clean boolean distinguishes between clean and a noisy runs. 
-        noise_strength = 0.1
+        noise_strength = 0.3
         noise_model = add_depolarizing_noise(noise_strength)
+        print(f'Depolarisation Channel Noise Model Activated. Stength = {noise_strength}')
+        
+    
+    backend = Aer.get_backend('aer_simulator', noise_model=noise_model)
     
         
     for seed in range(seed_lim):
+        seed_start_time = perf_counter()
         best_counts, best_gammas, best_betas, runtime = qaoa_pipeline(W,  
                                                                       lambda_bal,  
                                                                       no_of_shots,  
                                                                       seed,  
                                                                       p,  
-                                                                      backend,  
-                                                                      noise_model,
+                                                                      backend,
                                                                       optimiser,  
                                                                       circuit, 
                                                                       beta,  
                                                                       gamma,  
                                                                       warm_restart)
         
-        energy_data(best_counts, W, lambda_bal, true_groundstate_energy)
+        #energy_data(best_counts, W, lambda_bal, true_groundstate_energy)
         
-        top_ten_states(best_counts)
+        #top_ten_states(best_counts, true_groundstate)
                 
         
         
@@ -489,5 +483,7 @@ def qaoa_results(W : np.ndarray[float],
         metrics_dict['ari'].append(best_ari)
         metrics_dict['runtime'].append(runtime)
         metrics_dict['gsp'].append(gs_prob)
+        print(f'Seed {seed + 1} / {seed_lim} complete: ({(perf_counter() - seed_start_time):.2f}s)')
+        print('\n')
         
     return *metric_stats(metrics_dict), best_gammas, best_betas

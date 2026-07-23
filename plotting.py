@@ -65,7 +65,7 @@ def print_benchmark_table(hits, classical_results : dict[dict]):
             
         
         
-def print_quantum_table(hits : int, quantum_results : dict):
+def print_quantum_table(hits : int, p : int, quantum_results : dict):
     header = (f'{'Hits':<8}'
         f'{'QAOA Optimiser':<20}'
         f'{'Relative Energy Error':<30}'
@@ -73,16 +73,18 @@ def print_quantum_table(hits : int, quantum_results : dict):
         f'{'Time (s)':<20}'
         f'{'GS Prob':<20}')
     
+    print(f'Layers p = {p}')
     print(header)
     print('-' * len(header))
     
-    for optimiser_name, metrics in quantum_results.items():
+    for optimiser_name, metrics in quantum_results[p].items():
         print(f'{2*hits:<8}'
             f'{optimiser_name:<20}'
             f'{format_metric(metrics['rel_error']):<30}'
             f'{format_metric(metrics['ari']):<20}'
             f'{format_metric(metrics['runtime']):<20}'
             f'{format_metric(metrics['gsp']):<20}')
+    print('\n')
 
     
 def scaling_scan_metric_scatter(track_hits : np.ndarray[int],  raw_results : dict,  raw_errors : dict,
@@ -115,25 +117,25 @@ def scaling_scan_metric_scatter(track_hits : np.ndarray[int],  raw_results : dic
     
     
     
-def depth_scan_metric_scatter(layers, metric_means : np.ndarray[float, float], metric_errors : np.ndarray[float, float], hits):
+def depth_scan_metric_scatter(layers, metric_results, hits):
     fig, ax = plt.subplots(2,2,figsize=(9,7))
     ax = ax.flatten()
     metrics = {'rel_error': 'Relative Energy Error',
                 'ari': 'Adjusted Rand Index (ARI)',
                 'runtime': 'Runtime (s)',
                 'gsp': 'Groundstate Probability'}
-    optimisers = list(metric_means[layers[0]].keys())
+    optimisers = list(metric_results[layers[0]].keys())
     
     for idx, (metric, metric_name) in enumerate(metrics.items()):
-        for optimiser_name in metric_means[layers[0]].keys():
-            means = [metric_means[p][optimiser_name][metric] for p in layers]
-            errors = [metric_errors[p][optimiser_name][metric] for p in layers]
+        for optimiser_name in metric_results[layers[0]].keys():
             
+            means = [metric_results[p][optimiser_name][metric]['mean'] for p in layers]
+            errors = [metric_results[p][optimiser_name][metric]['error'] for p in layers]
             ax[idx].errorbar(layers, means, yerr=errors, fmt='o-', capsize=3, alpha=0.7, label=optimiser_name)
             
         if metric == 'gsp':
             baseline = 2 / (2**(2*hits))
-            ax[idx].axhline(baseline, linestyle='--', label='Uniform baseline')
+            ax[idx].axhline(baseline, linestyle='--', label=f'Uniform baseline {baseline:.4f}')
             ax[idx].legend()
             
         ax[idx].set_title(f'{metric_name}')
@@ -147,7 +149,7 @@ def depth_scan_metric_scatter(layers, metric_means : np.ndarray[float, float], m
     
     fig.supxlabel('($p$) Layers')
     fig.supylabel('Metric value')
-    fig.suptitle(f'QAOA Depth Scan Hits ($ N={hits} $)', x=0.8, fontsize=13)
+    fig.suptitle(f'QAOA Depth Scan Hits ($ N={2*hits} $)', x=0.8, fontsize=13)
 
     plt.tight_layout()
     plt.show()
@@ -196,12 +198,12 @@ def plot_energy_hist(energies, true_groundstate_energy):
     plt.show()
         
             
-def top_ten_states(counts):
+def top_ten_states(counts : dict, true_gs : np.ndarray[int]):
     top_10 = dict(sorted(counts.items(), key=lambda item: item[1], reverse=True)[:10])
     states = list(top_10.keys())
     frequencies = list(top_10.values())
     
-    bar_colors = ["red" if state == "00001111" or state == "11110000" else "blue" for state in states]
+    bar_colors = ["red" if state == true_gs or state == true_gs[::-1] else "blue" for state in states]
         
     plt.bar(states, frequencies, color = bar_colors)
     plt.xlabel("Measured configuration")
