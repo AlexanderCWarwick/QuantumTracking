@@ -65,7 +65,7 @@ def print_benchmark_table(hits, classical_results : dict[dict]):
             
         
         
-def print_quantum_table(hits : int, p : int, quantum_results : dict):
+def print_quantum_table(hits : int, p : int, noise_strength : float, quantum_results : dict):
     header = (f'{'Hits':<8}'
         f'{'QAOA Optimiser':<20}'
         f'{'Relative Energy Error':<30}'
@@ -73,7 +73,7 @@ def print_quantum_table(hits : int, p : int, quantum_results : dict):
         f'{'Time (s)':<20}'
         f'{'GS Prob':<20}')
     
-    print(f'Layers p = {p}')
+    print(f'Layers p = {p}, decoherence noise = {noise_strength}')
     print(header)
     print('-' * len(header))
     

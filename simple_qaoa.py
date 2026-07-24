@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import minimize
 from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
 from qiskit.circuit import Parameter
-from qiskit_aer import Aer
+from qiskit_aer import AerSimulator
 
 from add_noisemodel import add_depolarizing_noise
 
@@ -32,7 +32,8 @@ def qaoa_pipeline(W : np.ndarray,
     gamma_range = (0, 2*np.pi)
     beta_range = (0, np.pi)
     
-    backend.set_options(seed_simulator=seed)            
+    backend.set_options(seed_simulator=seed)         
+                    
     best_gammas, best_betas, best_runtime = optimiser(W, 
                                                       circuit, 
                                                       backend, 
@@ -53,7 +54,6 @@ def qaoa_pipeline(W : np.ndarray,
     
         
         
-
 def get_counts_data(best_counts, 
                     W, 
                     true_groundstate, 
@@ -163,7 +163,7 @@ def cobyla(W,
     '''
     return scipy_qaoa_optimiser(W, circuit,  backend, gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
                         warm_restart, 'COBYLA')
-    
+
     
 def cobyqa(W, 
            circuit, 
@@ -236,7 +236,7 @@ def scipy_qaoa_optimiser(W,
     
     for restart_idx in range(restarts):
         if restart_idx == 0 and warm_restart is not None:
-            #First restart = warm start, the rest are normal random restarts.
+            #First restart = warm start, the rest callare normal random restarts.
             x0 = expand_warm_start(warm_restart, p, gamma_range, beta_range, rng)
         else:
             # Remaining restarts = random
@@ -421,7 +421,7 @@ def qaoa_results(W : np.ndarray[float],
                  seed_lim : int,  
                  optimiser,
                  warm_restart : np.ndarray[float],
-                 noisy_or_clean : bool) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
+                 noise_strength : float) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
     '''
     Build the generalised circuit wih parameters gamma and beta (for each layer). Each time we generate parameter values
     e.g. iterating through points in the grid search or adaptive optimiser finds a new parameter set, we bind them to the circuit.
@@ -443,16 +443,10 @@ def qaoa_results(W : np.ndarray[float],
     beta = [Parameter(f'b{i+1}') for i in range(p)]
         
     circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
-    noise_model = None
     
-    if noisy_or_clean:
-        #noise_or_clean boolean distinguishes between clean and a noisy runs. 
-        noise_strength = 0.3
-        noise_model = add_depolarizing_noise(noise_strength)
-        print(f'Depolarisation Channel Noise Model Activated. Stength = {noise_strength}')
+    noise_model = add_depolarizing_noise(noise_strength)
         
-    
-    backend = Aer.get_backend('aer_simulator', noise_model=noise_model)
+    backend = AerSimulator(noise_model=noise_model)               #Backend with noise model.
     
         
     for seed in range(seed_lim):
@@ -461,13 +455,14 @@ def qaoa_results(W : np.ndarray[float],
                                                                       lambda_bal,  
                                                                       no_of_shots,  
                                                                       seed,  
-                                                                      p,  
+                                                                      p,
                                                                       backend,
                                                                       optimiser,  
                                                                       circuit, 
                                                                       beta,  
                                                                       gamma,  
-                                                                      warm_restart)
+                                                                      warm_restart,
+                                                                      )
         
         #energy_data(best_counts, W, lambda_bal, true_groundstate_energy)
         

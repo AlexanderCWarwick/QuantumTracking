@@ -13,10 +13,9 @@ def add_depolarizing_noise(noise_strength : float):
     single_qubit_error = depolarizing_error(noise_strength, 1)
     two_qubit_error = depolarizing_error(noise_strength, 2)
     
-    noisemodel.add_all_qubit_quantum_error(single_qubit_error, ["h", "rx", "rz"])   #Error to add to all single qubit gates (RX, H, RZ)
+    noisemodel.add_all_qubit_quantum_error(single_qubit_error, ["h", "rx"])   #Error to add to all single qubit gates (RX, H)
 
     noisemodel.add_all_qubit_quantum_error(two_qubit_error, ["rzz"])    #Error to add to all two qubit gates (RZZ)
-    print(noisemodel)
     return noisemodel
     
     
