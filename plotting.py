@@ -110,15 +110,16 @@ def scaling_scan_metric_scatter(track_hits : np.ndarray[int],
             errors = [metric_results[N][optimiser_name][metric]['error'] for N in track_hits]
             ax[idx].errorbar(2*track_hits, means, yerr=errors, fmt='o-', capsize=3, alpha=0.7)
         
-        ax[idx].set_title(f'{metric_name}')
+        if metric_name == 'rel_error':
+            ax[idx].set_title(f'{metric_name} / 100')
+        else:
+            ax[idx].set_title(f'{metric_name}')
         ax[idx].set_xticks(2*track_hits)
         ax[idx].grid(True, alpha=0.2)
     
     
     info = (f'1-qubit gate noise: {float(noise_strengths[0])}\n'
-            f'2-qubit gate noise: {float(noise_strengths[1])}\n'
-            f'Sim Matrix: {similarity_type}\n'
-            f'λ: {lambda_bal}')
+            f'2-qubit gate noise: {float(noise_strengths[1])}\n')
 
     fig.text(0.9, 0.9,
             info,
@@ -159,7 +160,10 @@ def depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengt
             ax[idx].axhline(baseline, linestyle='--', label=f'Uniform baseline {baseline:.4f}')
             ax[idx].legend()
             
-        ax[idx].set_title(f'{metric_name}')
+        if metric_name == 'rel_error':
+            ax[idx].set_title(f'{metric_name} / 100')
+        else:
+            ax[idx].set_title(f'{metric_name}')
         ax[idx].set_xticks(layers)
         ax[idx].grid(True, alpha=0.2)
     
@@ -238,7 +242,12 @@ def depthscale_3d_scan_metric_scatter(similarity_type,
                 
     ax.set_xlabel('Number of hits')
     ax.set_ylabel('QAOA depth $p$')
-    ax.set_zlabel(metric_to_plot.replace("_", " ").title())
+    if metric_to_plot == 'rel_error':
+        ax.set_zlabel(f'{metric_to_plot.replace('-',' ').title()} / 100')
+    elif metric_to_plot == 'runtime':
+        ax.set_zlabel(f'{metric_to_plot.replace('-',' ').title()} (secs)')
+    else:
+        ax.set_zlabel(metric_to_plot.replace('-',' ').title())
     
     ax.set_xticks(2*hits_array)
     ax.set_yticks(layers)

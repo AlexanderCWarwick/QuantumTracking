@@ -243,8 +243,11 @@ def scipy_qaoa_optimiser(W,
         
         else:
             final_energies.append(best_avg_energy) 
-        
-        print(f'Restart {restart_idx+1} / {restarts} complete')
+            
+        if restart_idx == 0 and warm_restart is not None:
+            print(f'Warm Restart {restart_idx+1} / {restarts} complete')
+        else:
+            print(f'Restart {restart_idx+1} / {restarts} complete')
         histories.append(restart_energies)
     
     seed_time = perf_counter() - seed_runtime_start

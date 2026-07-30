@@ -18,6 +18,7 @@ def scale_scan(track_hits : np.ndarray[int],
     SCALE SCAN -> VARY N
     
     In this experiment we plot how the groundstate probability changes with N for a given number of QAOA layers p.
+    Since p isn't varied, the scale scan does not use warm restarts.
     '''
     
     
@@ -54,7 +55,7 @@ def scale_scan(track_hits : np.ndarray[int],
                                      lambda_bal,
                                      metric_results,
                                      noise_strengths)
-    
+    return best_gammas, best_betas 
 
 def depth_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], float],
                similarity_type : str,
@@ -116,17 +117,17 @@ def depth_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], fl
                     
         plot.print_quantum_table(fixed_hits, similarity_type, lambda_bal, p, noise_strengths, metrics)
     plot.depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengths, metrics, fixed_hits, circuit_depth)
-
+    
 
 def depthscale_scan(similarity_type : str,
-               hits_array : np.ndarray[int], 
-               layers : np.ndarray[int], 
-               lambda_bal : float, 
-               qaoa_optimisers : dict, 
-               no_of_shots : int, 
-               seed_lim : int,
-               noise_strengths : tuple[np.float64, np.float64],
-               sus_sweet_spot : tuple[int, int]):
+                    hits_array : np.ndarray[int], 
+                    layers : np.ndarray[int], 
+                    lambda_bal : float, 
+                    qaoa_optimisers : dict, 
+                    no_of_shots : int, 
+                    seed_lim : int,
+                    noise_strengths : tuple[np.float64, np.float64],
+                    sus_sweet_spot : tuple[int, int]):
     '''
     DEPTH+SCALE SCAN -> VARY p and N
     
@@ -195,8 +196,8 @@ def depthscale_scan(similarity_type : str,
                                                 metrics,
                                                 metric_name,
                                                 'COBYLA')
-    print(sweet_spot_gammas, sweet_spot_betas)
-    return np.array(sweet_spot_gammas, sweet_spot_betas)
+        
+    return np.array([sweet_spot_gammas, sweet_spot_betas])
 
     
     
@@ -257,14 +258,15 @@ def classical_scan(classical_algs : dict,
     
 def main():
     option = 'scale'                  #This is the identifier for which 'task' we want to do.
-    no_of_shots =  4096               #Number of measurements the quantum simulator will make of the circuit (all independent).
+    no_of_shots =  5000               #Number of measurements the quantum simulator will make of the circuit (all independent).
     seed_lim = 3                    #Number of runs of the QAOA to calculate means and errors.
     lambda_bal = 0.25                  #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
     similarity_type = 'KNN'
     
     
-    single_qubit_noises = np.array([0.0])       #Single qubit gate depolarisation errors
-    double_qubit_noises = 5 * single_qubit_noises                           #Two qubit gate depolarisation errors
+    single_qubit_noise = 0.001                                            #Single qubit gate depolarisation error.
+    double_qubit_noise = 5 * single_qubit_noise                           #Two qubit gate depolarisation error. Estimate ratio to be 5 : 1.
+    noise_strengths = (single_qubit_noise, double_qubit_noise)
     
     #Names of the classical algorithms used.
     classical_algs = {'Greedy' : cb.greedy_results, 
@@ -298,22 +300,21 @@ def main():
         hits_array = np.array([3,4,5,6])
         layers = np.arange(1, 4)
         
-        sus_sweet_spot = (4, 2)
+        sus_sweet_spot = (6, 2)
         
         #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
             
-        for noise_strengths in zip(single_qubit_noises, double_qubit_noises):
-            sweet_spot_gammas, sweet_spot_betas = depthscale_scan(similarity_type,
-                                                                    hits_array, 
-                                                                    layers, 
-                                                                    lambda_bal, 
-                                                                    qaoa_optimisers, 
-                                                                    no_of_shots, 
-                                                                    seed_lim, 
-                                                                    noise_strengths,
-                                                                    sus_sweet_spot)    
+        sweet_spot_gammas, sweet_spot_betas = depthscale_scan(similarity_type,
+                                                                hits_array, 
+                                                                layers, 
+                                                                lambda_bal, 
+                                                                qaoa_optimisers, 
+                                                                no_of_shots, 
+                                                                seed_lim, 
+                                                                noise_strengths,
+                                                                sus_sweet_spot)    
             
-            print(sweet_spot_gammas, sweet_spot_betas)
+        print(sweet_spot_gammas, sweet_spot_betas)
                                                     
             
     if option == 'depth':
@@ -325,8 +326,7 @@ def main():
         #Can include before the depth_scan call since params doesn't change with p.
         params = generate_toyproblem_params(fixed_hits, lambda_bal, similarity_type)
         
-        for noise_strengths in zip(single_qubit_noises, double_qubit_noises):
-            depth_scan(params, similarity_type, fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim, noise_strengths)    
+        depth_scan(params, similarity_type, fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim, noise_strengths)    
                 
                 
     elif option == 'class':
@@ -343,18 +343,16 @@ def main():
         classical_results = classical_scan(classical_algs, params, lambda_bal)
         plot.print_benchmark_table(hits, similarity_type, classical_results)
                 
-        for noise_strengths in zip(single_qubit_noises, double_qubit_noises):
-            quantum_results = quantum_scan(qaoa_optimisers, params, lambda_bal, no_of_shots, layers, seed_lim, noise_strengths)
-            plot.print_quantum_table(hits, similarity_type, layers, noise_strengths, quantum_results)
+        quantum_results = quantum_scan(qaoa_optimisers, params, lambda_bal, no_of_shots, layers, seed_lim, noise_strengths)
+        plot.print_quantum_table(hits, similarity_type, layers, noise_strengths, quantum_results)
                                        
            
     elif option == 'scale':
-        for noise_strengths in zip(single_qubit_noises, double_qubit_noises):
-            #Scaling Scan fixes p varies N.
-            hits_array = np.array([3,4,5])
-            fixed_layers = 2
+        #Scaling Scan fixes p varies N.
+        hits_array = np.array([3,4,5,6])
+        fixed_layers = 2
             
-            scale_scan(hits_array, similarity_type, qaoa_optimisers, no_of_shots, fixed_layers, seed_lim, lambda_bal, noise_strengths)    
+        scale_scan(hits_array, similarity_type, qaoa_optimisers, no_of_shots, fixed_layers, seed_lim, lambda_bal, noise_strengths)    
             
  
         
