@@ -2,14 +2,26 @@ import numpy as np
 from scipy.optimize import minimize
 from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
 from qiskit.circuit import Parameter
-from qiskit_aer import Aer
-from ising import ising_energy, ARI_check
-from plotting import plot_energy_hist, optimiser_energy_trace, optimiser_result_energies
-from itertools import product
-import time
+from qiskit_aer import AerSimulator
 
-def qaoa_pipeline(W : np.ndarray,  lambda_bal : float,  no_of_shots : int,  seed : int,  p : int,  backend,  optimiser,  circuit,  
-                  beta,  gamma, warm_restart):
+from add_noisemodel import add_depolarizing_noise
+
+from ising import ising_energy, ARI_check
+from plotting import plot_energy_hist, optimiser_energy_trace, optimiser_result_energies, top_ten_states
+from itertools import product
+from time import perf_counter
+
+def qaoa_pipeline(W : np.ndarray,  
+                  lambda_bal : float,  
+                  no_of_shots : int,  
+                  seed : int,  
+                  p : int,  
+                  backend,  
+                  optimiser,  
+                  circuit,  
+                  beta,  
+                  gamma, 
+                  warm_restart):
     '''
     The QAOA is a hybrid QC algorithm. The variational part where parameters are tweaked is controlled by the classical 
     computer.
@@ -20,18 +32,34 @@ def qaoa_pipeline(W : np.ndarray,  lambda_bal : float,  no_of_shots : int,  seed
     gamma_range = (0, 2*np.pi)
     beta_range = (0, np.pi)
     
-    backend.set_options(seed_simulator=seed)            
-    best_gammas, best_betas, best_runtime = optimiser(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, seed, p, 
-                                                        gamma_range, beta_range, warm_restart)
+    backend.set_options(seed_simulator=seed)         
+                    
+    best_gammas, best_betas, best_runtime, best_energy = optimiser(W, 
+                                                      circuit, 
+                                                      backend, 
+                                                      gamma, 
+                                                      beta, 
+                                                      lambda_bal, 
+                                                      no_of_shots, 
+                                                      seed, 
+                                                      p, 
+                                                      gamma_range, 
+                                                      beta_range, 
+                                                      warm_restart)
         
     best_paramed_circuit = bind_params(circuit, gamma, beta, best_gammas, best_betas, p)
     best_counts = run_qaoa(backend, best_paramed_circuit, no_of_shots)
-    return best_counts, best_gammas, best_betas, best_runtime
+    
+    return best_counts, best_gammas, best_betas, best_runtime, best_energy
     
         
         
-
-def get_counts_data(best_counts, W, true_groundstate, true_groundstate_energy, lambda_bal, no_of_shots):
+def get_counts_data(best_counts, 
+                    W, 
+                    true_groundstate, 
+                    true_groundstate_energy, 
+                    lambda_bal, 
+                    no_of_shots):
     '''
     Input: A sample of the pdf from a circuit, best_counts. In total no_of_shots independent measurements made.
     Output: ari, rel_energy and gsp. best_config is found from which configuration was the most sampled (highest frequency)
@@ -50,14 +78,25 @@ def get_counts_data(best_counts, W, true_groundstate, true_groundstate_energy, l
     return best_config, best_rel_energy, best_ari, groundstate_prob
         
         
-        
-def grid(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, _seed, p, gamma_lims, beta_lims, _warm_restart):
+def grid(W, 
+         circuit, 
+         backend,  
+         gamma, 
+         beta, 
+         lambda_bal, 
+         no_of_shots, 
+         _seed, 
+         p, 
+         gamma_lims, 
+         beta_lims, 
+         _warm_restart):
+    
     '''
     Basic iterative search in hypercuboid of 2p dimensional parameter space. 
     seed is unused here but is needed for general optimiser call in qaoa function.
     '''
     
-    grid_counts = 2                                             #Number of points along each axes to sample from. In total 2*2p points.
+    grid_counts = 10                                #Number of points along each parameter axes to sample from. In total 2*2p points.
     gamma_range = np.linspace(*gamma_lims, grid_counts)
     beta_range = np.linspace(*beta_lims, grid_counts)
      
@@ -68,7 +107,7 @@ def grid(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, _seed, p, ga
     best_params = None
     best_energy = np.inf
     
-    grid_runtime_start = time.time()
+    grid_runtime_start = perf_counter()
     
     for param_state in product(*A, *B):
         gamma_values = param_state[:p]
@@ -78,14 +117,20 @@ def grid(W, circuit, backend, gamma, beta, lambda_bal, no_of_shots, _seed, p, ga
         if state_avg_energy < best_energy:
             best_params = param_state
             best_energy = state_avg_energy
-    grid_runtime_end = time.time()
-    return best_params[:p], best_params[p:], (grid_runtime_end - grid_runtime_start)
+            
+    grid_runtime = perf_counter() - grid_runtime_start
+    return best_params[:p], best_params[p:], grid_runtime, best_energy
     
     
-def expand_warm_start(warm_start, p, gamma_range, beta_range, rng):
+def expand_warm_start(warm_start, 
+                      p, 
+                      gamma_range, 
+                      beta_range, 
+                      rng):
     '''
     minimise function expects parameters in order [gamma_1, ..., gamma_p, beta_1, ..., beta_p]
-    not [gamma_1, beta_1, ... gamma_p, beta_p]. '''
+    not [gamma_1, beta_1, ... gamma_p, beta_p]. 
+    '''
     
     if warm_start is None:
         return None
@@ -95,24 +140,43 @@ def expand_warm_start(warm_start, p, gamma_range, beta_range, rng):
     old_gammas = warm_start[:old_p]
     old_betas = warm_start[old_p:]
 
-    new_gamma = rng.uniform(*gamma_range)
-    new_beta = rng.uniform(*beta_range)
+    new_gamma = rng.uniform(*gamma_range) * 0.1             #New params are close to 0. (p)th layer can then use the (p-1)th layer solution
+    new_beta = rng.uniform(*beta_range) * 0.1               #and make use of the warm restart.
 
     return np.concatenate([old_gammas, [new_gamma], old_betas, [new_beta]])  
     
     
-def cobyla(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
-            warm_restart):
+def cobyla(W, 
+           circuit,  
+           backend,  
+           gamma,  
+           beta,  
+           lambda_bal,  
+           no_of_shots, 
+           seed, 
+           p, 
+           gamma_range, 
+           beta_range,
+           warm_restart):
     '''
     COBYLA operating function
     '''
-    return scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
+    return scipy_qaoa_optimiser(W, circuit,  backend, gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
                         warm_restart, 'COBYLA')
+
     
-    
-    
-def cobyqa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
-            warm_restart):
+def cobyqa(W, 
+           circuit, 
+           backend,   
+           gamma, 
+           beta,  
+           lambda_bal, 
+           no_of_shots, 
+           seed, 
+           p, 
+           gamma_range, 
+           beta_range,
+           warm_restart):
     '''
     COBYQA operating function
     '''
@@ -120,9 +184,19 @@ def cobyqa(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed,
                         warm_restart, 'COBYQA')
             
             
-            
-def scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
-                        warm_restart, method)  ->  tuple:
+def scipy_qaoa_optimiser(W, 
+                         circuit,  
+                         backend,   
+                         gamma,  
+                         beta,  
+                         lambda_bal,  
+                         no_of_shots, 
+                         seed, 
+                         p, 
+                         gamma_range, 
+                         beta_range,
+                         warm_restart, 
+                         method)  ->  tuple:
     '''
     COBYLA/COBYQA optimised QAOA. 
     COBYLA/COBYQA minimisation does not use the gradient (since we don't know the ising hmailtonian gradient)
@@ -147,22 +221,22 @@ def scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_o
     2 - random
     3 - random
     ''' 
-    restarts = 3                       #Number of random restarts
-    avg_energy = np.inf
+    restarts = 5                       #Number of random restarts
+    best_avg_energy = np.inf
     best_result = None
-    best_time = None
     
     histories = []                       #List to hold the evolution of each random restarts energy. 
     final_energies = []                  #List to hold the returned best energies from each restart.
     
     param_bounds = [gamma_range] * p + [beta_range] * p
     rng = np.random.default_rng(seed)
-    best_history_idx = None
+    best_history_idx = None             #Holds the restart that gave the lowest energy configuration. Only used for plotting.
+    
+    seed_runtime_start = perf_counter()
     
     for restart_idx in range(restarts):
-
         if restart_idx == 0 and warm_restart is not None:
-            #First restart = warm start, the rest are normal random restarts.
+            #First restart = warm start, the rest callare normal random restarts.
             x0 = expand_warm_start(warm_restart, p, gamma_range, beta_range, rng)
         else:
             # Remaining restarts = random
@@ -178,49 +252,62 @@ def scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_o
             restart_energies.append(energy)
             return energy
     
-        runtime_start = time.time()
         result = minimize(eval, x0, method=method, bounds=param_bounds, options={'maxiter' : 100})
         result_energy = result.fun
-        runtime_end = time.time()
-        
-        if result_energy < avg_energy:
-            avg_energy = result_energy
+    
+        if result_energy < best_avg_energy:
+            best_avg_energy = result_energy
             best_result = result
-            best_time = (runtime_end - runtime_start)
             final_energies.append(result_energy)  
             best_history_idx = restart_idx
         
         else:
-            final_energies.append(avg_energy) 
-            
+            final_energies.append(best_avg_energy) 
+        
+        print(f'Restart {restart_idx+1} / {restarts} complete')
         histories.append(restart_energies)
     
+    seed_time = perf_counter() - seed_runtime_start
     #Plot energy trace of each restart.
     #optimiser_energy_trace(restarts, histories, best_history_idx, method, p, len(W))
 
     #Plot how the cobyla_avg_energy changes through the cobyla_restarts number of repitions.
     #optimiser_result_energies(final_energies, method, p, len(W))
 
-    return best_result.x[:p], best_result.x[p:], best_time
+    return best_result.x[:p], best_result.x[p:], seed_time, best_avg_energy
     
-
-def bind_params(circuit, gamma, beta, gamma_values, beta_values, p):
+    
+def bind_params(circuit, 
+                gamma, 
+                beta,
+                gamma_values, 
+                beta_values, 
+                p):
     '''
     Binds parameter values to the gates as in build_qaoa_circuit.
     '''
     return circuit.assign_parameters({gamma[i]: gamma_values[i] for i in range(p)} |
                                     {beta[i]: beta_values[i] for i in range(p)})
 
-
-
-def evaluate(W,  circuit,  backend,  gamma,  beta, gamma_values, beta_values, lambda_bal,  no_of_shots, p)  ->  float:
+def evaluate(W,  
+             circuit,  
+             backend,   
+             gamma,  
+             beta, 
+             gamma_values, 
+             beta_values, 
+             lambda_bal,  
+             no_of_shots, 
+             p)  ->  float:
     '''
     Evaluation step. Binds parameter inputs to the general QAOA circuit.
     Returns the average energy of the such circuit after no_of_shots samples.
     '''
     
     paramed_circuit = bind_params(circuit, gamma, beta, gamma_values, beta_values, p)
-    counts = run_qaoa(backend, paramed_circuit, no_of_shots)
+    counts = run_qaoa(backend, 
+                      paramed_circuit, 
+                      no_of_shots)
             
     avg_energy = 0 
     for rev_config, count in counts.items():
@@ -234,11 +321,8 @@ def evaluate(W,  circuit,  backend,  gamma,  beta, gamma_values, beta_values, la
 
 def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
     '''
-    Builds the p=1 QAOA circuitw using the generalised parameters. 
+    Builds the p layer QAOA circuit using the generalised parameters. 
     Only one circuit is ever built, only the RZZ and RX gate input angle parameters change. 
-    
-    We are using the RBF similarity matrix so we can simply iterate over the entire (upper right triangle) matrix when building
-    the cost layers.
     '''
     
     N = len(W)
@@ -247,17 +331,15 @@ def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
     circuit = QuantumCircuit(qreg_q, creg_c)
     
     circuit.h(qreg_q)                       #Superposition layer
-    circuit.barrier()
+    
     J = 2*lambda_bal - W                    #Effective coupling matrix. Equivalent to classical Ising energy.
     for layer in range(p):                  #p Repeated Cost+Mixer layers.
         for i in range(N):
             for j in range(i+1, N):             #Start at i+1 since we don't want to double count the similarity measures.
                 circuit.rzz(2*gamma[layer]*J[i][j], qreg_q[i], qreg_q[j])                #Cost layer. Applies RZZ gates to all connected vertices. Factor of 2 cancels the qiskit convention of a gamma/2.
-        circuit.barrier() 
-                    
+        
         circuit.rx(2 * beta[layer], qreg_q)            #Mixer layer. Applies RX gates to every qubit. Allows for interference between qubit phases.
-        circuit.barrier()   
-    
+           
     circuit.measure(qreg_q, creg_c)
 
     return circuit
@@ -270,7 +352,8 @@ def run_qaoa(backend, circuit, no_of_shots):
     Output: The sampled probability distribution for that circuit with those specific parameter values.
     '''
     
-    result = backend.run(circuit, shots=no_of_shots).result()
+    result = backend.run(circuit, 
+                         shots=no_of_shots).result()
     counts = result.get_counts()
     #counts is the sampling histogram, e.g. '110101' was meausred 37 times etc.
     
@@ -308,7 +391,6 @@ def energy_data(best_counts, W, lambda_bal, true_groundstate_energy):
     plot_energy_hist(energies, true_groundstate_energy)
     
     
-    
 def metric_stats(metrics_dict : dict) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
     '''
     Input: metrics_dict contains lists of seed_lim values for each metric.
@@ -325,10 +407,16 @@ def metric_stats(metrics_dict : dict) -> tuple[np.ndarray[np.float64], np.ndarra
     
     
     
-def qaoa_results(W : np.ndarray[float],  true_groundstate : np.ndarray[int], 
-                 true_groundstate_energy : float,  lambda_bal : float, 
-                 no_of_shots : int,  p : int,  seed_lim : int,  optimiser,
-                 warm_restart : np.ndarray[float]) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
+def qaoa_results(W : np.ndarray[float],  
+                 true_groundstate : np.ndarray[int], 
+                 true_groundstate_energy : float,  
+                 lambda_bal : float, 
+                 no_of_shots : int,  
+                 p : int,  
+                 seed_lim : int,  
+                 optimiser,
+                 warm_restart : np.ndarray[float],
+                 noise_strengths : tuple[np.float64, np.float64]) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
     '''
     Build the generalised circuit wih parameters gamma and beta (for each layer). Each time we generate parameter values
     e.g. iterating through points in the grid search or adaptive optimiser finds a new parameter set, we bind them to the circuit.
@@ -350,13 +438,40 @@ def qaoa_results(W : np.ndarray[float],  true_groundstate : np.ndarray[int],
     beta = [Parameter(f'b{i+1}') for i in range(p)]
         
     circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
+    circuit_depth = sum(list(circuit.count_ops().values()))
     
-    backend = Aer.get_backend('aer_simulator')
+    if noise_strengths != (0, 0):
+        noise_model = add_depolarizing_noise(*noise_strengths)   
+    else:
+        noise_model = None     
+        
+    backend = AerSimulator(noise_model=noise_model)               #Backend with noise model.
+    
+    best_seed_energy = np.inf
+    best_seed_gammas, best_seed_betas = None, None
+    
     for seed in range(seed_lim):
-        best_counts, best_gammas, best_betas, runtime = qaoa_pipeline(W,  lambda_bal,  
-                                                                      no_of_shots,  seed,  p,  
-                                                                      backend,  optimiser,  circuit, 
-                                                                      beta,  gamma,  warm_restart)
+        seed_start_time = perf_counter()
+        best_counts, best_gammas, best_betas, runtime, seed_energy = qaoa_pipeline(W,  
+                                                                                    lambda_bal,  
+                                                                                    no_of_shots,  
+                                                                                    seed,  
+                                                                                    p,
+                                                                                    backend,
+                                                                                    optimiser,  
+                                                                                    circuit, 
+                                                                                    beta,  
+                                                                                    gamma,  
+                                                                                    warm_restart)
+        if seed_energy < best_seed_energy:
+            best_seed_energy = seed_energy
+            best_seed_gammas, best_seed_betas = best_gammas, best_betas
+            
+        
+        #energy_data(best_counts, W, lambda_bal, true_groundstate_energy)
+        
+        #top_ten_states(best_counts, true_groundstate)
+                
         
         
         _, best_rel_energy, best_ari, gs_prob = get_counts_data(best_counts,
@@ -367,5 +482,7 @@ def qaoa_results(W : np.ndarray[float],  true_groundstate : np.ndarray[int],
         metrics_dict['ari'].append(best_ari)
         metrics_dict['runtime'].append(runtime)
         metrics_dict['gsp'].append(gs_prob)
+        print(f'Seed {seed + 1} / {seed_lim} complete: ({(perf_counter() - seed_start_time):.2f}s)')
+        print('\n')
         
-    return *metric_stats(metrics_dict), best_gammas, best_betas
+    return *metric_stats(metrics_dict), best_seed_gammas, best_seed_betas, circuit_depth

@@ -36,14 +36,15 @@ def conv_traces(N: int, steps : np.ndarray, energy_histories : np.ndarray):
 def format_metric(metric):
     return f'{metric['mean']:.4f} \u00b1 {metric['error']:.4f}'
     
-def print_benchmark_table(hits, classical_results : dict[dict]):
+def print_benchmark_table(hits : int, similarity_type : str, lambda_bal : float, classical_results : dict[dict]):
     header = (f'{'Hits':<8}'
-        f'{'QAOA Optimiser':<30}'
+        f'{'Classical Algorithm':<30}'
         f'{'Relative Energy Error':<30}'
         f'{'ARI':<20}'
         f'{'Time (s)':<20}'
         f'{'Convergence Fraction':<30}')
     
+    print(f'Parameters : sim_matrix={similarity_type}, λ={lambda_bal}')
     print(header)
     print('-' * len(header))
     
@@ -65,7 +66,7 @@ def print_benchmark_table(hits, classical_results : dict[dict]):
             
         
         
-def print_quantum_table(hits : int, quantum_results : dict):
+def print_quantum_table(hits : int, similarity_type : str, lambda_bal : float,  p : int, noise_strengths : tuple[float], quantum_results : dict):
     header = (f'{'Hits':<8}'
         f'{'QAOA Optimiser':<20}'
         f'{'Relative Energy Error':<30}'
@@ -73,20 +74,24 @@ def print_quantum_table(hits : int, quantum_results : dict):
         f'{'Time (s)':<20}'
         f'{'GS Prob':<20}')
     
+    print(f'Parameters : sim_matrix={similarity_type}, λ={lambda_bal}')
+    print(f'Layers p = {p}, Depolarising Noise (1q, 2q) = {noise_strengths}')
     print(header)
     print('-' * len(header))
     
-    for optimiser_name, metrics in quantum_results.items():
+    for optimiser_name, metrics in quantum_results[p].items():
         print(f'{2*hits:<8}'
             f'{optimiser_name:<20}'
             f'{format_metric(metrics['rel_error']):<30}'
             f'{format_metric(metrics['ari']):<20}'
             f'{format_metric(metrics['runtime']):<20}'
             f'{format_metric(metrics['gsp']):<20}')
+    print('\n')
 
     
-def scaling_scan_metric_scatter(track_hits : np.ndarray[int],  raw_results : dict,  raw_errors : dict,
-                                                rel_results : dict, rel_errors : dict):
+def scaling_scan_metric_scatter(track_hits : np.ndarray[int], similarity_type : str, 
+                                raw_results : dict,  raw_errors : dict,
+                                rel_results : dict, rel_errors : dict):
     fig, ax = plt.subplots(2, figsize=(7,7))
     
     for name in raw_results.keys():
@@ -114,50 +119,49 @@ def scaling_scan_metric_scatter(track_hits : np.ndarray[int],  raw_results : dic
     plt.show()
     
     
-def plot_energy_hist(energies, true_groundstate_energy):
-    plt.figure()
-    plt.hist(energies, bins=30)
-    plt.axvline(true_groundstate_energy, color='red', linestyle='--', label='Exact ground state')
-    plt.xlabel('Ising energy')
-    plt.ylabel('Counts')
-    plt.legend()
-    plt.show()
     
-    
-    
-def depth_scan_metric_scatter(layers, metric_means : np.ndarray[float, float], metric_errors : np.ndarray[float, float], hits):
+def depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengths, metric_results, hits, circuit_depth):
     fig, ax = plt.subplots(2,2,figsize=(9,7))
     ax = ax.flatten()
     metrics = {'rel_error': 'Relative Energy Error',
                 'ari': 'Adjusted Rand Index (ARI)',
                 'runtime': 'Runtime (s)',
                 'gsp': 'Groundstate Probability'}
-    optimisers = list(metric_means[layers[0]].keys())
     
     for idx, (metric, metric_name) in enumerate(metrics.items()):
-        for optimiser_name in metric_means[layers[0]].keys():
-            means = [metric_means[p][optimiser_name][metric] for p in layers]
-            errors = [metric_errors[p][optimiser_name][metric] for p in layers]
+        for optimiser_name in metric_results[layers[0]].keys():
             
-            ax[idx].errorbar(layers, means, yerr=errors, fmt='o-', capsize=3, alpha=0.7, label=optimiser_name)
+            means = [metric_results[p][optimiser_name][metric]['mean'] for p in layers]
+            errors = [metric_results[p][optimiser_name][metric]['error'] for p in layers]
+            ax[idx].errorbar(layers, means, yerr=errors, fmt='o-', capsize=3, alpha=0.7)
             
         if metric == 'gsp':
             baseline = 2 / (2**(2*hits))
-            ax[idx].axhline(baseline, linestyle='--', label='Uniform baseline')
+            ax[idx].axhline(baseline, linestyle='--', label=f'Uniform baseline {baseline:.4f}')
             ax[idx].legend()
             
         ax[idx].set_title(f'{metric_name}')
         ax[idx].set_xticks(layers)
         ax[idx].grid(True, alpha=0.2)
     
-        
-    handles, labels = ax[0].get_legend_handles_labels()
+    
+    info = (f'1-qubit gate noise: {float(noise_strengths[0])}\n'
+            f'2-qubit gate noise: {float(noise_strengths[1])}\n'
+            f'Circuit depth: {circuit_depth}')
 
-    fig.legend(handles, labels, loc='upper right', ncol=len(optimisers), bbox_to_anchor=(0.5, 0.98))
+    fig.text(0.82, 0.85,
+            info,
+            ha='center',
+            va='top',
+            bbox=dict(boxstyle='round',
+                    facecolor='white',
+                    edgecolor='black',
+                    alpha=0.8))
     
     fig.supxlabel('($p$) Layers')
     fig.supylabel('Metric value')
-    fig.suptitle(f'QAOA Depth Scan Hits ($ N={hits} $)', x=0.8, fontsize=13)
+    noises = (float(noise) for noise in noise_strengths)
+    fig.suptitle(f'QAOA Depth Scan Hits ($ N={2*hits}, W={similarity_type}, λ={lambda_bal}$) ', x=0.4, fontsize=13)
 
     plt.tight_layout()
     plt.show()
@@ -194,5 +198,37 @@ def optimiser_result_energies(final_energies, optimiser, p, hits):
     plt.xticks(x)
     plt.ylabel('Energy')
     plt.plot(x, final_energies)
+    
+    
+def plot_energy_hist(energies, true_groundstate_energy):
+    plt.figure()
+    plt.hist(energies, bins=30)
+    plt.axvline(true_groundstate_energy, color='red', linestyle='--', label=f'Exact GS energy = {true_groundstate_energy:.2f}')
+    plt.xlabel('Ising energy')
+    plt.ylabel('Counts')
+    plt.legend()
+    plt.show()
+        
+            
+def top_ten_states(counts : dict, true_gs : np.ndarray[int]):
+    top_10 = dict(sorted(counts.items(), key=lambda item: item[1], reverse=True)[:10])      #Gets top 10 states in {state : count} form.
+    states = list(top_10.keys())                                                            #List conversion of states
+    frequencies = list(top_10.values())                                                     #List conversion of counts
+    
+    inv_true_gs = ''.join((true_gs^1).astype(str))                      #Inverse true_gs as str
+    true_gs = ''.join(true_gs.astype(str))                              #true_gs as str
+    
+    bar_colors = ["red" if state == true_gs or state == inv_true_gs else "blue" for state in states]
+        
+    plt.bar(states, frequencies, color = bar_colors)
+    plt.xlabel("Measured configuration")
+    plt.ylabel("Counts")
+    plt.title("10 Most Frequently Measured Configurations")
+        
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+                
+        
     
     
