@@ -4,10 +4,10 @@ from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
 from qiskit.circuit import Parameter
 from qiskit_aer import AerSimulator
 
-from add_noisemodel import add_depolarizing_noise
+from add_noisemodel import make_noise_model
 
 from ising import ising_energy, ARI_check
-from plotting import plot_energy_hist, optimiser_energy_trace, optimiser_result_energies, top_ten_states
+from plotting import plot_energy_hist #optimiser_energy_trace, optimiser_result_energies, top_ten_states
 from itertools import product
 from time import perf_counter
 
@@ -399,7 +399,8 @@ def qaoa_results(W : np.ndarray[float],
                  seed_lim : int,  
                  optimiser,
                  warm_restart : np.ndarray[float],
-                 noise_strengths : tuple[np.float64, np.float64]) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
+                 noise_strengths : tuple[np.float64, np.float64],
+                 readout_prob : float) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
     '''
     Build the generalised circuit wih parameters gamma and beta (for each layer). Each time we generate parameter values
     e.g. iterating through points in the grid search or adaptive optimiser finds a new parameter set, we bind them to the circuit.
@@ -423,10 +424,9 @@ def qaoa_results(W : np.ndarray[float],
     circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
     circuit_depth = sum(list(circuit.count_ops().values()))
     
-    if noise_strengths != (0, 0):
-        noise_model = add_depolarizing_noise(*noise_strengths)   
-    else:
-        noise_model = None     
+
+    noise_model = make_noise_model(*noise_strengths, 
+                                   readout_prob)
         
     backend = AerSimulator(noise_model=noise_model)               #Backend with noise model.
     

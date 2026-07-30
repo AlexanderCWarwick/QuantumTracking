@@ -12,13 +12,14 @@ def scale_scan(track_hits : np.ndarray[int],
                fixed_layers : int, 
                seed_lim : int, 
                lambda_bal : float,
-               noise_strengths : tuple[np.float64, np.float64]):
+               noise_strengths : tuple[np.float64, np.float64],
+               readout_prob : float):
     
     '''
     SCALE SCAN -> VARY N
     
     In this experiment we plot how the groundstate probability changes with N for a given number of QAOA layers p.
-    Since p isn't varied, the scale scan does not use warm restarts.
+    Since p isn't varied, the scale scan does not use warm restarts. warm_restarts therefore is Nonetype
     '''
     
     
@@ -29,7 +30,7 @@ def scale_scan(track_hits : np.ndarray[int],
                             for optimiser_name in qaoa_optimisers.keys()} 
                       for N in track_hits}
                 
-    warm_restart = None     #Scale scan does not use warm restarts.
+    warm_restart = None    
     
     for hits in track_hits:
         params = generate_toyproblem_params(hits, lambda_bal, similarity_type)
@@ -42,7 +43,8 @@ def scale_scan(track_hits : np.ndarray[int],
                                                                     seed_lim, 
                                                                     optimiser, 
                                                                     warm_restart, 
-                                                                    noise_strengths)
+                                                                    noise_strengths,
+                                                                    readout_prob)
             
             
             for i, metric in enumerate(metric_results[hits][optimiser_name].keys()):
@@ -65,7 +67,8 @@ def depth_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], fl
                qaoa_optimisers : dict, 
                no_of_shots : int, 
                seed_lim : int,
-               noise_strengths : tuple[np.float64, np.float64]):
+               noise_strengths : tuple[np.float64, np.float64],
+               readout_prob : float):
     '''
     DEPTH SCAN -> VARY p
     
@@ -106,7 +109,8 @@ def depth_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], fl
                                                                         seed_lim, 
                                                                         optimiser, 
                                                                         warm_restart, 
-                                                                        noise_strengths)
+                                                                        noise_strengths,
+                                                                        readout_prob)
                     
                 
             if optimiser_name != 'Grid':
@@ -127,6 +131,7 @@ def depthscale_scan(similarity_type : str,
                     no_of_shots : int, 
                     seed_lim : int,
                     noise_strengths : tuple[np.float64, np.float64],
+                    readout_prob : float,
                     sus_sweet_spot : tuple[int, int]):
     '''
     DEPTH+SCALE SCAN -> VARY p and N
@@ -170,7 +175,8 @@ def depthscale_scan(similarity_type : str,
                                                                         seed_lim, 
                                                                         optimiser, 
                                                                         warm_restart, 
-                                                                        noise_strengths)
+                                                                        noise_strengths,
+                                                                        readout_prob)
                     
                 
                 if optimiser_name != 'Grid':
@@ -207,7 +213,8 @@ def quantum_scan(qaoa_optimisers : dict,
                  no_of_shots : int, 
                  p : int, 
                  seed_lim : int, 
-                 noise_strengths : tuple[np.float64, np.float64]) -> dict:
+                 noise_strengths : tuple[np.float64, np.float64],
+                 readout_prob : float) -> dict:
     '''
     Quantum scan over all listed optimiser in dictionary qaoa_optimiser.
     params ordering:
@@ -225,7 +232,16 @@ def quantum_scan(qaoa_optimisers : dict,
     warm_restarts = None
     
     for optimiser_name, optimiser in qaoa_optimisers.items():
-        means, errors, _, _ = qaoa_results(*params, lambda_bal, no_of_shots, p, seed_lim, optimiser, warm_restarts, noise_strengths)
+        means, errors, _, _ = qaoa_results(*params, 
+                                           lambda_bal, 
+                                           no_of_shots, 
+                                           p, 
+                                           seed_lim,
+                                           optimiser,
+                                           warm_restarts, 
+                                           noise_strengths,
+                                           readout_prob)
+        
         for metric, mean, error in zip(quantum_metrics[p][optimiser_name].keys(), means, errors):
             quantum_metrics[p][optimiser_name][metric] = {'mean': mean,
                                                         'error': error}
@@ -267,6 +283,7 @@ def main():
     single_qubit_noise = 0.001                                            #Single qubit gate depolarisation error.
     double_qubit_noise = 5 * single_qubit_noise                           #Two qubit gate depolarisation error. Estimate ratio to be 5 : 1.
     noise_strengths = (single_qubit_noise, double_qubit_noise)
+    readout_prob = 1e-3                                                   #Readout error probability. Same for all qubit measurements.
     
     #Names of the classical algorithms used.
     classical_algs = {'Greedy' : cb.greedy_results, 
@@ -312,6 +329,7 @@ def main():
                                                                 no_of_shots, 
                                                                 seed_lim, 
                                                                 noise_strengths,
+                                                                readout_prob,
                                                                 sus_sweet_spot)    
             
         print(sweet_spot_gammas, sweet_spot_betas)
@@ -326,7 +344,16 @@ def main():
         #Can include before the depth_scan call since params doesn't change with p.
         params = generate_toyproblem_params(fixed_hits, lambda_bal, similarity_type)
         
-        depth_scan(params, similarity_type, fixed_hits, layers, lambda_bal, qaoa_optimisers, no_of_shots, seed_lim, noise_strengths)    
+        depth_scan(params, 
+                   similarity_type, 
+                   fixed_hits, 
+                   layers, 
+                   lambda_bal, 
+                   qaoa_optimisers, 
+                   no_of_shots, 
+                   seed_lim, 
+                   noise_strengths,
+                   readout_prob)    
                 
                 
     elif option == 'class':
@@ -343,8 +370,19 @@ def main():
         classical_results = classical_scan(classical_algs, params, lambda_bal)
         plot.print_benchmark_table(hits, similarity_type, classical_results)
                 
-        quantum_results = quantum_scan(qaoa_optimisers, params, lambda_bal, no_of_shots, layers, seed_lim, noise_strengths)
-        plot.print_quantum_table(hits, similarity_type, layers, noise_strengths, quantum_results)
+        quantum_results = quantum_scan(qaoa_optimisers, 
+                                       params, 
+                                       lambda_bal, 
+                                       no_of_shots, 
+                                       layers,
+                                       seed_lim, 
+                                       noise_strengths)
+        
+        plot.print_quantum_table(hits, 
+                                 similarity_type, 
+                                 layers, 
+                                 noise_strengths, 
+                                 quantum_results)
                                        
            
     elif option == 'scale':
@@ -352,7 +390,14 @@ def main():
         hits_array = np.array([3,4,5,6])
         fixed_layers = 2
             
-        scale_scan(hits_array, similarity_type, qaoa_optimisers, no_of_shots, fixed_layers, seed_lim, lambda_bal, noise_strengths)    
+        scale_scan(hits_array, 
+                   similarity_type, 
+                   qaoa_optimisers, 
+                   no_of_shots, 
+                   fixed_layers, 
+                   seed_lim, 
+                   lambda_bal, 
+                   noise_strengths)    
             
  
         
