@@ -89,33 +89,52 @@ def print_quantum_table(hits : int, similarity_type : str, lambda_bal : float,  
     print('\n')
 
     
-def scaling_scan_metric_scatter(track_hits : np.ndarray[int], similarity_type : str, 
-                                raw_results : dict,  raw_errors : dict,
-                                rel_results : dict, rel_errors : dict):
-    fig, ax = plt.subplots(2, figsize=(7,7))
+def scaling_scan_metric_scatter(track_hits : np.ndarray[int], 
+                                similarity_type : str, 
+                                p : int,
+                                lambda_bal : float,
+                                metric_results : dict,
+                                noise_strengths : tuple[float, float]):
     
-    for name in raw_results.keys():
-        ax[0].errorbar(track_hits, raw_results[name], yerr=raw_errors[name], fmt='-o', capsize=3, label=name)
-        ax[1].errorbar(track_hits, rel_results[name], yerr=rel_errors[name], fmt='-o', capsize=3, label=name)
+    fig, ax = plt.subplots(2,2,figsize=(9,7))
+    ax = ax.flatten()
+    metrics = {'rel_error': 'Relative Energy Error',
+                'ari': 'Adjusted Rand Index (ARI)',
+                'runtime': 'Runtime (s)',
+                'gsp': 'Groundstate Probability'}
+    
+    for idx, (metric, metric_name) in enumerate(metrics.items()):
+        for optimiser_name in metric_results[track_hits[0]].keys():
+            
+            means = [metric_results[N][optimiser_name][metric]['mean'] for N in track_hits]
+            errors = [metric_results[N][optimiser_name][metric]['error'] for N in track_hits]
+            ax[idx].errorbar(2*track_hits, means, yerr=errors, fmt='o-', capsize=3, alpha=0.7)
         
+        ax[idx].set_title(f'{metric_name}')
+        ax[idx].set_xticks(2*track_hits)
+        ax[idx].grid(True, alpha=0.2)
     
-    baseline = 2 / (2 ** (2 * track_hits))
-    ax[0].scatter(track_hits, baseline, label='Random Probability', color='r')
-    ax[1].axhline(y=1, label='Random Probability', color='r')
     
-    ax[0].set_xticks(track_hits)
-    ax[1].set_xticks(track_hits)
+    info = (f'1-qubit gate noise: {float(noise_strengths[0])}\n'
+            f'2-qubit gate noise: {float(noise_strengths[1])}\n'
+            f'Sim Matrix: {similarity_type}\n'
+            f'λ: {lambda_bal}')
+
+    fig.text(0.9, 0.9,
+            info,
+            ha='center',
+            va='top',
+            bbox=dict(boxstyle='round',
+                    facecolor='white',
+                    edgecolor='black',
+                    alpha=0.8))
     
-    ax[0].set_title('Raw GSP')
-    ax[1].set_title('Relative GSP')
-    
-    fig.supxlabel('Number of hits, N')
-    fig.supylabel('Groundstate Probability')
-    fig.suptitle('GS Probability Dependency on N')
-    ax[0].legend()
-    ax[1].legend()
-    ax[0].yaxis.grid(True)
-    ax[1].yaxis.grid(True)
+    fig.supxlabel('($p$) Layers')
+    fig.supylabel('Metric value')
+    noises = (float(noise) for noise in noise_strengths)
+    fig.suptitle(f'QAOA Scale Scan ($ p={p}, W={similarity_type}, λ={lambda_bal}$) ', x=0.4, fontsize=13)
+
+    plt.tight_layout()
     plt.show()
     
     
@@ -166,6 +185,85 @@ def depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengt
     plt.tight_layout()
     plt.show()
     
+    
+def depthscale_3d_scan_metric_scatter(similarity_type, 
+                                      layers,
+                                      seed_lim,
+                                      no_of_shots,
+                                      lambda_bal, 
+                                      noise_strengths, 
+                                      metric_results : dict,
+                                      metric_to_plot,
+                                      optimiser_name):
+    
+    fig = plt.figure(figsize=(9, 7))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    hits_array = np.array(list(metric_results.keys()))
+    
+    hits_cmap = plt.get_cmap('viridis', len(hits_array))
+    hit_colours = {hits: hits_cmap(i) for i, hits in enumerate(hits_array)}
+    
+    p_cmap = plt.get_cmap('magma', len(layers))
+    p_colours = {p: p_cmap(i) for i, p in enumerate(layers)}
+    
+    for hits, depth_results in metric_results.items():
+        hit_colour = hit_colours[hits]
+        hits = 2 * hits
+        for p, optimiser_results in depth_results.items():
+            p_colour = p_colours[p]
+            mean = optimiser_results[optimiser_name][metric_to_plot]['mean']
+            error = optimiser_results[optimiser_name][metric_to_plot]['error']
+
+            ax.scatter(hits, p, mean, s=40, color=hit_colour,)
+            
+            ax.plot([hits, hits], 
+                    [p, p], 
+                    [mean - error, mean + error], 
+                    linewidth=1.5,
+                    color=p_colour)
+            
+            cap_width = 0.07
+            ax.plot([hits - cap_width, hits + cap_width],
+                    [p, p],
+                    [mean - error, mean - error],
+                    linewidth=1.5,
+                    color=p_colour)
+
+            ax.plot([hits - cap_width, hits + cap_width],
+                    [p, p],
+                    [mean + error, mean + error],
+                    linewidth=1.5,
+                    color = p_colour)
+                
+    ax.set_xlabel('Number of hits')
+    ax.set_ylabel('QAOA depth $p$')
+    ax.set_zlabel(metric_to_plot.replace("_", " ").title())
+    
+    ax.set_xticks(2*hits_array)
+    ax.set_yticks(layers)
+    
+    
+    info = (f'Optimiser: {optimiser_name}\n'
+            f'Noise: {noise_strengths}\n'
+            f'λ: {lambda_bal}\n'
+            f'Sim Matrix: {similarity_type}\n'
+            f'Seeds: {seed_lim}\n'
+            f'#Shots: {no_of_shots}')
+    
+    ax.text2D(0.02,
+            0.98,
+            info,
+            transform=ax.transAxes,
+            va="top",
+            bbox=dict(boxstyle='round',
+                        facecolor='white',
+                        edgecolor='black',
+                        alpha=0.8))
+    
+    
+    plt.tight_layout()
+    plt.show()
 ##############################################################################################################################
 
     

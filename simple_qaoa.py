@@ -77,7 +77,7 @@ def get_counts_data(best_counts,
         
     return best_config, best_rel_energy, best_ari, groundstate_prob
         
-        
+
 def grid(W, 
          circuit, 
          backend,  
@@ -120,7 +120,7 @@ def grid(W,
             
     grid_runtime = perf_counter() - grid_runtime_start
     return best_params[:p], best_params[p:], grid_runtime, best_energy
-    
+
     
 def expand_warm_start(warm_start, 
                       p, 
@@ -164,24 +164,6 @@ def cobyla(W,
     return scipy_qaoa_optimiser(W, circuit,  backend, gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
                         warm_restart, 'COBYLA')
 
-    
-def cobyqa(W, 
-           circuit, 
-           backend,   
-           gamma, 
-           beta,  
-           lambda_bal, 
-           no_of_shots, 
-           seed, 
-           p, 
-           gamma_range, 
-           beta_range,
-           warm_restart):
-    '''
-    COBYQA operating function
-    '''
-    return scipy_qaoa_optimiser(W, circuit,  backend,  gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
-                        warm_restart, 'COBYQA')
             
             
 def scipy_qaoa_optimiser(W, 
@@ -221,7 +203,7 @@ def scipy_qaoa_optimiser(W,
     2 - random
     3 - random
     ''' 
-    restarts = 5                       #Number of random restarts
+    restarts = 4                       #Number of random restarts
     best_avg_energy = np.inf
     best_result = None
     
@@ -230,7 +212,6 @@ def scipy_qaoa_optimiser(W,
     
     param_bounds = [gamma_range] * p + [beta_range] * p
     rng = np.random.default_rng(seed)
-    best_history_idx = None             #Holds the restart that gave the lowest energy configuration. Only used for plotting.
     
     seed_runtime_start = perf_counter()
     
@@ -259,7 +240,6 @@ def scipy_qaoa_optimiser(W,
             best_avg_energy = result_energy
             best_result = result
             final_energies.append(result_energy)  
-            best_history_idx = restart_idx
         
         else:
             final_energies.append(best_avg_energy) 

@@ -17,7 +17,6 @@ def add_depolarizing_noise(single_noise_strength : float,
     noisemodel.add_all_qubit_quantum_error(single_qubit_error, ["h", "rx"])   
     noisemodel.add_all_qubit_quantum_error(two_qubit_error, ["rzz"])
     
-    print(noisemodel)
     return noisemodel
     
     
