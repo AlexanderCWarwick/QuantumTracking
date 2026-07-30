@@ -2,8 +2,8 @@ import numpy as np
 
 import time
 from sklearn.cluster import SpectralClustering
-from plotting import conv_traces
-from ising import ising_energy, ARI_check
+from plotting.plotting import conv_traces
+from classical.ising import ising_energy, ARI_check
 
 ##################################################      GREEDY ALGORITHM      ################################################## 
 def get_mostdissimlar_hits(RBF_matrix):

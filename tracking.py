@@ -1,8 +1,9 @@
 import numpy as np
-import plotting as plot
-import classical_benchmarks as cb
-from simple_qaoa import cobyla, qaoa_results
-from generatesystem import generate_toyproblem_params
+import plotting.plotting as plot
+
+import classical.classical_benchmarks as cb
+from classical.generatesystem import generate_toyproblem_params
+from qaoa.simple_qaoa import cobyla, qaoa_results
     
        
 def scale_scan(track_hits : np.ndarray[int], 
@@ -280,7 +281,7 @@ def main():
     similarity_type = 'KNN'
     
     
-    single_qubit_noise = 0.001                                            #Single qubit gate depolarisation error.
+    single_qubit_noise = 0                                            #Single qubit gate depolarisation error.
     double_qubit_noise = 5 * single_qubit_noise                           #Two qubit gate depolarisation error. Estimate ratio to be 5 : 1.
     noise_strengths = (single_qubit_noise, double_qubit_noise)
     readout_prob = 1e-3                                                   #Readout error probability. Same for all qubit measurements.
@@ -397,7 +398,8 @@ def main():
                    fixed_layers, 
                    seed_lim, 
                    lambda_bal, 
-                   noise_strengths)    
+                   noise_strengths,
+                   readout_prob)    
             
  
         

@@ -4,10 +4,10 @@ from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
 from qiskit.circuit import Parameter
 from qiskit_aer import AerSimulator
 
-from add_noisemodel import make_noise_model
+from qaoa.add_noisemodel import make_noise_model
 
-from ising import ising_energy, ARI_check
-from plotting import plot_energy_hist #optimiser_energy_trace, optimiser_result_energies, top_ten_states
+from classical.ising import ising_energy, ARI_check
+from plotting.plotting import plot_energy_hist #optimiser_energy_trace, optimiser_result_energies, top_ten_states
 from itertools import product
 from time import perf_counter
 

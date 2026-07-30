@@ -1,8 +1,8 @@
 import numpy as np
-from plotting_baseprob import energy_landscape
-from similarity import get_KNN_matrix, get_RBF_matrix
-from track_generation import construct_toytracks
-from ising import ising_optimisation, ARI_check
+#from plotting.plotting_baseprob import energy_landscape
+from classical.similarity import get_KNN_matrix, get_RBF_matrix
+from classical.track_generation import construct_toytracks
+from classical.ising import ising_optimisation, ARI_check
 
 
 def toy_track_generation(track_hits : int, x : np.ndarray) -> tuple[list[float], list[int], list[float], list[int]]:
