@@ -1,10 +1,10 @@
 import numpy as np
 from scipy.optimize import minimize
-from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
 from qiskit.circuit import Parameter
 from qiskit_aer import AerSimulator
 
 from qaoa.add_noisemodel import make_noise_model
+from qaoa.qaoa_circuit import build_qaoa_circuit
 
 from classical.ising import ising_energy, ARI_check
 from plotting.plotting import plot_energy_hist #optimiser_energy_trace, optimiser_result_energies, top_ten_states
@@ -144,41 +144,20 @@ def expand_warm_start(warm_start,
     new_beta = rng.uniform(*beta_range) * 0.1               #and make use of the warm restart.
 
     return np.concatenate([old_gammas, [new_gamma], old_betas, [new_beta]])  
-    
-    
+      
+            
 def cobyla(W, 
            circuit,  
-           backend,  
-           gamma,  
-           beta,  
-           lambda_bal,  
-           no_of_shots, 
-           seed, 
-           p, 
-           gamma_range, 
-           beta_range,
-           warm_restart):
-    '''
-    COBYLA operating function
-    '''
-    return scipy_qaoa_optimiser(W, circuit,  backend, gamma,  beta,  lambda_bal,  no_of_shots, seed, p, gamma_range, beta_range,
-                        warm_restart, 'COBYLA')
-
-            
-            
-def scipy_qaoa_optimiser(W, 
-                         circuit,  
-                         backend,   
-                         gamma,  
-                         beta,  
-                         lambda_bal,  
-                         no_of_shots, 
-                         seed, 
-                         p, 
-                         gamma_range, 
-                         beta_range,
-                         warm_restart, 
-                         method)  ->  tuple:
+            backend,   
+            gamma,  
+            beta,  
+            lambda_bal,  
+            no_of_shots, 
+            seed, 
+            p, 
+            gamma_range, 
+            beta_range,
+            warm_restart)  ->  tuple:
     '''
     COBYLA/COBYQA optimised QAOA. 
     COBYLA/COBYQA minimisation does not use the gradient (since we don't know the ising hmailtonian gradient)
@@ -233,7 +212,7 @@ def scipy_qaoa_optimiser(W,
             restart_energies.append(energy)
             return energy
     
-        result = minimize(eval, x0, method=method, bounds=param_bounds, options={'maxiter' : 100})
+        result = minimize(eval, x0, method='COBYLA', bounds=param_bounds, options={'maxiter' : 100})
         result_energy = result.fun
     
         if result_energy < best_avg_energy:
@@ -301,33 +280,17 @@ def evaluate(W,
         
     return avg_energy
 
-
-def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
+def bind_params(circuit, 
+                gamma, 
+                beta,
+                gamma_values, 
+                beta_values, 
+                p):
     '''
-    Builds the p layer QAOA circuit using the generalised parameters. 
-    Only one circuit is ever built, only the RZZ and RX gate input angle parameters change. 
+    Binds parameter values to the gates as in build_qaoa_circuit.
     '''
-    
-    N = len(W)
-    qreg_q = QuantumRegister(N, 'q')
-    creg_c = ClassicalRegister(N, 'c')
-    circuit = QuantumCircuit(qreg_q, creg_c)
-    
-    circuit.h(qreg_q)                       #Superposition layer
-    
-    J = 2*lambda_bal - W                    #Effective coupling matrix. Equivalent to classical Ising energy.
-    for layer in range(p):                  #p Repeated Cost+Mixer layers.
-        for i in range(N):
-            for j in range(i+1, N):             #Start at i+1 since we don't want to double count the similarity measures.
-                circuit.rzz(2*gamma[layer]*J[i][j], qreg_q[i], qreg_q[j])                #Cost layer. Applies RZZ gates to all connected vertices. Factor of 2 cancels the qiskit convention of a gamma/2.
-        
-        circuit.rx(2 * beta[layer], qreg_q)            #Mixer layer. Applies RX gates to every qubit. Allows for interference between qubit phases.
-           
-    circuit.measure(qreg_q, creg_c)
-
-    return circuit
-    
-    
+    return circuit.assign_parameters({gamma[i]: gamma_values[i] for i in range(p)} |
+                                    {beta[i]: beta_values[i] for i in range(p)})
     
 def run_qaoa(backend, circuit, no_of_shots):
     '''
