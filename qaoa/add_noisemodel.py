@@ -14,8 +14,8 @@ def add_depolarizing_noise(single_noise_strength : float,
     single_qubit_error = depolarizing_error(single_noise_strength, 1)  #Error to add to all single qubit gates (RX, H)
     two_qubit_error = depolarizing_error(double_noise_strength, 2)     #Error to add to all two qubit gates (RZZ)
     
-    noisemodel.add_all_qubit_quantum_error(single_qubit_error, ["h", "rx"])   
-    noisemodel.add_all_qubit_quantum_error(two_qubit_error, ["rzz"])
+    noisemodel.add_all_qubit_quantum_error(single_qubit_error, ['h', 'rx', 'sx', 'rz'])   
+    noisemodel.add_all_qubit_quantum_error(two_qubit_error, ['rzz', 'cx'])
     return noisemodel
 
 
@@ -45,8 +45,8 @@ def add_T1_T2_error(noisemodel, T1, T2, one_qubit_gate_time, two_qubit_gate_time
     two_qubit_ind_error = thermal_relaxation_error(T1, T2, two_qubit_gate_time)
     two_error = two_qubit_ind_error.tensor(two_qubit_ind_error)
     
-    noisemodel.add_all_qubit_quantum_error(single_error, ['h', 'rx'])
-    noisemodel.add_all_qubit_quantum_error(two_error, ['rzz'])
+    noisemodel.add_all_qubit_quantum_error(single_error, ['h', 'rx', 'sx', 'rz'])
+    noisemodel.add_all_qubit_quantum_error(two_error, ['rzz', 'cz'])
     
     return noisemodel
 

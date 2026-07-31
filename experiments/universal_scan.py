@@ -27,7 +27,7 @@ def quantum_scan(qaoa_optimisers : dict,
     warm_restarts = None
     
     for optimiser_name, optimiser in qaoa_optimisers.items():
-        means, errors, _, _ = qaoa_results(*params, 
+        means, errors, _, _, _ = qaoa_results(*params, 
                                            lambda_bal, 
                                            no_of_shots, 
                                            p, 

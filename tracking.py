@@ -49,10 +49,10 @@ def main():
         Varies both N and p. Grid loop over hits_array, layers.
         '''
         
-        hits_array = np.array([3,4,5,6])
+        hits_array = np.array([3,4,5])
         layers = np.arange(1, 4)
         
-        sus_sweet_spot = (6, 2)
+        sus_sweet_spot = (4, 1)
         
         #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
             
@@ -99,11 +99,11 @@ def main():
         
         #For a fixed N and p, compare all algorithms in one table.
         hits = 3
-        layers = 2
+        layers = 1
         params = generate_toyproblem_params(hits, lambda_bal, similarity_type)
                 
         classical_results = classical_scan(classical_algs, params, lambda_bal)
-        plot.print_benchmark_table(hits, similarity_type, classical_results)
+        plot.print_benchmark_table(hits, similarity_type, lambda_bal, classical_results)
                 
         quantum_results = quantum_scan(qaoa_optimisers, 
                                        params, 
@@ -111,10 +111,12 @@ def main():
                                        no_of_shots, 
                                        layers,
                                        seed_lim, 
-                                       noise_strengths)
+                                       noise_strengths, 
+                                       readout_prob)
         
         plot.print_quantum_table(hits, 
-                                 similarity_type, 
+                                 similarity_type,
+                                 lambda_bal,
                                  layers, 
                                  noise_strengths, 
                                  quantum_results)

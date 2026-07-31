@@ -16,11 +16,11 @@ def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
     J = 2*lambda_bal - W                    #Effective coupling matrix. Equivalent to classical Ising energy.
     for layer in range(p):                  #p Repeated Cost+Mixer layers.
         for i in range(N):
-            for j in range(i+1, N):             #Start at i+1 since we don't want to double count the similarity measures.
+            for j in range(i+1, N):                                              #Start at i+1 since we don't want to double count the similarity measures.
                 circuit.rzz(2*gamma[layer]*J[i][j], qreg_q[i], qreg_q[j])                #Cost layer. Applies RZZ gates to all connected vertices. Factor of 2 cancels the qiskit convention of a gamma/2.
         
         circuit.rx(2 * beta[layer], qreg_q)            #Mixer layer. Applies RX gates to every qubit. Allows for interference between qubit phases.
            
     circuit.measure(qreg_q, creg_c)
-
+        
     return circuit
