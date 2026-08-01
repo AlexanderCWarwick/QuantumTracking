@@ -6,7 +6,6 @@ from classical.generatesystem import generate_toyproblem_params
 from qaoa.simple_qaoa import cobyla
 
 from experiments.universal_scan import quantum_scan, classical_scan
-from experiments.depthscale import depthscale_scan
 from experiments.scale import scale_scan
 from experiments.depth import depth_scan
 
@@ -25,7 +24,6 @@ def main():
                       'Spectral Clustering': cb.spectral_results, 
                       'Simulated Annealing' : cb.sim_annealing_results}
     
-    #All the different optimisers used in the qaoa. simple_qaoa contains three to use: grid, cobyla and cobyqa.
     qaoa_optimisers = {'COBYLA' : cobyla}
     
     '''
@@ -43,33 +41,6 @@ def main():
     4. gsp
     '''
     
-    if option == 'depth-scale':
-        '''
-        Combined depth + scale scan to be used to find the sweet spot under noise-depth balance.
-        Varies both N and p. Grid loop over hits_array, layers.
-        '''
-        
-        hits_array = np.array([3,4,5])
-        layers = np.arange(1, 4)
-        
-        sus_sweet_spot = (4, 1)
-        
-        #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
-            
-        sweet_spot_gammas, sweet_spot_betas = depthscale_scan(similarity_type,
-                                                                hits_array, 
-                                                                layers, 
-                                                                lambda_bal, 
-                                                                qaoa_optimisers, 
-                                                                no_of_shots, 
-                                                                seed_lim, 
-                                                                noise_strengths,
-                                                                readout_prob,
-                                                                sus_sweet_spot)    
-            
-        print(sweet_spot_gammas, sweet_spot_betas)
-                                                    
-            
     if option == 'depth':
         #Depth Scan fixes N varies p. 
         fixed_hits = 4
@@ -84,11 +55,27 @@ def main():
                    fixed_hits, 
                    layers, 
                    lambda_bal, 
-                   qaoa_optimisers, 
+                   qaoa_optimisers,
                    no_of_shots, 
                    seed_lim, 
                    noise_strengths,
-                   readout_prob)    
+                   readout_prob)  
+        
+    
+    elif option == 'scale':
+        #Scaling Scan fixes p varies N.
+        hits_array = np.array([3,4,5,6])
+        fixed_layers = 2
+                
+        scale_scan(hits_array, 
+                       similarity_type, 
+                       qaoa_optimisers,
+                       no_of_shots, 
+                       fixed_layers, 
+                       seed_lim, 
+                       lambda_bal, 
+                       noise_strengths,
+                       readout_prob)  
                 
                 
     elif option == 'class':
@@ -105,8 +92,8 @@ def main():
         classical_results = classical_scan(classical_algs, params, lambda_bal)
         plot.print_benchmark_table(hits, similarity_type, lambda_bal, classical_results)
                 
-        quantum_results = quantum_scan(qaoa_optimisers, 
-                                       params, 
+        quantum_results = quantum_scan(qaoa_optimisers,
+                                        params, 
                                        lambda_bal, 
                                        no_of_shots, 
                                        layers,
@@ -120,24 +107,6 @@ def main():
                                  layers, 
                                  noise_strengths, 
                                  quantum_results)
-                                       
-           
-    elif option == 'scale':
-        #Scaling Scan fixes p varies N.
-        hits_array = np.array([3,4,5,6])
-        fixed_layers = 2
-            
-        scale_scan(hits_array, 
-                   similarity_type, 
-                   qaoa_optimisers, 
-                   no_of_shots, 
-                   fixed_layers, 
-                   seed_lim, 
-                   lambda_bal, 
-                   noise_strengths,
-                   readout_prob)    
-            
- 
         
 if __name__ == "__main__":
     main()

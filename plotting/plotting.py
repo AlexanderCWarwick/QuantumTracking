@@ -190,6 +190,28 @@ def depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengt
     plt.show()
     
     
+def depthscale_2d_metric_scatter(similarity_type, 
+                                      layers,
+                                      seed_lim,
+                                      no_of_shots,
+                                      lambda_bal, 
+                                      noise_strengths, 
+                                      metric_results : dict,
+                                      metric_to_plot,
+                                      optimiser_name,
+                                      circuit_depth):
+    
+    hits = 2*np.array(list(metric_results.keys()))
+    
+    for N in hits:
+        depth_metric_results = {metric_results[N] for N in hits}
+        depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengths, depth_metric_results, N, circuit_depth)
+        
+    for p in layers:
+        scale_metric_results = {hits: metric_results[hits][p] for N in hits}
+        scaling_scan_metric_scatter(hits, similarity_type, p, lambda_bal, scale_metric_results, noise_strengths)
+    
+    
 def depthscale_3d_scan_metric_scatter(similarity_type, 
                                       layers,
                                       seed_lim,
