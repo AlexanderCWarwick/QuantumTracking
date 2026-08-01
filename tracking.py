@@ -1,13 +1,14 @@
 import numpy as np
-import plotting.plotting as plot
+from plotting import table_print as tp
 
-import classical.classical_benchmarks as cb
+from classical import classical_benchmarks as cb
 from classical.generatesystem import generate_toyproblem_params
 from qaoa.simple_qaoa import cobyla
 
 from experiments.universal_scan import quantum_scan, classical_scan
 from experiments.scale import scale_scan
 from experiments.depth import depth_scan
+from experiments.depthscale import depthscale_scan
 
 from global_params import (option, 
                            no_of_shots,
@@ -87,10 +88,17 @@ def main():
         #For a fixed N and p, compare all algorithms in one table.
         hits = 3
         layers = 1
+        
         params = generate_toyproblem_params(hits, lambda_bal, similarity_type)
                 
-        classical_results = classical_scan(classical_algs, params, lambda_bal)
-        plot.print_benchmark_table(hits, similarity_type, lambda_bal, classical_results)
+        classical_results = classical_scan(classical_algs, 
+                                           params, 
+                                           lambda_bal)
+        tp.print_benchmark_table(hits, 
+                                 similarity_type, 
+                                 lambda_bal, 
+                                 classical_results)
+                
                 
         quantum_results = quantum_scan(qaoa_optimisers,
                                         params, 
@@ -100,13 +108,31 @@ def main():
                                        seed_lim, 
                                        noise_strengths, 
                                        readout_prob)
-        
-        plot.print_quantum_table(hits, 
+        tp.print_quantum_table(hits, 
                                  similarity_type,
                                  lambda_bal,
                                  layers, 
                                  noise_strengths, 
                                  quantum_results)
+        
+    elif option == 'depth-scale':
+        hits_array = np.array([3,4,5,6])
+        layers = np.arange(1,4)
+        sweet_spot = (4,1)
+        
+        sweet_spot_gammas, sweet_spot_betas = depthscale_scan(similarity_type,
+                        hits_array,
+                        layers,
+                        lambda_bal,
+                        qaoa_optimisers,
+                        no_of_shots,
+                        seed_lim,
+                        noise_strengths,
+                        readout_prob,
+                        sweet_spot)
+        
+        print(sweet_spot_gammas, sweet_spot_betas)
+        
         
 if __name__ == "__main__":
     main()

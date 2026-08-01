@@ -11,7 +11,7 @@ from qaoa.add_noisemodel import make_noise_model
 from qaoa.qaoa_circuit import build_qaoa_circuit
 
 from classical.ising import ising_energy, ARI_check
-from plotting.plotting import plot_energy_hist #optimiser_energy_trace, optimiser_result_energies, top_ten_states
+from plotting.qaoa_energy_plots import (plot_energy_hist) #optimiser_energy_trace, optimiser_result_energies, top_ten_states
 from itertools import product
 from time import perf_counter
 

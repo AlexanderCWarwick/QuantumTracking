@@ -1,7 +1,9 @@
 import numpy as np
 from classical.generatesystem import generate_toyproblem_params
 from qaoa.simple_qaoa import qaoa_results
-from plotting.plotting import scaling_scan_metric_scatter
+
+from plotting.scan_plots import scaling_scan_metric_scatter
+from plotting.table_print import print_quantum_table
 
 def scale_scan(track_hits : np.ndarray[int], 
                similarity_type : str,
@@ -48,7 +50,13 @@ def scale_scan(track_hits : np.ndarray[int],
             for i, metric in enumerate(metric_results[hits][optimiser_name].keys()):
                 metric_results[hits][optimiser_name][metric] = {'mean' : means[i], 'error' : errors[i]}
                
-    
+        print_quantum_table(hits, 
+                            similarity_type, 
+                            lambda_bal, 
+                            fixed_layers, 
+                            noise_strengths, 
+                            metric_results, 
+                            'scale')
     scaling_scan_metric_scatter(track_hits, 
                                      similarity_type,
                                      fixed_layers,

@@ -1,7 +1,9 @@
 import numpy as np
 from classical.generatesystem import generate_toyproblem_params
 from qaoa.simple_qaoa import qaoa_results
-from plotting.plotting import depthscale_3d_scan_metric_scatter, print_quantum_table
+
+from plotting.table_print import print_quantum_table
+from plotting.scan_plots import depth_scan_metric_scatter, scaling_scan_metric_scatter
 
 def depthscale_scan(similarity_type : str,
                     hits_array : np.ndarray[int], 
@@ -20,7 +22,7 @@ def depthscale_scan(similarity_type : str,
     Plots are still 2D (although there is the option to plot 3D using depthscale_3d_scan_metric_scatter function in plotting/plotting).
     '''
     
-    metrics = {hits : {p  : {name : {'rel_error' :[],
+    metric_results = {hits : {p  : {name : {'rel_error' :[],
                                 'ari' : [],
                                 'runtime' : [],
                                 'gsp' : []} for name in qaoa_optimisers.keys()} for p in layers} for hits in hits_array}
@@ -63,15 +65,26 @@ def depthscale_scan(similarity_type : str,
                 if optimiser_name != 'Grid':
                     previous_params[optimiser_name] = np.concatenate([best_gammas, best_betas])
                     
-                for i, metric in enumerate(metrics[hits][p][optimiser_name].keys()):
-                    metrics[hits][p][optimiser_name][metric] = {'mean' : means[i], 'error' : errors[i]}
+                for i, metric in enumerate(metric_results[hits][p][optimiser_name].keys()):
+                    metric_results[hits][p][optimiser_name][metric] = {'mean' : means[i], 'error' : errors[i]}
                     
                 if (hits, p) == sus_sweet_spot:
                     sweet_spot_gammas = best_gammas                    
                     sweet_spot_betas = best_betas
                     
-            print_quantum_table(hits, similarity_type, lambda_bal, p, noise_strengths, metrics[hits])
+            print_quantum_table(hits, similarity_type, lambda_bal, p, noise_strengths, metric_results[hits], 'depth')
+    
+    for N in hits_array:
+        depth_metric_results = {p : metric_results[N][p] for p in layers}
+        depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengths, depth_metric_results, N, None)
+            
+    for p in layers:
+        scale_metric_results = {hits: metric_results[hits][p] for hits in hits_array}
+        scaling_scan_metric_scatter(hits_array, similarity_type, p, lambda_bal, scale_metric_results, noise_strengths)    
         
+        
+    '''
+    from plotting.depthscale_scan_3d_scatter import depthscale_3d_scan_metric_scatter
     metric_name_list = ['rel_error', 'ari', 'runtime', 'gsp']
     for metric_name in metric_name_list:
         depthscale_3d_scan_metric_scatter(similarity_type,
@@ -83,5 +96,5 @@ def depthscale_scan(similarity_type : str,
                                                 metrics,
                                                 metric_name,
                                                 'COBYLA')
-        
+    '''
     return np.array([sweet_spot_gammas, sweet_spot_betas])

@@ -1,6 +1,5 @@
 import numpy as np
 from qaoa.simple_qaoa import qaoa_results
-from plotting.plotting import print_benchmark_table, print_quantum_table
 
 def quantum_scan(qaoa_optimisers : dict,  
                  params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], float], 

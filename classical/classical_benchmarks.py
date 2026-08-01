@@ -1,8 +1,7 @@
 import numpy as np
-
 import time
+
 from sklearn.cluster import SpectralClustering
-from plotting.plotting import conv_traces
 from classical.ising import ising_energy, ARI_check
 
 ##################################################      GREEDY ALGORITHM      ################################################## 

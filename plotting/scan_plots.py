@@ -7,7 +7,7 @@ def scaling_scan_metric_scatter(track_hits : np.ndarray[int],
                                 lambda_bal : float,
                                 metric_results : dict,
                                 noise_strengths : tuple[float, float]):
-    
+    total_hits = 2 * track_hits
     fig, ax = plt.subplots(2,2,figsize=(9,7))
     ax = ax.flatten()
     metrics = {'rel_error': 'Relative Energy Error',
@@ -20,13 +20,13 @@ def scaling_scan_metric_scatter(track_hits : np.ndarray[int],
             
             means = [metric_results[N][optimiser_name][metric]['mean'] for N in track_hits]
             errors = [metric_results[N][optimiser_name][metric]['error'] for N in track_hits]
-            ax[idx].errorbar(2*track_hits, means, yerr=errors, fmt='o-', capsize=3, alpha=0.7)
+            ax[idx].errorbar(total_hits, means, yerr=errors, fmt='o-', capsize=3, alpha=0.7)
         
         if metric_name == 'rel_error':
             ax[idx].set_title(f'{metric_name} / 100')
         else:
             ax[idx].set_title(f'{metric_name}')
-        ax[idx].set_xticks(2*track_hits)
+        ax[idx].set_xticks(total_hits)
         ax[idx].grid(True, alpha=0.2)
     
     
@@ -53,6 +53,7 @@ def scaling_scan_metric_scatter(track_hits : np.ndarray[int],
     
     
 def depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengths, metric_results, hits, circuit_depth):
+    total_hits = 2 * hits
     fig, ax = plt.subplots(2,2,figsize=(9,7))
     ax = ax.flatten()
     metrics = {'rel_error': 'Relative Energy Error',
@@ -68,7 +69,7 @@ def depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengt
             ax[idx].errorbar(layers, means, yerr=errors, fmt='o-', capsize=3, alpha=0.7)
             
         if metric == 'gsp':
-            baseline = 2 / (2**(2*hits))
+            baseline = 2 / (2**(total_hits))
             ax[idx].axhline(baseline, linestyle='--', label=f'Uniform baseline {baseline:.4f}')
             ax[idx].legend()
             
@@ -100,27 +101,3 @@ def depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengt
 
     plt.tight_layout()
     plt.show()
-    
-    
-def depthscale_2d_metric_scatter(similarity_type, 
-                                      layers,
-                                      seed_lim,
-                                      no_of_shots,
-                                      lambda_bal, 
-                                      noise_strengths, 
-                                      metric_results : dict,
-                                      metric_to_plot,
-                                      optimiser_name,
-                                      circuit_depth):
-    
-    hits = 2*np.array(list(metric_results.keys()))
-    
-    for N in hits:
-        depth_metric_results = {metric_results[N] for N in hits}
-        depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengths, depth_metric_results, N, circuit_depth)
-        
-    for p in layers:
-        scale_metric_results = {hits: metric_results[hits][p] for N in hits}
-        scaling_scan_metric_scatter(hits, similarity_type, p, lambda_bal, scale_metric_results, noise_strengths)
-    
-    

@@ -1,7 +1,9 @@
 import numpy as np
 from classical.generatesystem import generate_toyproblem_params
 from qaoa.simple_qaoa import qaoa_results
-from plotting.plotting import depth_scan_metric_scatter, print_quantum_table
+
+from plotting.scan_plots import depth_scan_metric_scatter
+from plotting.table_print import print_quantum_table
 
 def depth_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], float],
                similarity_type : str,
