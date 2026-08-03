@@ -7,6 +7,7 @@ def quantum_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], 
                 p : int,
                 no_of_shots : int,
                 seed_lim : int,
+                restarts : int,
                 noise_strengths : tuple[np.float64, np.float64],
                 readout_prob : float,
                 qaoa_optimisers : dict) -> dict:
@@ -35,7 +36,8 @@ def quantum_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], 
                                            optimiser,
                                            warm_restarts, 
                                            noise_strengths,
-                                           readout_prob)
+                                           readout_prob,
+                                           restarts)
         
         for metric, mean, error in zip(quantum_metrics[N][p][optimiser_name].keys(), means, errors):
             quantum_metrics[N][p][optimiser_name][metric] = {'mean': mean,

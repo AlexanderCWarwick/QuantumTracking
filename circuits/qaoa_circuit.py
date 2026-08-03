@@ -24,3 +24,15 @@ def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
     circuit.measure(qreg_q, creg_c)
         
     return circuit
+
+def bind_params(circuit, 
+                gamma, 
+                beta,
+                gamma_values, 
+                beta_values, 
+                p):
+    '''
+    Binds parameter values to the gates as in build_qaoa_circuit.
+    '''
+    return circuit.assign_parameters({gamma[i]: gamma_values[i] for i in range(p)} |
+                                    {beta[i]: beta_values[i] for i in range(p)})

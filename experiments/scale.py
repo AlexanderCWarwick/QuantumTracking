@@ -11,6 +11,7 @@ def scale_scan(similarity_type : str,
                    fixed_p : int,
                    no_of_shots : int,
                    seed_lim : int,
+                   restarts : int,
                    noise_strengths : tuple[np.float64, np.float64],
                    readout_prob : float,
                    qaoa_optimisers : dict):
@@ -44,7 +45,8 @@ def scale_scan(similarity_type : str,
                                                                     optimiser, 
                                                                     warm_restart, 
                                                                     noise_strengths,
-                                                                    readout_prob)
+                                                                    readout_prob,
+                                                                    restarts)
             
             
             for i, metric in enumerate(metric_results[hits][optimiser_name].keys()):

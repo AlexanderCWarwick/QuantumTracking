@@ -84,7 +84,7 @@ def print_quantum_table(similarity_type : str,
                     f'{format_metric(metrics['gsp']):<20}')
         print('\n')
         
-    elif scan_type == 'uni':
+    elif scan_type == 'class':
         print(f'Parameters : sim_matrix={similarity_type}, λ={lambda_bal}')
         print(f'Depolarising Noise (1q, 2q) = {noise_strengths}, Readout Error = {readout_prob}')
         print('\n')

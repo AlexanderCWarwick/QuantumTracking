@@ -3,9 +3,9 @@ from plotting import table_print as tp
 
 from classical_algs import classical_benchmarks as cb
 from problem.generatesystem import generate_toyproblem_params
-from qaoa.qaoa import cobyla
+from qaoa.optimisers import cobyla
 
-from experiments.universal_scan import quantum_scan, classical_scan
+from experiments.universal import quantum_scan, classical_scan
 from experiments.scale import scale_scan
 from experiments.depth import depth_scan
 from experiments.depthscale import depthscale_scan
@@ -15,6 +15,7 @@ from global_params import (option,
                            lambda_bal,
                            no_of_shots,
                            seed_lim,
+                           restarts,
                            noise_strengths,
                            readout_prob)
     
@@ -58,6 +59,7 @@ def main():
                    layers,
                    no_of_shots,
                    seed_lim,
+                   restarts,
                    noise_strengths,
                    readout_prob,
                    qaoa_optimisers)  
@@ -74,6 +76,7 @@ def main():
                    fixed_p,
                    no_of_shots,
                    seed_lim,
+                   restarts,
                    noise_strengths,
                    readout_prob,
                    qaoa_optimisers) 
@@ -108,17 +111,18 @@ def main():
                                         layers,
                                         no_of_shots,
                                         seed_lim,
+                                        restarts,
                                         noise_strengths,
                                         readout_prob,
                                         qaoa_optimisers)
-        tp.print_quantum_table(hits, 
-                                 similarity_type,
+        tp.print_quantum_table(similarity_type,
                                  lambda_bal,
+                                 hits,
                                  layers, 
+                                 quantum_results,
                                  noise_strengths,
                                  readout_prob, 
-                                 quantum_results,
-                                 'uni')
+                                 option)
         
     elif option == 'depth-scale':
         hits_array = np.array([3,4,5])
@@ -132,6 +136,7 @@ def main():
                                                                 qaoa_optimisers,
                                                                 no_of_shots,
                                                                 seed_lim,
+                                                                restarts,
                                                                 noise_strengths,
                                                                 readout_prob,
                                                                 sweet_spot)

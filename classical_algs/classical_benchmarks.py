@@ -4,9 +4,16 @@ import time
 from sklearn.cluster import SpectralClustering
 from classical_algs.ising import ising_energy
 from classical_algs.ari import ari_check
+from analysis.metric_data import metric_stats
 
 ##################################################      GREEDY ALGORITHM      ################################################## 
 def get_mostdissimlar_hits(RBF_matrix):
+    '''
+    One way we can guess two hits that belong to different tracks is to take the two least correlated hits. 
+    This method is reliable for when tracks do not intersect. If they do intersect, then more sophisticated 
+    methods should be used.
+    '''
+    
     RBF_no_diag = RBF_matrix.copy()                                 
     np.fill_diagonal(RBF_no_diag, np.inf)                         #We don't want to include the diagonals so we force them, in this copy, to inf.
 
@@ -144,21 +151,6 @@ def sim_annealing(W, init, lambda_bal):
 
 ##################################################      Handling functions      ################################################## 
 
-
-def metric_stats(metrics_dict : dict) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
-    '''
-    Input: metrics_dict contains lists of (respective algorithm)_loop values for each metric.
-    Compute means and errors for each different metric given
-    Output: Two seperate arrays for means and errors for each metric. The ordering is kept the same as the dictionary.
-    relative energy -> ari -> runtime -> convergence fraction
-    '''
-    
-    metrics = metrics_dict.values()
-    means = [np.mean(metric_values) for metric_values in metrics]
-    std_metrics = [np.std(metric_values) for metric_values in metrics]
-    
-    return np.array(means), np.array(std_metrics)
-    
 
 def greedy_results(W, true_groundstate, true_groundstate_energy, lambda_bal,  loops : int) -> tuple[np.ndarray[np.float64, np.float64]]:
     metrics = {'rel_error' : [],

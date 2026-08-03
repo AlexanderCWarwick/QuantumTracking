@@ -11,6 +11,7 @@ def depth_scan(params : tuple[np.ndarray[int], np.ndarray[float], float],
                p_array : int,
                no_of_shots : int,
                seed_lim : int,
+               restarts : int,
                noise_strengths : tuple[np.float64, np.float64],
                readout_prob : float,
                qaoa_optimisers : dict):
@@ -54,7 +55,8 @@ def depth_scan(params : tuple[np.ndarray[int], np.ndarray[float], float],
                                                                         optimiser, 
                                                                         warm_restart, 
                                                                         noise_strengths,
-                                                                        readout_prob)
+                                                                        readout_prob,
+                                                                        restarts)
                     
                 
             if optimiser_name != 'Grid':

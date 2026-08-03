@@ -12,6 +12,7 @@ def depthscale_scan(similarity_type : str,
                     qaoa_optimisers : dict, 
                     no_of_shots : int, 
                     seed_lim : int,
+                    restarts : int,
                     noise_strengths : tuple[np.float64, np.float64],
                     readout_prob : float,
                     sus_sweet_spot : tuple[int, int]):
@@ -56,11 +57,12 @@ def depthscale_scan(similarity_type : str,
                                                                         lambda_bal, 
                                                                         no_of_shots, 
                                                                         p, 
-                                                                        seed_lim, 
+                                                                        seed_lim,
                                                                         optimiser, 
                                                                         warm_restart, 
                                                                         noise_strengths,
-                                                                        readout_prob)
+                                                                        readout_prob,
+                                                                        restarts)
                     
                 
                 if optimiser_name != 'Grid':
@@ -75,7 +77,7 @@ def depthscale_scan(similarity_type : str,
                     
             print_quantum_table(similarity_type, 
                                 lambda_bal, 
-                                N, 
+                                hits, 
                                 p,
                                 metric_results, 
                                 noise_strengths, 
