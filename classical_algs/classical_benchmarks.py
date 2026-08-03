@@ -2,7 +2,8 @@ import numpy as np
 import time
 
 from sklearn.cluster import SpectralClustering
-from classical.ising import ising_energy, ARI_check
+from classical_algs.ising import ising_energy
+from classical_algs.ari import ari_check
 
 ##################################################      GREEDY ALGORITHM      ################################################## 
 def get_mostdissimlar_hits(RBF_matrix):
@@ -18,7 +19,7 @@ def greedy(W : np.ndarray[float]):
     Greedy algorithm optimisation approach. Greedy makes local (short-sighted) decisions. Given a Yes/No question, go with which every gives the most benefit 
     at time when choosing.
     Algorithm:
-    1. Find the two most dissimilar hits according to similarity matrix and split them into clusters, 0 and 1.
+    1. Pick two hits (usually most dissimilar) according to similarity matrix and split them into clusters, 0 and 1.
     2. Randomly pick a hit not yet assigned a cluster.
     3. Compute avg of all compatible hits.
     4. If mean_0 > mean_1 then cluster 0 is favourable and the hit is assigned to cluster 0, and vice versa.
@@ -143,6 +144,7 @@ def sim_annealing(W, init, lambda_bal):
 
 ##################################################      Handling functions      ################################################## 
 
+
 def metric_stats(metrics_dict : dict) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
     '''
     Input: metrics_dict contains lists of (respective algorithm)_loop values for each metric.
@@ -169,7 +171,7 @@ def greedy_results(W, true_groundstate, true_groundstate_energy, lambda_bal,  lo
         energy = ising_energy(W, optimised_config, lambda_bal)
         rel_energy = abs((true_groundstate_energy - energy) / true_groundstate_energy)
         
-        metrics['ari'].append(ARI_check(true_groundstate, np.array([optimised_config])))
+        metrics['ari'].append(ari_check(true_groundstate, np.array([optimised_config])))
         metrics['rel_error'].append(rel_energy)
         metrics['runtime'].append(runtime)
             
@@ -188,7 +190,7 @@ def spectral_results(W, true_groundstate, true_groundstate_energy, lambda_bal, l
         energy = ising_energy(W, optimised_config, lambda_bal)
         rel_energy = abs((true_groundstate_energy - energy) / true_groundstate_energy)
         
-        metrics['ari'].append(ARI_check(true_groundstate, np.array([optimised_config])))
+        metrics['ari'].append(ari_check(true_groundstate, np.array([optimised_config])))
         metrics['rel_error'].append(rel_energy)
         metrics['runtime'].append(runtime)
             
@@ -218,7 +220,7 @@ def sim_annealing_results(W, true_gs, true_gs_energy, lambda_bal, loops : int) -
             convergence_counter += 1
             
         metrics['rel_error'].append(abs(sa_energy - true_gs_energy) / true_gs_energy)
-        metrics['ari'].append(ARI_check(true_gs, np.array([sa_config])))
+        metrics['ari'].append(ari_check(true_gs, np.array([sa_config])))
         metrics['runtime'].append(sa_time_elapsed)
     metrics['conv_frac'].append(convergence_counter / loops)
     

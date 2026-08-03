@@ -7,10 +7,11 @@ from qiskit_aer import AerSimulator
 
 from qiskit_ibm_runtime import QiskitRuntimeService
 
-from qaoa.add_noisemodel import make_noise_model
-from qaoa.qaoa_circuit import build_qaoa_circuit
+from noise.add_noisemodel import make_noise_model
+from circuits.qaoa_circuit import build_qaoa_circuit
 
-from classical.ising import ising_energy, ARI_check
+from classical_algs.ising import ising_energy
+from classical_algs.ari import ari_check
 from plotting.qaoa_energy_plots import (plot_energy_hist) #optimiser_energy_trace, optimiser_result_energies, top_ten_states
 from itertools import product
 from time import perf_counter
@@ -77,7 +78,7 @@ def get_counts_data(best_counts,
     best_config_energy = ising_energy(W, best_config, lambda_bal)
     
     best_rel_energy = abs((best_config_energy - true_groundstate_energy) / true_groundstate_energy)
-    best_ari = ARI_check(true_groundstate, np.array([best_config]))        
+    best_ari =  ari_check(true_groundstate, np.array([best_config]))        
         
     return best_config, best_rel_energy, best_ari, groundstate_prob
         
@@ -387,18 +388,19 @@ def qaoa_results(W : np.ndarray[float],
     
     gamma = [Parameter(f'g{i+1}') for i in range(p)]
     beta = [Parameter(f'b{i+1}') for i in range(p)]
-        
-        
     
-    noise_model = make_noise_model(*noise_strengths, 
-                                   readout_prob)
-    print(noise_model)
     
     service = QiskitRuntimeService(instance='Warwick-flex')
     
     hardware_backend = service.backend('ibm_miami')
     
-    sim_backend = AerSimulator(noise_model=noise_model)
+    if noise_strengths == (0, 0) and readout_prob == 0:
+        sim_backend = AerSimulator()
+    else:
+        noise_model = make_noise_model(*noise_strengths, 
+                                           readout_prob)
+        print(noise_model)
+        sim_backend = AerSimulator(noise_model=noise_model)
     
     
     circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
@@ -406,7 +408,7 @@ def qaoa_results(W : np.ndarray[float],
                                     backend=hardware_backend)
     
     #transpiled_qc_depth = sum(list(transpiled_circuit.count_ops().values()))
-    transpiled_depth = transpiled_circuit.depth()
+    #transpiled_depth = transpiled_circuit.depth()
     print(f'All-to-all Circuit Depth = {circuit.depth()}')
     print(f'Transpiled Depth = {transpiled_circuit.depth()}')
 
@@ -449,4 +451,4 @@ def qaoa_results(W : np.ndarray[float],
         print(f'Seed {seed + 1} / {seed_lim} complete: ({(perf_counter() - seed_start_time):.2f}s)')
         print('\n')
         
-    return *metric_stats(metrics_dict), best_seed_gammas, best_seed_betas, transpiled_depth
+    return *metric_stats(metrics_dict), best_seed_gammas, best_seed_betas

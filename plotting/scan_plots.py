@@ -1,12 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
     
-def scaling_scan_metric_scatter(track_hits : np.ndarray[int], 
-                                similarity_type : str, 
-                                p : int,
+def scaling_scan_metric_scatter(similarity_type : str, 
                                 lambda_bal : float,
+                                track_hits : np.ndarray[int],
+                                p : int, 
                                 metric_results : dict,
-                                noise_strengths : tuple[float, float]):
+                                noise_strengths : tuple[float, float], 
+                                readout_prob : float):
+    
     total_hits = 2 * track_hits
     fig, ax = plt.subplots(2,2,figsize=(9,7))
     ax = ax.flatten()
@@ -31,7 +33,8 @@ def scaling_scan_metric_scatter(track_hits : np.ndarray[int],
     
     
     info = (f'1-qubit gate noise: {float(noise_strengths[0])}\n'
-            f'2-qubit gate noise: {float(noise_strengths[1])}\n')
+            f'2-qubit gate noise: {float(noise_strengths[1])}\n'
+            f'Readout error: {readout_prob}')
 
     fig.text(0.9, 0.9,
             info,
@@ -42,17 +45,23 @@ def scaling_scan_metric_scatter(track_hits : np.ndarray[int],
                     edgecolor='black',
                     alpha=0.8))
     
-    fig.supxlabel('($p$) Layers')
+    fig.supxlabel('($N$) Hits')
     fig.supylabel('Metric value')
-    noises = (float(noise) for noise in noise_strengths)
     fig.suptitle(f'QAOA Scale Scan ($ p={p}, W={similarity_type}, λ={lambda_bal}$) ', x=0.4, fontsize=13)
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f'assets/plots/ScalingScan_p{p}')
     
     
     
-def depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengths, metric_results, hits, circuit_depth):
+def depth_scan_metric_scatter(similarity_type : str, 
+                              lambda_bal : float,
+                              hits : int, 
+                              layers : np.ndarray[int], 
+                              metric_results : dict,
+                              noise_strengths : float, 
+                              readout_prob : float):
+    
     total_hits = 2 * hits
     fig, ax = plt.subplots(2,2,figsize=(9,7))
     ax = ax.flatten()
@@ -83,7 +92,7 @@ def depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengt
     
     info = (f'1-qubit gate noise: {float(noise_strengths[0])}\n'
             f'2-qubit gate noise: {float(noise_strengths[1])}\n'
-            f'Circuit depth: {circuit_depth}')
+            f'Readout error: {readout_prob}')
 
     fig.text(0.82, 0.85,
             info,
@@ -96,8 +105,7 @@ def depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengt
     
     fig.supxlabel('($p$) Layers')
     fig.supylabel('Metric value')
-    noises = (float(noise) for noise in noise_strengths)
     fig.suptitle(f'QAOA Depth Scan Hits ($ N={2*hits}, W={similarity_type}, λ={lambda_bal}$) ', x=0.4, fontsize=13)
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f'assets/plots/DepthScan_N{2*hits}')

@@ -1,14 +1,15 @@
 import numpy as np
-from qaoa.simple_qaoa import qaoa_results
+from qaoa.qaoa import qaoa_results
 
-def quantum_scan(qaoa_optimisers : dict,  
-                 params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], float], 
-                 lambda_bal : float,
-                 no_of_shots : int, 
-                 p : int, 
-                 seed_lim : int, 
-                 noise_strengths : tuple[np.float64, np.float64],
-                 readout_prob : float) -> dict:
+def quantum_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], float], 
+                lambda_bal : float,
+                N : int,
+                p : int,
+                no_of_shots : int,
+                seed_lim : int,
+                noise_strengths : tuple[np.float64, np.float64],
+                readout_prob : float,
+                qaoa_optimisers : dict) -> dict:
     '''
     Quantum scan over all listed optimiser in dictionary qaoa_optimiser.
     params ordering:
@@ -17,16 +18,16 @@ def quantum_scan(qaoa_optimisers : dict,
     3. the true gs energy.
     '''
     
-    quantum_metrics = {p : {name: {'rel_error': None,
+    quantum_metrics = {N : {p : {name: {'rel_error': None,
                             'ari': None,
                             'runtime': None,
                             'gsp': None}
-                            for name in qaoa_optimisers.keys()}}
+                            for name in qaoa_optimisers.keys()}}}
     
     warm_restarts = None
     
     for optimiser_name, optimiser in qaoa_optimisers.items():
-        means, errors, _, _, _ = qaoa_results(*params, 
+        means, errors, _, _ = qaoa_results(*params, 
                                            lambda_bal, 
                                            no_of_shots, 
                                            p, 
@@ -36,8 +37,8 @@ def quantum_scan(qaoa_optimisers : dict,
                                            noise_strengths,
                                            readout_prob)
         
-        for metric, mean, error in zip(quantum_metrics[p][optimiser_name].keys(), means, errors):
-            quantum_metrics[p][optimiser_name][metric] = {'mean': mean,
+        for metric, mean, error in zip(quantum_metrics[N][p][optimiser_name].keys(), means, errors):
+            quantum_metrics[N][p][optimiser_name][metric] = {'mean': mean,
                                                         'error': error}
     return quantum_metrics
 

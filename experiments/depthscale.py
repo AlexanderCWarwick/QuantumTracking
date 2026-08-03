@@ -1,6 +1,6 @@
 import numpy as np
-from classical.generatesystem import generate_toyproblem_params
-from qaoa.simple_qaoa import qaoa_results
+from problem.generatesystem import generate_toyproblem_params
+from qaoa.qaoa import qaoa_results
 
 from plotting.table_print import print_quantum_table
 from plotting.scan_plots import depth_scan_metric_scatter, scaling_scan_metric_scatter
@@ -17,6 +17,7 @@ def depthscale_scan(similarity_type : str,
                     sus_sweet_spot : tuple[int, int]):
     '''
     DEPTH+SCALE SCAN -> VARY p and N
+    This experiment isn't necessarily for presentation, rather it is an alternative presentation. depth.py and scale.py are the data collectio experiments.
     
     In this experiment, we plot any of the four success metrics change with p and N. In effect, just calls scale and depth scans at the same time.
     Plots are still 2D (although there is the option to plot 3D using depthscale_3d_scan_metric_scatter function in plotting/plotting).
@@ -51,7 +52,7 @@ def depthscale_scan(similarity_type : str,
                 else:
                     warm_restart = None
                         
-                means, errors, best_gammas, best_betas, _ = qaoa_results(*params, 
+                means, errors, best_gammas, best_betas = qaoa_results(*params, 
                                                                         lambda_bal, 
                                                                         no_of_shots, 
                                                                         p, 
@@ -72,17 +73,35 @@ def depthscale_scan(similarity_type : str,
                     sweet_spot_gammas = best_gammas                    
                     sweet_spot_betas = best_betas
                     
-            print_quantum_table(hits, similarity_type, lambda_bal, p, noise_strengths, metric_results[hits], 'depth')
+            print_quantum_table(similarity_type, 
+                                lambda_bal, 
+                                N, 
+                                p,
+                                metric_results, 
+                                noise_strengths, 
+                                readout_prob, 
+                                'uni')
     
     for N in hits_array:
         depth_metric_results = {p : metric_results[N][p] for p in layers}
-        depth_scan_metric_scatter(layers, similarity_type, lambda_bal, noise_strengths, depth_metric_results, N, None)
+        depth_scan_metric_scatter(similarity_type, 
+                                    lambda_bal,
+                                    N, 
+                                    layers, 
+                                    depth_metric_results,
+                                    noise_strengths, 
+                                    readout_prob)
             
     for p in layers:
         scale_metric_results = {hits: metric_results[hits][p] for hits in hits_array}
-        scaling_scan_metric_scatter(hits_array, similarity_type, p, lambda_bal, scale_metric_results, noise_strengths)    
-        
-        
+        scaling_scan_metric_scatter(similarity_type, 
+                                    lambda_bal, 
+                                    hits_array, 
+                                    p, 
+                                    scale_metric_results, 
+                                    noise_strengths, 
+                                    readout_prob)    
+  
     '''
     from plotting.depthscale_scan_3d_scatter import depthscale_3d_scan_metric_scatter
     metric_name_list = ['rel_error', 'ari', 'runtime', 'gsp']
