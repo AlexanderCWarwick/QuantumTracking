@@ -8,11 +8,13 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 
 from noise.add_noisemodel import make_noise_model
 from circuits.qaoa_circuit import build_qaoa_circuit, bind_params
-from analysis.counts_analysis import get_counts_data
+from analysis.counts_analysis import get_counts_data, energy_data_plot
 from analysis.metric_data import metric_stats
-from time import perf_counter
-
+from plotting.qaoa_energy_plots import top_ten_states
 from qaoa.q_ising_energy import run_qaoa
+
+
+from time import perf_counter
 
 def qaoa_pipeline(W : np.ndarray,  
                   lambda_bal : float,  
@@ -149,9 +151,9 @@ def qaoa_results(W : np.ndarray[float],
             best_seed_gammas, best_seed_betas = best_gammas, best_betas
             
         
-        #energy_data_plot(best_counts, W, lambda_bal, true_groundstate_energy)
+        energy_data_plot(best_counts, W, lambda_bal, true_groundstate_energy)
         
-        #top_ten_states(best_counts, true_groundstate)
+        top_ten_states(best_counts, true_groundstate)
         
         _, best_rel_energy, best_ari, gs_prob = get_counts_data(best_counts,
                                                                 W, true_groundstate, true_groundstate_energy, lambda_bal,

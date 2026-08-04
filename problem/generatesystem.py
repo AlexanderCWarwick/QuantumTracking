@@ -50,6 +50,22 @@ def sim_matrices_calculation(x, track0, track1):
 
 
 
+def exhaustive_method_ari_check(KNN_gs_configs, RBF_gs_configs, true_gs):
+    ari_check_list = {'KNN' : {},
+                          'RBF' : {}}
+    for gs_config in KNN_gs_configs:
+        ari = ari_check(true_gs, np.array([gs_config]))[0]
+        ari_check_list['KNN'][tuple(gs_config.astype(int))] = ari
+        print(f'ARI check from exhaustive KNN GS search: {gs_config} -> {ari:.4f}')
+        
+    for gs_config in RBF_gs_configs:
+            ari = ari_check(true_gs, np.array([gs_config]))[0]
+            ari_check_list['RBF'][tuple(gs_config.astype(int))] = ari
+            print(f'ARI check from exhaustive RBF GS search: {gs_config} -> {ari:.4f}')
+            
+            
+                
+
 def exhaustive_ising_method(true_gs : float, RBF_matrix : np.ndarray[float], KNN_matrix : np.ndarray[float], lambda_bal : float) -> tuple[float, float]:
     '''
     Brute force ising landscape method.
@@ -59,12 +75,10 @@ def exhaustive_ising_method(true_gs : float, RBF_matrix : np.ndarray[float], KNN
     This configuration is for N=3 (6 hits in total) = 000111 or 111000.
     '''
     
-    KNN_energies, KNN_gs_energy, _, RBF_energies, RBF_gs_energy, RBF_gs_configs = ising_optimisation(len(RBF_matrix), lambda_bal, KNN_matrix, RBF_matrix)
-    #energy_landscape(lambda_bal, KNN_energies, RBF_energies)
+    KNN_energies, KNN_gs_energy, KNN_gs_configs, RBF_energies, RBF_gs_energy, RBF_gs_configs = ising_optimisation(len(RBF_matrix), lambda_bal, KNN_matrix, RBF_matrix)
+    #energy_landscape(lambda_bal, KNN_energies, RBF_energies) 
     
-    for gs_config in RBF_gs_configs:
-        ari = ari_check(true_gs, np.array([gs_config]))[0]
-        #print(f'ARI check from exhaustive RBF GS search: {gs_config} -> {ari:.4f}')
+    exhaustive_method_ari_check(KNN_gs_configs, RBF_gs_configs, true_gs)
     
     return KNN_gs_energy, RBF_gs_energy
 

@@ -20,7 +20,7 @@ from global_params import (option,
                            readout_prob)
     
     
-def main():
+def optimise():
     #Names of the classical algorithms used.
     classical_algs = {'Greedy' : cb.greedy_results, 
                       'Spectral Clustering': cb.spectral_results, 
@@ -45,7 +45,7 @@ def main():
     
     if option == 'depth':
         #Depth Scan fixes N varies p. 
-        fixed_hits = 4
+        fixed_hits = 3
         layers = np.arange(1, 4)
         
         #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
@@ -145,4 +145,4 @@ def main():
         
         
 if __name__ == "__main__":
-    main()
+    optimise()

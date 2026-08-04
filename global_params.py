@@ -1,9 +1,9 @@
 
-option = 'class'                  #This is the identifier for which 'task' we want to do.
-no_of_shots =  5                #Number of measurements the quantum simulator will make of the circuit (all independent).
-seed_lim = 2                    #Number of runs of the QAOA to calculate means and errors.
+option = 'depth'                  #This is the identifier for which 'task' we want to do.
+no_of_shots =  500                #Number of measurements the quantum simulator will make of the circuit (all independent).
+seed_lim = 3                    #Number of runs of the QAOA to calculate means and errors.
 restarts = 3                    #Number of restarts to use per seed.
-lambda_bal = 0.25                  #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
+lambda_bal = 0.3                  #Lambda_balance parameter values to be used in the Hamiltonian. Modelled as a constant.
 similarity_type = 'KNN'
     
     

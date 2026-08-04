@@ -13,7 +13,6 @@ def ising_energy(W : np.ndarray[np.float64], bitstring : np.ndarray[int],  lambd
             H -= W[i][j] * isingstring[i] * isingstring[j]              #Rewarding term for like spins
     
     H += ising_penalty_term(lambda_bal, isingstring)                    #Penalty term penalising big clustering.
-    
     return H
 
 
