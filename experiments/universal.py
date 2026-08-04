@@ -10,7 +10,9 @@ def quantum_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], 
                 restarts : int,
                 noise_strengths : tuple[np.float64, np.float64],
                 readout_prob : float,
-                qaoa_optimisers : dict) -> dict:
+                qaoa_optimisers : dict,
+                qpu_name : str,
+                service) -> dict:
     '''
     Quantum scan over all listed optimiser in dictionary qaoa_optimiser.
     params ordering:
@@ -28,7 +30,7 @@ def quantum_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], 
     warm_restarts = None
     
     for optimiser_name, optimiser in qaoa_optimisers.items():
-        means, errors, _, _ = qaoa_results(*params, 
+        means, errors, _, _, _ = qaoa_results(*params, 
                                            lambda_bal, 
                                            no_of_shots, 
                                            p, 
@@ -37,7 +39,9 @@ def quantum_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], 
                                            warm_restarts, 
                                            noise_strengths,
                                            readout_prob,
-                                           restarts)
+                                           restarts,
+                                           qpu_name,
+                                           service)
         
         for metric, mean, error in zip(quantum_metrics[N][p][optimiser_name].keys(), means, errors):
             quantum_metrics[N][p][optimiser_name][metric] = {'mean': mean,

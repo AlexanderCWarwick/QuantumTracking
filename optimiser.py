@@ -10,7 +10,7 @@ from experiments.scale import scale_scan
 from experiments.depth import depth_scan
 from experiments.depthscale import depthscale_scan
 
-from global_params import (option, 
+from global_params import (mode, 
                            similarity_type,
                            lambda_bal,
                            no_of_shots,
@@ -20,7 +20,7 @@ from global_params import (option,
                            readout_prob)
     
     
-def optimise():
+def optimise(option, qpu_name, service):
     #Names of the classical algorithms used.
     classical_algs = {'Greedy' : cb.greedy_results, 
                       'Spectral Clustering': cb.spectral_results, 
@@ -45,43 +45,88 @@ def optimise():
     
     if option == 'depth':
         #Depth Scan fixes N varies p. 
-        fixed_hits = 3
-        layers = np.arange(1, 4)
+        from global_params import sweet_spot
+        print(sweet_spot)
+        if mode == 'OPTIMISE-HARDWARE':
+            '''
+            If user asks to submit an actual job (mode='OPTIMISE-HARDWARE') then a depth scan is used to extract the optimal {γ, β}
+            parameters. Depth scan is used because it uses a warm restart unlike the scale scan.
+            
+            In this case we then need to fixed the number of hits to that in the sweet spot, sweet_spot[0].
+            To ensure a warm restart is used (p>1) then layers is set so the maximum is sweet_spot[1].
+            '''
+            
+            fixed_hits = sweet_spot[0]
+            layers = np.arange(1, sweet_spot[1]+1)
+            #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
+            #Can include before the depth_scan call since params doesn't change with p.
+            params = generate_toyproblem_params(fixed_hits, lambda_bal, similarity_type)
+                    
+            return depth_scan(params, 
+                                similarity_type,
+                                lambda_bal,
+                                fixed_hits,
+                                layers,
+                                no_of_shots,
+                                seed_lim,
+                                restarts,
+                                noise_strengths,
+                                readout_prob,
+                                qaoa_optimisers,
+                                sweet_spot,
+                                mode,
+                                qpu_name,
+                                service)
         
-        #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
-        #Can include before the depth_scan call since params doesn't change with p.
-        params = generate_toyproblem_params(fixed_hits, lambda_bal, similarity_type)
+        elif mode == 'OPTIMISE':
+            '''
+            If user just wishes to optimise and see how metrics vary in a depth scan.
+            Here the sweet_spot is irrelevant since real hardware is not needed. 
+            The variables fixed_hits and layers can be chosen here.
+            '''
+            fixed_hits = 3
+            layers = np.arange(1, 4)
         
-        depth_scan(params, 
-                   similarity_type,
-                   lambda_bal,
-                   fixed_hits,
-                   layers,
-                   no_of_shots,
-                   seed_lim,
-                   restarts,
-                   noise_strengths,
-                   readout_prob,
-                   qaoa_optimisers)  
-        
+            #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
+            #Can include before the depth_scan call since params doesn't change with p.
+            params = generate_toyproblem_params(fixed_hits, lambda_bal, similarity_type)
+            
+            depth_scan(params, 
+                        similarity_type,
+                        lambda_bal,
+                        fixed_hits,
+                        layers,
+                        no_of_shots,
+                        seed_lim,
+                        restarts,
+                        noise_strengths,
+                        readout_prob,
+                        qaoa_optimisers,
+                        sweet_spot,
+                        mode,
+                        qpu_name,
+                        service) 
+
     
     elif option == 'scale':
         #Scaling Scan fixes p varies N.
         hits_array = np.array([3,4,5])
         fixed_p = 2
         
-        scale_scan(similarity_type,
-                   lambda_bal,
-                   hits_array,
-                   fixed_p,
-                   no_of_shots,
-                   seed_lim,
-                   restarts,
-                   noise_strengths,
-                   readout_prob,
-                   qaoa_optimisers) 
-                
-                
+        _, _ = scale_scan(similarity_type,
+                            lambda_bal,
+                            hits_array,
+                            fixed_p,
+                            no_of_shots,
+                            seed_lim,
+                            restarts,
+                            noise_strengths,
+                            readout_prob,
+                            qaoa_optimisers,
+                            qpu_name,
+                            service) 
+                            
+                            
     elif option == 'class':
         '''
         Class option is a universal comparison of all considered approaches, both classial and quantum.
@@ -114,7 +159,9 @@ def optimise():
                                         restarts,
                                         noise_strengths,
                                         readout_prob,
-                                        qaoa_optimisers)
+                                        qaoa_optimisers,
+                                        qpu_name,
+                                        service)
         tp.print_quantum_table(similarity_type,
                                  lambda_bal,
                                  hits,
@@ -142,7 +189,6 @@ def optimise():
                                                                 sweet_spot)
         
         print(sweet_spot_gammas, sweet_spot_betas)
+    
         
         
-if __name__ == "__main__":
-    optimise()

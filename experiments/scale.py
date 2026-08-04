@@ -14,7 +14,9 @@ def scale_scan(similarity_type : str,
                    restarts : int,
                    noise_strengths : tuple[np.float64, np.float64],
                    readout_prob : float,
-                   qaoa_optimisers : dict):
+                   qaoa_optimisers : dict,
+                   qpu_name : str,
+                   service):
     
     '''
     SCALE SCAN -> VARY N
@@ -37,16 +39,19 @@ def scale_scan(similarity_type : str,
         params = generate_toyproblem_params(hits, lambda_bal, similarity_type)
          
         for optimiser_name, optimiser in qaoa_optimisers.items():
-            means, errors, best_gammas, best_betas = qaoa_results(*params, 
-                                                                    lambda_bal, 
-                                                                    no_of_shots, 
-                                                                    fixed_p, 
-                                                                    seed_lim, 
-                                                                    optimiser, 
-                                                                    warm_restart, 
-                                                                    noise_strengths,
-                                                                    readout_prob,
-                                                                    restarts)
+            means, errors, _, _, _ = qaoa_results(*params, 
+                                                lambda_bal, 
+                                                no_of_shots, 
+                                                fixed_p, 
+                                                seed_lim, 
+                                                optimiser, 
+                                                warm_restart, 
+                                                noise_strengths,
+                                                readout_prob,
+                                                restarts,
+                                                qpu_name,
+                                                service)
+            #means, errors, best_gammas, best_betas are the outputs but we only require a depth scan to find the paramters.
             
             
             for i, metric in enumerate(metric_results[hits][optimiser_name].keys()):
@@ -69,4 +74,4 @@ def scale_scan(similarity_type : str,
                                      noise_strengths,
                                      readout_prob)
     
-    return best_gammas, best_betas 
+    

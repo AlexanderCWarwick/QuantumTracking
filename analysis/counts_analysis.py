@@ -27,10 +27,10 @@ def get_counts_data(best_counts,
     Input: A sample of the pdf from a circuit, best_counts. In total no_of_shots independent measurements made.
     Output: ari, rel_energy and gsp. best_config is found from which configuration was the most sampled (highest frequency)
     '''
-    print(true_groundstate_energy)
+
     best_config = max(best_counts, key=best_counts.get)             #This is the configuration with the highest measurement frequency.
     best_config = best_config[::-1]                                 #Qiskit endian correction. Reverses configuration order (not inverting)
-    print(best_config)
+
     best_config = np.array(list(best_config), dtype=int)            #Convert string to numpy array of integers.
     groundstate_prob = get_groundstate_prob(best_counts, true_groundstate, no_of_shots)
     

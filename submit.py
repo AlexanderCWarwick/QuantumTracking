@@ -1,48 +1,44 @@
-from qiskit import QuantumCircuit, transpile
-from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2 as Sampler
+from qiskit import transpile
+from qiskit_ibm_runtime import SamplerV2 as Sampler
 import matplotlib.pyplot as plt
 
-service = QiskitRuntimeService(
-    instance="Warwick-flex"
-)
+from global_params import hardware_no_of_shots
 
-backend = service.least_busy(
-    simulator=False,
-    operational=True
-)
 
-print(backend.name)
+def submit(ata_circuit, 
+           backend):
+    
+    skip_job = True
 
-# Create circuit with classical register
-qc = QuantumCircuit(2, 2)
+    qpu_name = backend.name
+    print(qpu_name)
+    
+    # Compile for hardware
+    transpiled_circuit = transpile(
+        ata_circuit,
+        backend=backend
+    )
 
-qc.h(0)
-qc.cx(0, 1)
-# Measure qubits into classical bits
-qc.measure([0, 1], [0, 1])
+    print(transpiled_circuit.count_ops())
 
-# Compile for hardware
-qc_transpiled = transpile(
-    qc,
-    backend=backend
-)
+    transpiled_circuit.draw('mpl')
+    plt.show()
+    
+    if skip_job:
+        print('Skip job submission')
+        return 
+    
+    sampler = Sampler(mode=backend)
 
-print(qc_transpiled.count_ops())
+    job = sampler.run(
+        [transpiled_circuit],
+        shots=hardware_no_of_shots
+    )
 
-qc_transpiled.draw('mpl')
-plt.show()
+    print("Job ID:", job.job_id())
 
-sampler = Sampler(mode=backend)
+    with open("jobs.log", "a") as f:
+        f.write(f"{job.job_id()},{qpu_name}\n")
 
-job = sampler.run(
-    [qc_transpiled],
-    shots=1024
-)
-
-print("Job ID:", job.job_id())
-
-with open("jobs.log", "a") as f:
-    f.write(f"{job.job_id()},{backend.name}\n")
-
-with open("last_job.txt", "w") as f:
-    f.write(job.job_id())
+    with open("last_job.txt", "w") as f:
+        f.write(job.job_id())
