@@ -1,8 +1,9 @@
 import numpy as np
-from plotting_baseprob import energy_landscape
-from similarity import get_KNN_matrix, get_RBF_matrix
-from track_generation import construct_toytracks
-from ising import ising_optimisation, ARI_check
+#from plotting.plotting_baseprob import energy_landscape
+from problem.similarity import get_KNN_matrix, get_RBF_matrix
+from problem.track_generation import construct_toytracks
+from classical_algs.brute_force import ising_optimisation
+from classical_algs.ari import ari_check
 
 
 def toy_track_generation(track_hits : int, x : np.ndarray) -> tuple[list[float], list[int], list[float], list[int]]:
@@ -55,13 +56,14 @@ def exhaustive_ising_method(true_gs : float, RBF_matrix : np.ndarray[float], KNN
     
     Computes gs energy for every possible configuration (way of clustering hits). Then finds minimum which encodes the configuration
     we want for other methods we want to use later. 
-    This configuration is for N=3 (6 hits in total) = 000111 or 111000.'''
+    This configuration is for N=3 (6 hits in total) = 000111 or 111000.
+    '''
     
     KNN_energies, KNN_gs_energy, _, RBF_energies, RBF_gs_energy, RBF_gs_configs = ising_optimisation(len(RBF_matrix), lambda_bal, KNN_matrix, RBF_matrix)
     #energy_landscape(lambda_bal, KNN_energies, RBF_energies)
     
     for gs_config in RBF_gs_configs:
-        ari = ARI_check(true_gs, np.array([gs_config]))[0]
+        ari = ari_check(true_gs, np.array([gs_config]))[0]
         #print(f'ARI check from exhaustive RBF GS search: {gs_config} -> {ari:.4f}')
     
     return KNN_gs_energy, RBF_gs_energy
