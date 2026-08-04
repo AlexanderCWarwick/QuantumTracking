@@ -10,7 +10,6 @@ def main():
     service = QiskitRuntimeService(instance="Warwick-flex")
     if mode == 'OPTIMISE':
         optimise(experiment_option, qpu_name_OPT, service)
-        print(99999999999999999999999999999999)
         
     elif mode == 'OPTIMISE-HARDWARE':
         backend = service.least_busy(
@@ -19,14 +18,9 @@ def main():
                     )
         
         ss_gammas, ss_betas, ata_circuit = optimise('depth', backend.name, service)
-        print(88888888888888888888888888888888888888)
         submit(ss_gammas, ss_betas, ata_circuit, backend)
     else:
         raise ValueError('Unknown Mode')
-    
-    print(1111111111111111111111111111111111111111)
-
-        
 
 if __name__ == '__main__':
     main()

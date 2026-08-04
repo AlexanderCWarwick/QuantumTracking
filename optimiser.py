@@ -8,7 +8,6 @@ from qaoa.optimisers import cobyla
 from experiments.universal import quantum_scan, classical_scan
 from experiments.scale import scale_scan
 from experiments.depth import depth_scan
-from experiments.depthscale import depthscale_scan
 
 from global_params import (mode, 
                            similarity_type,
@@ -170,25 +169,7 @@ def optimise(option, qpu_name, service):
                                  noise_strengths,
                                  readout_prob, 
                                  option)
-        
-    elif option == 'depth-scale':
-        hits_array = np.array([3,4,5])
-        layers = np.arange(1,4)
-        sweet_spot = (4,1)
-        
-        sweet_spot_gammas, sweet_spot_betas = depthscale_scan(similarity_type,
-                                                                hits_array,
-                                                                layers,
-                                                                lambda_bal,
-                                                                qaoa_optimisers,
-                                                                no_of_shots,
-                                                                seed_lim,
-                                                                restarts,
-                                                                noise_strengths,
-                                                                readout_prob,
-                                                                sweet_spot)
-        
-        print(sweet_spot_gammas, sweet_spot_betas)
+
     
         
         
