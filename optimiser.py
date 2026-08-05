@@ -46,7 +46,7 @@ def optimise(option, qpu_name, service):
         #Depth Scan fixes N varies p. 
         from global_params import sweet_spot
         print(sweet_spot)
-        if mode == 'OPTIMISE-HARDWARE':
+        if mode == '3-COMP':
             '''
             If user asks to submit an actual job (mode='OPTIMISE-HARDWARE') then a depth scan is used to extract the optimal {γ, β}
             parameters. Depth scan is used because it uses a warm restart unlike the scale scan.
@@ -61,21 +61,22 @@ def optimise(option, qpu_name, service):
             #Can include before the depth_scan call since params doesn't change with p.
             params = generate_toyproblem_params(fixed_hits, lambda_bal, similarity_type)
                     
-            return depth_scan(params, 
-                                similarity_type,
-                                lambda_bal,
-                                fixed_hits,
-                                layers,
-                                no_of_shots,
-                                seed_lim,
-                                restarts,
-                                noise_strengths,
-                                readout_prob,
-                                qaoa_optimisers,
-                                sweet_spot,
-                                mode,
-                                qpu_name,
-                                service)
+            gamma, beta, ss_gammas, ss_betas, ata_circuit = depth_scan(params,                      
+                                                        similarity_type,
+                                                        lambda_bal,
+                                                        fixed_hits,
+                                                        layers,
+                                                        no_of_shots,
+                                                        seed_lim,
+                                                        restarts,
+                                                        noise_strengths,
+                                                        readout_prob,
+                                                        qaoa_optimisers,
+                                                        sweet_spot,
+                                                        mode,
+                                                        qpu_name,
+                                                        service)
+            return ss_gammas, ss_betas, ata_circuit
         
         elif mode == 'OPTIMISE':
             '''
@@ -90,22 +91,22 @@ def optimise(option, qpu_name, service):
             #Can include before the depth_scan call since params doesn't change with p.
             params = generate_toyproblem_params(fixed_hits, lambda_bal, similarity_type)
             
-            depth_scan(params, 
-                        similarity_type,
-                        lambda_bal,
-                        fixed_hits,
-                        layers,
-                        no_of_shots,
-                        seed_lim,
-                        restarts,
-                        noise_strengths,
-                        readout_prob,
-                        qaoa_optimisers,
-                        sweet_spot,
-                        mode,
-                        qpu_name,
-                        service) 
-
+            metric_results = depth_scan(params,                   #This returns the metric_results from using a simulator.
+                                        similarity_type,
+                                        lambda_bal,
+                                        fixed_hits,
+                                        layers,
+                                        no_of_shots,
+                                        seed_lim,
+                                        restarts,
+                                        noise_strengths,
+                                        readout_prob,
+                                        qaoa_optimisers,
+                                        sweet_spot,
+                                        mode,
+                                        qpu_name,
+                                        service) 
+            return metric_results
     
     elif option == 'scale':
         #Scaling Scan fixes p varies N.
@@ -149,7 +150,7 @@ def optimise(option, qpu_name, service):
                                  classical_results)
                 
                 
-        quantum_results = quantum_scan(params,
+        quantum_results, counts = quantum_scan(params,
                                         lambda_bal,
                                         hits,
                                         layers,
@@ -169,6 +170,7 @@ def optimise(option, qpu_name, service):
                                  noise_strengths,
                                  readout_prob, 
                                  option)
+        return quantum_results, counts
 
     
         

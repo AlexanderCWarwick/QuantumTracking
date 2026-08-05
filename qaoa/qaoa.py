@@ -4,8 +4,6 @@ from qiskit import transpile
 from qiskit.circuit import Parameter
 from qiskit_aer import AerSimulator
 
-from qiskit_ibm_runtime import QiskitRuntimeService
-
 from noise.add_noisemodel import make_noise_model
 from circuits.qaoa_circuit import build_qaoa_circuit, bind_params
 from analysis.counts_analysis import get_counts_data, energy_data_plot
@@ -93,10 +91,13 @@ def qaoa_results(W : np.ndarray[float],
                'gsp' : []}
     
     
-    sim_backend, hardware_backend = define_backends(noise_strengths, 
+    sim_backend = define_sim_backend(noise_strengths, 
                                                     readout_prob, 
                                                     qpu_name, 
                                                     service)
+    
+    hardware_backend = define_hardware_backend(qpu_name,
+                                               service)
     
     
     gamma = [Parameter(f'g{i+1}') for i in range(p)]
@@ -104,9 +105,7 @@ def qaoa_results(W : np.ndarray[float],
     ata_circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
     transpiled_circuit = transpile(
                                 ata_circuit,
-                                backend=hardware_backend,
-                                seed_transpiler=42,
-                                optimization_level=1
+                                backend=hardware_backend
                                 )
     
     print_circuit_data(qpu_name, ata_circuit, transpiled_circuit)
@@ -162,20 +161,17 @@ def qaoa_results(W : np.ndarray[float],
         print(f'Seed {seed + 1} / {seed_lim} complete: ({(perf_counter() - seed_start_time):.2f}s)')
         print('\n')
         
-    return *metric_stats(metrics_dict), best_seed_gammas, best_seed_betas, ata_circuit
+    return *metric_stats(metrics_dict), gamma, beta, best_seed_gammas, best_seed_betas, best_counts, ata_circuit
 
 
-def define_backends(noise_strengths,
-                    readout_prob,
-                    qpu_name : str,
-                    service):
+def define_sim_backend(noise_strengths,
+                    readout_prob):
     
     '''
     Define two backends:
     1. Simulator backend -> Used for computing the measurement counts when optimising. Can be with or without noise.
     2. Hardware backend -> Used for transpiling the all-to-all (ata) circuit according to the qpu that we want to target.
     '''
-    hardware_backend = service.backend(qpu_name)
     
     if noise_strengths == (0, 0) and readout_prob == 0:
         sim_backend = AerSimulator()
@@ -185,7 +181,12 @@ def define_backends(noise_strengths,
         print(noise_model)
         sim_backend = AerSimulator(noise_model=noise_model)
     
-    return sim_backend, hardware_backend
+    return sim_backend
+
+def define_hardware_backend(qpu_name,
+                            service):
+    hardware_backend = service.backend(qpu_name)
+    return hardware_backend
 
 
 

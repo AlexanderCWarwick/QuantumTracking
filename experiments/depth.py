@@ -51,22 +51,22 @@ def depth_scan(params : tuple[np.ndarray[int], np.ndarray[float], float],
             else:
                 warm_restart = None
                         
-            means, errors, best_gammas, best_betas, ata_circuit = qaoa_results(*params, 
-                                                                        lambda_bal, 
-                                                                        no_of_shots, 
-                                                                        p, 
-                                                                        seed_lim, 
-                                                                        optimiser, 
-                                                                        warm_restart, 
-                                                                        noise_strengths,
-                                                                        readout_prob,
-                                                                        restarts,
-                                                                        qpu_name,
-                                                                        service)
+            means, errors, gamma, beta, best_gammas, best_betas, best_counts, ata_circuit = qaoa_results(*params, 
+                                                                                                        lambda_bal, 
+                                                                                                        no_of_shots, 
+                                                                                                        p, 
+                                                                                                        seed_lim, 
+                                                                                                        optimiser, 
+                                                                                                        warm_restart, 
+                                                                                                        noise_strengths,
+                                                                                                        readout_prob,
+                                                                                                        restarts,
+                                                                                                        qpu_name,
+                                                                                                        service)
                     
             if (fixed_N, p) == sweet_spot and mode == 'OPTIMISE-HARDWARE':
                 print(f'Optimised QAOA circuit params are: {best_gammas, best_betas}')
-                return best_gammas, best_betas, ata_circuit
+                return gamma, beta, best_gammas, best_betas, ata_circuit
                 
             if optimiser_name != 'Grid':
                 previous_params[optimiser_name] = np.concatenate([best_gammas, best_betas])
@@ -91,4 +91,4 @@ def depth_scan(params : tuple[np.ndarray[int], np.ndarray[float], float],
                               noise_strengths, 
                               readout_prob)
 
-    return 
+    return metric_results, best_counts
