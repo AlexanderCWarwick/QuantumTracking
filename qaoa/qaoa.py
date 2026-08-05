@@ -92,9 +92,7 @@ def qaoa_results(W : np.ndarray[float],
     
     
     sim_backend = define_sim_backend(noise_strengths, 
-                                                    readout_prob, 
-                                                    qpu_name, 
-                                                    service)
+                                    readout_prob)
     
     hardware_backend = define_hardware_backend(qpu_name,
                                                service)

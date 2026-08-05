@@ -1,9 +1,7 @@
 from qiskit import transpile
 from qiskit_ibm_runtime import SamplerV2 as Sampler
 import matplotlib.pyplot as plt
-
-from global_params import hardware_no_of_shots
-
+from global_params import threeway_no_of_shots
 
 def submit(ata_circuit, 
            backend):
@@ -26,13 +24,13 @@ def submit(ata_circuit,
     
     if skip_job:
         print('Skip job submission')
-        return 
+        return skip_job
     
     sampler = Sampler(mode=backend)
 
     job = sampler.run(
         [transpiled_circuit],
-        shots=hardware_no_of_shots
+        shots=threeway_no_of_shots
     )
 
     print("Job ID:", job.job_id())
@@ -42,3 +40,5 @@ def submit(ata_circuit,
 
     with open("last_job.txt", "w") as f:
         f.write(job.job_id())
+        
+    return 

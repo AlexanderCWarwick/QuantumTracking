@@ -15,11 +15,11 @@ from global_params import (mode,
                            no_of_shots,
                            seed_lim,
                            restarts,
-                           noise_strengths,
-                           readout_prob)
+                           dep_noise_strengths,
+                           readout_error_probability)
     
     
-def run_experiment(option, qpu_name, service):
+def run_experiment(option, qpu_name, service, sweet_spot, params):
     #Names of the classical algorithms used.
     classical_algs = {'Greedy' : cb.greedy_results, 
                       'Spectral Clustering': cb.spectral_results, 
@@ -44,8 +44,6 @@ def run_experiment(option, qpu_name, service):
     
     if option == 'depth':
         #Depth Scan fixes N varies p. 
-        from global_params import sweet_spot
-        print(sweet_spot)
         if mode == '3-COMP':
             '''
             If user asks to submit an actual job (mode='OPTIMISE-HARDWARE') then a depth scan is used to extract the optimal {γ, β}
@@ -54,12 +52,8 @@ def run_experiment(option, qpu_name, service):
             In this case we then need to fixed the number of hits to that in the sweet spot, sweet_spot[0].
             To ensure a warm restart is used (p>1) then layers is set so the maximum is sweet_spot[1].
             '''
-            
             fixed_hits = sweet_spot[0]
             layers = np.arange(1, sweet_spot[1]+1)
-            #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
-            #Can include before the depth_scan call since params doesn't change with p.
-            params = generate_toyproblem_params(fixed_hits, lambda_bal, similarity_type)
                     
             gamma, beta, ss_gammas, ss_betas, ata_circuit = depth_scan(params,                      
                                                         similarity_type,
@@ -69,8 +63,8 @@ def run_experiment(option, qpu_name, service):
                                                         no_of_shots,
                                                         seed_lim,
                                                         restarts,
-                                                        noise_strengths,
-                                                        readout_prob,
+                                                        dep_noise_strengths,
+                                                        readout_error_probability,
                                                         qaoa_optimisers,
                                                         sweet_spot,
                                                         mode,
@@ -99,8 +93,8 @@ def run_experiment(option, qpu_name, service):
                                         no_of_shots,
                                         seed_lim,
                                         restarts,
-                                        noise_strengths,
-                                        readout_prob,
+                                        dep_noise_strengths,
+                                        readout_error_probability,
                                         qaoa_optimisers,
                                         sweet_spot,
                                         mode,
@@ -120,8 +114,8 @@ def run_experiment(option, qpu_name, service):
                             no_of_shots,
                             seed_lim,
                             restarts,
-                            noise_strengths,
-                            readout_prob,
+                            dep_noise_strengths,
+                            readout_error_probability,
                             qaoa_optimisers,
                             qpu_name,
                             service) 
@@ -157,8 +151,8 @@ def run_experiment(option, qpu_name, service):
                                         no_of_shots,
                                         seed_lim,
                                         restarts,
-                                        noise_strengths,
-                                        readout_prob,
+                                        dep_noise_strengths,
+                                        readout_error_probability,
                                         qaoa_optimisers,
                                         qpu_name,
                                         service)
@@ -167,8 +161,8 @@ def run_experiment(option, qpu_name, service):
                                  hits,
                                  layers, 
                                  quantum_results,
-                                 noise_strengths,
-                                 readout_prob, 
+                                 dep_noise_strengths,
+                                 readout_error_probability, 
                                  option)
         return quantum_results, counts
 

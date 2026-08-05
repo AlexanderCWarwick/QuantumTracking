@@ -64,7 +64,7 @@ def depth_scan(params : tuple[np.ndarray[int], np.ndarray[float], float],
                                                                                                         qpu_name,
                                                                                                         service)
                     
-            if (fixed_N, p) == sweet_spot and mode == 'OPTIMISE-HARDWARE':
+            if (fixed_N, p) == sweet_spot and mode == '3-COMP':
                 print(f'Optimised QAOA circuit params are: {best_gammas, best_betas}')
                 return gamma, beta, best_gammas, best_betas, ata_circuit
                 

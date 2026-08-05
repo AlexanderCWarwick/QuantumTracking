@@ -81,7 +81,7 @@ def cobyla(W,
     for restart_idx in range(restarts):
         if restart_idx == 0 and warm_restart is not None:
             #First restart = warm start, the rest callare normal random restarts.
-            x0 = expand_warm_start(warm_restart, p, gamma_range, beta_range, rng)
+            x0 = expand_warm_start(warm_restart, gamma_range, beta_range, rng)
         else:
             # Remaining restarts = random
             x0 = np.concatenate([rng.uniform(*gamma_range, p), rng.uniform(*beta_range, p)])
