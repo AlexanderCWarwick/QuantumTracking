@@ -18,4 +18,4 @@ readout_error_probability = 0                                                   
 sweet_spot = (6, 1)
 qpu_name_OPT = 'ibm_miami'              #Name of the qpu that user wants to optimise to. If the user wants to test real hardware than this is
                                         #overrided to whichever qpu is the least busy. 
-hardware_no_of_shots = 2048
+threeway_no_of_shots = 2048

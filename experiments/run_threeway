@@ -1,0 +1,24 @@
+from qaoa.q_ising_energy import run_qaoa
+from noise.add_noisemodel import make_noise_model
+from global_params import threeway_no_of_shots
+from qiskit_aer import AerSimulator
+
+def ss_run(data : dict,
+           transpiled_circuit) -> dict:
+    '''
+    Run the transpiled circuit ONCE for the chosen sweet spot.
+    '''
+    
+    noise_model = make_noise_model(*data['depolar'],
+                                 data['readout'])
+    sim_backend = AerSimulator(noise_model = noise_model)
+    
+    counts = run_qaoa(sim_backend, 
+                      transpiled_circuit,
+                      threeway_no_of_shots)
+    
+    return counts
+    
+    
+
+

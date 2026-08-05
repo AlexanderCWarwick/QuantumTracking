@@ -19,7 +19,7 @@ from global_params import (mode,
                            readout_prob)
     
     
-def optimise(option, qpu_name, service):
+def run_experiment(option, qpu_name, service):
     #Names of the classical algorithms used.
     classical_algs = {'Greedy' : cb.greedy_results, 
                       'Spectral Clustering': cb.spectral_results, 
@@ -76,7 +76,7 @@ def optimise(option, qpu_name, service):
                                                         mode,
                                                         qpu_name,
                                                         service)
-            return ss_gammas, ss_betas, ata_circuit
+            return gamma, beta, ss_gammas, ss_betas, ata_circuit
         
         elif mode == 'OPTIMISE':
             '''
