@@ -10,7 +10,7 @@ The project will run for 8 weeks. Each week developing an optimisation toolset a
 ## Prerequisites 
 - Python version 3.12.0 or higher
 
-![LHCb Proton Tracks](Images/ProtonCollisionTracks.jpg)
+![LHCb Proton Tracks](assets/Images/ProtonCollisionTracks.jpg)
 
 *Image from LHCb experiment, CERN.*
 
@@ -20,7 +20,7 @@ We create a simple toy data set with which we can build example similarity matri
 
 The simplest tracking problem, requiring some level of optimisation, is two non-intersecting tracks in 2-dimensional space. We construct this system so that we have 6 equally spaced detectors on the interval $[0,1]$ as shown. External noise is modelled as a Gaussian for each hit. 
 
-![2D track setup](plots/ClassicalPlots/Toytracks_12.png)
+![2D track setup](assets/plots/ClassicalPlots/Toytracks_12.png)
 
 The similarity matrix elements $W_{ij}$ quantify the compatibility or correlation between hits i and j. The more correlated two hits, the more likely it is that they correspond to the same particle track. Intuitively, a simialrity matrix should be symmetric. 
 In this project, two main types used are:
@@ -65,7 +65,6 @@ Our expectation is of course that 000000111111 and its flipped state 11111100000
 
 Visualisation of the system's energy landscape can be achieved by converting each configuration's binary string into its decimal equivalent and ordering the states numerically. 
 
-
 ## Week 3
 
 The exhaustive brute force method from Week 2 works well for small values of N. If $N=12$ then there are only $2^{N} = 4096$ possible cluster configurations, but this expoential growth severely caps performance. Even at $N=20$, there would be over one million possible configurations! 
@@ -79,8 +78,6 @@ We now implement and compare three new and targeted approaches to finding the be
 Performance metrics used to numerically compare each algorithm are runtime, ARI (of estimated groundstate against true groundstate) and relative error to the true groundstate energy. We expect Greedy to perform the worst. Being myopic means decisions are made locally which can severely bias the resultant configuration early in the algorithm leading to near-poor clusterings. Spectral Clustering on the other hand is a graph-minded approach with global decision making based on Graph topology.
 
 Simulated Annealing can be seen as the classical twin of our later quantum methods. Thus, it will be the most important of our classical comparatives. Based on the well-known Metropolis Acceptance Criterion, a random initial configuration is selected and state-space is traversed stochatsically, all while being tempered by a cooling scheme. Ideally it approaches the global minimum but can very easily get trapped in a local minimum. Convergence traces, shown below, detail the energy evolution through the algorithm. Hence optimisation depends on the temperature, $T$, evolution. As $T$ decreases, overcoming energy barriers becomes harder leading to the trapping phenomenon in the energy landscape. 
-
-![ConvTraceN=24](plots/ClassicalPlots/3_Convergence_Traces_24_hits.png)
 
 ## Week 4
 
