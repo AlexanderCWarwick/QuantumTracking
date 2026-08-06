@@ -4,3 +4,7 @@ trackvenv/
 # Python cache
 __pycache__/
 *.pyc
+
+#Bookeeping files
+jobs.log
+last_job.txt
