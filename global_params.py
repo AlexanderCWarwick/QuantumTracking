@@ -1,7 +1,7 @@
-mode = '3-COMP'
+mode = 2
 
 experiment_option = 'depth'
-lambda_bal = 0.25
+lambda_bal = 0.3
 similarity_type = 'KNN'
 
 no_of_shots =  2048
@@ -9,21 +9,21 @@ seed_lim = 5
 restarts = 5           
 
 
-single_gate_noise = 0.00000001                        
+single_gate_noise = 1e-3                        
 double_gate_noise = 5 * single_gate_noise
 dep_noise_strengths = (single_gate_noise, double_gate_noise)
-readout_error_probability = 0
+readout_error_probability = 1e-3
 
 
-sweet_spot = (4, 1)
+sweet_spot = (3, 1)
 qpu_name_OPT = 'ibm_miami' 
 threeway_no_of_shots = 2048
 
 '''
 Parameter descriptions:
 mode -> Should take two values:
-1. mode = 'OPTIMISE' provides all experiments (depth, scale and universal scans), the points (N,p) to test are changed in run_experiment.py
-2. mode = '3-COMP' is the 3-way COMParison (see Week 8 in readme).
+1. mode = 1 provides all experiments (depth, scale and universal scans), the points (N,p) to test are changed in run_experiment.py
+2. mode = 2 is the 3-way COMParison (see Week 8 in readme).
  
 
 experiment_option

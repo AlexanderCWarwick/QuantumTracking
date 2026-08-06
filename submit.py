@@ -6,7 +6,7 @@ from global_params import threeway_no_of_shots
 def submit(ata_circuit, 
            backend):
     
-    skip_job = True
+    skip_job = False
 
     qpu_name = backend.name
     print(qpu_name)
@@ -19,6 +19,7 @@ def submit(ata_circuit,
 
     print(transpiled_circuit.count_ops())
 
+    ata_circuit.draw('mpl')
     transpiled_circuit.draw('mpl')
     plt.show()
     
@@ -41,4 +42,4 @@ def submit(ata_circuit,
     with open("last_job.txt", "w") as f:
         f.write(job.job_id())
         
-    return 
+    return True

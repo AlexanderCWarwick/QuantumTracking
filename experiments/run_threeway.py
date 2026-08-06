@@ -5,23 +5,29 @@ from global_params import threeway_no_of_shots
 from qiskit_aer import AerSimulator
 from time import perf_counter
 
-def ss_run(data : dict,
+def ss_run(name : str,
+           data : dict,
            transpiled_circuit,
-           lambda_bal,
-           params) -> dict:
+           lambda_bal : float,
+           params) -> tuple[dict, dict]:
     '''
     Run the transpiled circuit ONCE for the chosen sweet spot.
     '''
-    metric_results = {'config' : [],
-                        'rel_error': [],
-                        'ari': [],
-                        'runtime': [],
-                        'gsp': []}
+    metric_results = {'config' : None,
+                        'rel_error': None,
+                        'ari': None,
+                        'runtime': None,
+                        'gsp': None}
     start_time = perf_counter()
     
-    noise_model = make_noise_model(*data['depolar'],
+    if name == 'clean':
+       sim_backend = AerSimulator()
+    elif name == 'noisy':
+       noise_model = make_noise_model(*data['depolar'],
                                  data['readout'])
-    sim_backend = AerSimulator(noise_model = noise_model)
+       sim_backend = AerSimulator(noise_model = noise_model)
+    else:
+       raise ValueError(f"Unknown backend type: {name}")
     
     counts = run_qaoa(sim_backend, 
                       transpiled_circuit,
@@ -31,13 +37,13 @@ def ss_run(data : dict,
                                                   *params,
                                                   lambda_bal,
                                                   threeway_no_of_shots)
-    metric_results['config'].append(config)
-    metric_results['rel_error'].append(rel_error)
-    metric_results['ari'].append(ari)
-    metric_results['runtime'].append(perf_counter() - start_time)
-    metric_results['gsp'].append(gsp)    
+    metric_results['config'] = config
+    metric_results['rel_error'] = rel_error
+    metric_results['ari'] = ari
+    metric_results['runtime'] = perf_counter() - start_time
+    metric_results['gsp'] = gsp    
     
-    
+    print(metric_results)
     return metric_results, counts
     
     

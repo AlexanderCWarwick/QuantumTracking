@@ -44,7 +44,35 @@ def run_experiment(option, qpu_name, service, sweet_spot, params):
     
     if option == 'depth':
         #Depth Scan fixes N varies p. 
-        if mode == '3-COMP':
+        
+        if mode == 1:
+            '''
+            If user just wishes to optimise and see how metrics vary in a depth scan.
+            Here the sweet_spot is irrelevant since real hardware is not needed. 
+            The variables fixed_hits and layers can be chosen here.
+            '''
+            fixed_hits = 3
+            layers = np.arange(1, 4)
+            params = generate_toyproblem_params(sweet_spot[0], lambda_bal, similarity_type)
+            
+            metric_results = depth_scan(params,                   #This returns the metric_results from using a simulator.
+                                        similarity_type,
+                                        lambda_bal,
+                                        fixed_hits,
+                                        layers,
+                                        no_of_shots,
+                                        seed_lim,
+                                        restarts,
+                                        dep_noise_strengths,
+                                        readout_error_probability,
+                                        qaoa_optimisers,
+                                        sweet_spot,
+                                        mode,
+                                        qpu_name,
+                                        service) 
+            return metric_results
+        
+        elif mode == 2:
             '''
             If user asks to submit an actual job (mode='OPTIMISE-HARDWARE') then a depth scan is used to extract the optimal {γ, β}
             parameters. Depth scan is used because it uses a warm restart unlike the scale scan.
@@ -71,36 +99,6 @@ def run_experiment(option, qpu_name, service, sweet_spot, params):
                                                         qpu_name,
                                                         service)
             return gamma, beta, ss_gammas, ss_betas, ata_circuit
-        
-        elif mode == 'OPTIMISE':
-            '''
-            If user just wishes to optimise and see how metrics vary in a depth scan.
-            Here the sweet_spot is irrelevant since real hardware is not needed. 
-            The variables fixed_hits and layers can be chosen here.
-            '''
-            fixed_hits = 3
-            layers = np.arange(1, 4)
-        
-            #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
-            #Can include before the depth_scan call since params doesn't change with p.
-            params = generate_toyproblem_params(fixed_hits, lambda_bal, similarity_type)
-            
-            metric_results = depth_scan(params,                   #This returns the metric_results from using a simulator.
-                                        similarity_type,
-                                        lambda_bal,
-                                        fixed_hits,
-                                        layers,
-                                        no_of_shots,
-                                        seed_lim,
-                                        restarts,
-                                        dep_noise_strengths,
-                                        readout_error_probability,
-                                        qaoa_optimisers,
-                                        sweet_spot,
-                                        mode,
-                                        qpu_name,
-                                        service) 
-            return metric_results
     
     elif option == 'scale':
         #Scaling Scan fixes p varies N.

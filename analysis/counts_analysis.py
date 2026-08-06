@@ -11,7 +11,6 @@ def get_groundstate_prob(best_counts, true_groundstate, no_of_shots):
     Using the endian corrected bitstring as a key, search through the best counts (the collection of no_of_shots) samples for the best
     beta and gamma parameters.
     '''
-    
     gs1_counts = best_counts.get(''.join(true_groundstate[::-1].astype(str)), 0)            
     gs2_counts = best_counts.get(''.join((true_groundstate^1)[::-1].astype(str)), 0)
     return (gs1_counts + gs2_counts) / no_of_shots
