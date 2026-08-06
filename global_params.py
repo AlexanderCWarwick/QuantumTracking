@@ -12,10 +12,10 @@ restarts = 5
 single_gate_noise = 1e-3                        
 double_gate_noise = 5 * single_gate_noise
 dep_noise_strengths = (single_gate_noise, double_gate_noise)
-readout_error_probability = 1e-3
+readout_error_probability = 5e-3
 
 
-sweet_spot = (3, 1)
+sweet_spot = (2, 1)
 qpu_name_OPT = 'ibm_miami' 
 threeway_no_of_shots = 2048
 

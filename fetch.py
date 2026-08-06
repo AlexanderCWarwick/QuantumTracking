@@ -1,6 +1,5 @@
 import sys
 from analysis.counts_analysis import get_counts_data
-from time import perf_counter
 from global_params import threeway_no_of_shots
 
 def fetch(params, lambda_bal, service):
@@ -28,7 +27,6 @@ def fetch(params, lambda_bal, service):
                                                    threeway_no_of_shots
                                                            )
     job_metrics = job.metrics()
-    print(job_metrics)
     runtime = job.usage()                   #runtime is how long the qpu took to execute the job. #Is not time from when job created to finished.
                                                                     
     real_metric_results['config'] = config

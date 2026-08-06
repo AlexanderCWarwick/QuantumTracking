@@ -55,22 +55,21 @@ def run_experiment(option, qpu_name, service, sweet_spot, params):
             layers = np.arange(1, 4)
             params = generate_toyproblem_params(sweet_spot[0], lambda_bal, similarity_type)
             
-            metric_results = depth_scan(params,                   #This returns the metric_results from using a simulator.
-                                        similarity_type,
-                                        lambda_bal,
-                                        fixed_hits,
-                                        layers,
-                                        no_of_shots,
-                                        seed_lim,
-                                        restarts,
-                                        dep_noise_strengths,
-                                        readout_error_probability,
-                                        qaoa_optimisers,
-                                        sweet_spot,
-                                        mode,
-                                        qpu_name,
-                                        service) 
-            return metric_results
+            depth_scan(params,
+                        similarity_type,
+                        lambda_bal,
+                        fixed_hits,
+                        layers,
+                        no_of_shots,
+                        seed_lim,
+                        restarts,
+                        dep_noise_strengths,
+                        readout_error_probability,
+                        qaoa_optimisers,
+                        sweet_spot,
+                        mode,
+                        qpu_name,
+                        service) 
         
         elif mode == 2:
             '''
@@ -105,7 +104,7 @@ def run_experiment(option, qpu_name, service, sweet_spot, params):
         hits_array = np.array([3,4,5])
         fixed_p = 2
         
-        _, _ = scale_scan(similarity_type,
+        scale_scan(similarity_type,
                             lambda_bal,
                             hits_array,
                             fixed_p,
@@ -117,6 +116,7 @@ def run_experiment(option, qpu_name, service, sweet_spot, params):
                             qaoa_optimisers,
                             qpu_name,
                             service) 
+        return None
                             
                             
     elif option == 'class':
@@ -162,7 +162,9 @@ def run_experiment(option, qpu_name, service, sweet_spot, params):
                                  dep_noise_strengths,
                                  readout_error_probability, 
                                  option)
-        return quantum_results, counts
+        
+        return None
+        
 
     
         

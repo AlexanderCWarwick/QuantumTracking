@@ -14,6 +14,7 @@ from problem.generatesystem import generate_toyproblem_params
 from qiskit import transpile
 from qiskit_ibm_runtime import QiskitRuntimeService
 from circuits.qaoa_circuit import bind_params
+from circuits.transpiler import transpile_circuit
 from submit import submit
 from fetch import fetch
 
@@ -22,7 +23,7 @@ def main():
     service = QiskitRuntimeService(instance="Warwick-flex")
     
     if mode == 1:
-        metric_results = run_experiment(experiment_option, qpu_name_OPT, service, sweet_spot, None)
+        run_experiment(experiment_option, qpu_name_OPT, service, sweet_spot, None)
         
     elif mode == 2:
         if dep_noise_strengths == (0, 0) or readout_error_probability == 0:
@@ -40,7 +41,6 @@ def main():
         n = sweet_spot[0]
         p = sweet_spot[1]
         
-        
         #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
         #Can include before the depth_scan call since params doesn't change with p.
         params = generate_toyproblem_params(n, lambda_bal, similarity_type)
@@ -54,30 +54,37 @@ def main():
          
         threeway_comp = {'clean' : {'error' : {'depolar' : (0,0), 'readout' : 0,}, 'counts' : None, 'metrics' : None},
                          'noisy' : {'error' : {'depolar' : dep_noise_strengths, 'readout' : readout_error_probability}, 'counts' : None, 'metrics' : None},
-                         'real' : {'error' : None, 'counts' : None, 'metrics' : None}}
+                         'real' : {'counts' : None, 'metrics' : None}}
     
         
         gamma, beta, ss_gammas, ss_betas, ata_circuit = run_experiment('depth', backend_name, service, sweet_spot, params)
         optimised_qaoa_params['gammas'] = ss_gammas
         optimised_qaoa_params['betas'] = ss_betas  
-        print(optimised_qaoa_params)    
+        print(f'Optimisation complete: Sweet Spot QAOA params are {optimised_qaoa_params}')   
+        
+        circuit = bind_params(ata_circuit, gamma, beta, ss_gammas, ss_betas, p)
+        t_circuit = transpile_circuit(circuit, backend)
         
         for name, data in threeway_comp.items():
-            circuit = bind_params(ata_circuit, gamma, beta, ss_gammas, ss_betas, p)
-            t_circuit = transpile(circuit, backend)
             
             if name == 'real':
                 '''
                 Submit real job
                 '''
-                job_submitted = submit(circuit, backend)
-                if job_submitted == True:
-                    real_metric_results, real_counts = fetch(params, lambda_bal, service)
-                else:
-                    continue
+                job_id = submit(circuit, t_circuit, backend)
+                
+                real_metric_results, real_counts = fetch(params, lambda_bal, service)
                 
                 threeway_comp[name]['metrics'] = real_metric_results
                 threeway_comp[name]['counts'] = real_counts
+                
+                with open('Metric_data_history.txt', 'a', encoding='utf-8') as file:
+                    file.write(f'{sweet_spot}\n'
+                               f'(γ, β) = {optimised_qaoa_params}\n'
+                               f'Counts Analysis = {threeway_comp[name]['metrics']}\n'
+                               f'{backend_name}\n'
+                               f'{job_id}\n')
+                    file.close()
                     
             else:
                 '''

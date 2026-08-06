@@ -8,3 +8,4 @@ __pycache__/
 #Bookeeping files
 jobs.log
 last_job.txt
+Metric_data_history.txt
