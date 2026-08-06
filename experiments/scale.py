@@ -15,8 +15,7 @@ def scale_scan(similarity_type : str,
                    noise_strengths : tuple[np.float64, np.float64],
                    readout_prob : float,
                    qaoa_optimisers : dict,
-                   qpu_name : str,
-                   service):
+                   backend):
     
     '''
     SCALE SCAN -> VARY N
@@ -39,7 +38,7 @@ def scale_scan(similarity_type : str,
         params = generate_toyproblem_params(hits, lambda_bal, similarity_type)
          
         for optimiser_name, optimiser in qaoa_optimisers.items():
-            means, errors, _, _, _ = qaoa_results(*params, 
+            means, errors, _, _, _, _, _, _ = qaoa_results(*params, 
                                                 lambda_bal, 
                                                 no_of_shots, 
                                                 fixed_p, 
@@ -49,8 +48,7 @@ def scale_scan(similarity_type : str,
                                                 noise_strengths,
                                                 readout_prob,
                                                 restarts,
-                                                qpu_name,
-                                                service)
+                                                backend)
             #means, errors, best_gammas, best_betas are the outputs but we only require a depth scan to find the paramters.
             
             
@@ -73,5 +71,3 @@ def scale_scan(similarity_type : str,
                                      metric_results,
                                      noise_strengths,
                                      readout_prob)
-    
-    

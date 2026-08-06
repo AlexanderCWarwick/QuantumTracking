@@ -19,7 +19,7 @@ from global_params import (mode,
                            readout_error_probability)
     
     
-def run_experiment(option, qpu_name, service, sweet_spot, params):
+def run_experiment(option, backend, sweet_spot, params):
     #Names of the classical algorithms used.
     classical_algs = {'Greedy' : cb.greedy_results, 
                       'Spectral Clustering': cb.spectral_results, 
@@ -48,7 +48,7 @@ def run_experiment(option, qpu_name, service, sweet_spot, params):
         if mode == 1:
             '''
             If user just wishes to optimise and see how metrics vary in a depth scan.
-            Here the sweet_spot is irrelevant since real hardware is not needed. 
+            Here the sweet_spot is irrelevant since real hardware is not needed in mode=1. 
             The variables fixed_hits and layers can be chosen here.
             '''
             fixed_hits = 3
@@ -68,8 +68,7 @@ def run_experiment(option, qpu_name, service, sweet_spot, params):
                         qaoa_optimisers,
                         sweet_spot,
                         mode,
-                        qpu_name,
-                        service) 
+                        backend) 
         
         elif mode == 2:
             '''
@@ -83,26 +82,26 @@ def run_experiment(option, qpu_name, service, sweet_spot, params):
             layers = np.arange(1, sweet_spot[1]+1)
                     
             gamma, beta, ss_gammas, ss_betas, ata_circuit = depth_scan(params,                      
-                                                        similarity_type,
-                                                        lambda_bal,
-                                                        fixed_hits,
-                                                        layers,
-                                                        no_of_shots,
-                                                        seed_lim,
-                                                        restarts,
-                                                        dep_noise_strengths,
-                                                        readout_error_probability,
-                                                        qaoa_optimisers,
-                                                        sweet_spot,
-                                                        mode,
-                                                        qpu_name,
-                                                        service)
+                                                                        similarity_type,
+                                                                        lambda_bal,
+                                                                        fixed_hits,
+                                                                        layers,
+                                                                        no_of_shots,
+                                                                        seed_lim,
+                                                                        restarts,
+                                                                        dep_noise_strengths,
+                                                                        readout_error_probability,
+                                                                        qaoa_optimisers,
+                                                                        sweet_spot,
+                                                                        mode,
+                                                                        backend)
+                            
             return gamma, beta, ss_gammas, ss_betas, ata_circuit
     
     elif option == 'scale':
         #Scaling Scan fixes p varies N.
-        hits_array = np.array([3,4,5])
-        fixed_p = 2
+        hits_array = np.array([3,4])
+        fixed_p = 1
         
         scale_scan(similarity_type,
                             lambda_bal,
@@ -114,8 +113,7 @@ def run_experiment(option, qpu_name, service, sweet_spot, params):
                             dep_noise_strengths,
                             readout_error_probability,
                             qaoa_optimisers,
-                            qpu_name,
-                            service) 
+                            backend) 
         return None
                             
                             
@@ -152,8 +150,8 @@ def run_experiment(option, qpu_name, service, sweet_spot, params):
                                         dep_noise_strengths,
                                         readout_error_probability,
                                         qaoa_optimisers,
-                                        qpu_name,
-                                        service)
+                                        backend)
+        
         tp.print_quantum_table(similarity_type,
                                  lambda_bal,
                                  hits,

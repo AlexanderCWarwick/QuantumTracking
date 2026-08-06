@@ -17,8 +17,7 @@ def depth_scan(params : tuple[np.ndarray[int], np.ndarray[float], float],
                qaoa_optimisers : dict,
                sweet_spot : tuple[int, int],
                mode : str,
-               qpu_name : str,
-               service):
+               backend):
     '''
     DEPTH SCAN -> VARY p
     
@@ -61,8 +60,7 @@ def depth_scan(params : tuple[np.ndarray[int], np.ndarray[float], float],
                                                                                                         noise_strengths,
                                                                                                         readout_prob,
                                                                                                         restarts,
-                                                                                                        qpu_name,
-                                                                                                        service)
+                                                                                                        backend)
                     
             if (fixed_N, p) == sweet_spot and mode == 2:
                 print(f'Optimised QAOA circuit params are: {best_gammas, best_betas}')

@@ -1,18 +1,17 @@
 import numpy as np
 from itertools import product
 from classical_algs.ising import ising_energy
-from plotting.plotting_baseprob import energy_landscape
 
 def get_ising_energies(W, lambda_bal, config_space):
     '''
     Returns the 'energy landscape' of the the chosen hamiltonian. 
     '''
-    energies = {}
+    energies = []
     for bitstring in config_space:
         energy = ising_energy(W, bitstring, lambda_bal)
-        energies[tuple(bitstring.astype(int))] = energy
-
-    return np.array(list(energies.values()))
+        energies.append(energy)
+    
+    return np.array(energies, dtype=float)
 
 
 
@@ -42,13 +41,10 @@ def KNN_RBF_opt(sim_matrix, lambda_bal,  config_space : np.ndarray):
 
 
             
-def ising_optimisation(number_of_hits : int,  lambda_bal : float,  KNN_matrix : np.ndarray,  RBF_matrix : np.ndarray):
+def ising_optimisation(number_of_hits : int,  
+                       lambda_bal : float,  
+                       similarity_matrix: np.ndarray[float]):
     
     binary_config_space = np.array(list(product([0,1], repeat=number_of_hits)))             #List of all 2^(N) possible BINARY label configurations. 
-    
-    KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs = KNN_RBF_opt(KNN_matrix, lambda_bal, binary_config_space)
-    RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs = KNN_RBF_opt(RBF_matrix, lambda_bal, binary_config_space)
-            
-    energy_landscape(lambda_bal, KNN_energies, RBF_energies)
-    
-    return KNN_energies, KNN_groundstate_energy, KNN_groundstate_binary_configs, RBF_energies, RBF_groundstate_energy, RBF_groundstate_binary_configs
+    energies, groundstate_energy, groundstate_binary_configs = KNN_RBF_opt(similarity_matrix, lambda_bal, binary_config_space)
+    return energies, groundstate_energy, groundstate_binary_configs

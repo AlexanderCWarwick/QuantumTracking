@@ -11,8 +11,7 @@ def quantum_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], 
                 noise_strengths : tuple[np.float64, np.float64],
                 readout_prob : float,
                 qaoa_optimisers : dict,
-                qpu_name : str,
-                service) -> dict:
+                backend) -> dict:
     '''
     Quantum scan over all listed optimiser in dictionary qaoa_optimiser.
     params ordering:
@@ -30,7 +29,7 @@ def quantum_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], 
     warm_restarts = None
     
     for optimiser_name, optimiser in qaoa_optimisers.items():
-        means, errors, _, _, best_counts, _ = qaoa_results(*params, 
+        means, errors, _, _, _, _, best_counts, _ = qaoa_results(*params, 
                                            lambda_bal, 
                                            no_of_shots, 
                                            p, 
@@ -40,8 +39,7 @@ def quantum_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], 
                                            noise_strengths,
                                            readout_prob,
                                            restarts,
-                                           qpu_name,
-                                           service)
+                                           backend)
         
         for metric, mean, error in zip(quantum_metrics[N][p][optimiser_name].keys(), means, errors):
             quantum_metrics[N][p][optimiser_name][metric] = {'mean': mean,
@@ -49,8 +47,6 @@ def quantum_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], 
     return quantum_metrics, best_counts
 
 
-
-    
 def classical_scan(classical_algs : dict, 
                    params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], float],
                    lambda_bal : float) -> dict:
@@ -70,6 +66,3 @@ def classical_scan(classical_algs : dict,
             classical_metrics[alg_name][metric] = {'mean': mean, 'error': std}
             
     return classical_metrics
-    
-    
-    

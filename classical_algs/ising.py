@@ -7,7 +7,8 @@ def ising_energy(W : np.ndarray[np.float64], bitstring : np.ndarray[int],  lambd
     '''
     isingstring = (2 * bitstring) - 1                   #Convert the bitstring (configuration) into a ising spin configuration.
     n = len(W)
-    H = 0
+    H = 0.0
+    
     for i in range(n):
         for j in range(i+1, n):                                         #j > i in Hamiltonian. Avoids double counting the interacting spins.
             H -= W[i][j] * isingstring[i] * isingstring[j]              #Rewarding term for like spins

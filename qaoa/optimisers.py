@@ -1,7 +1,6 @@
 import numpy as np
 from time import perf_counter
 from scipy.optimize import minimize
-from itertools import product
 
 from qaoa.q_ising_energy import evaluate
     

@@ -1,22 +1,21 @@
-mode = 2
+mode = 1
 
-experiment_option = 'depth'
+experiment_option = 'class'
 lambda_bal = 0.3
 similarity_type = 'KNN'
 
-no_of_shots =  2048
+no_of_shots =  10
 seed_lim = 5
 restarts = 5           
 
 
-single_gate_noise = 1e-3                        
+single_gate_noise = 0.0                       
 double_gate_noise = 5 * single_gate_noise
 dep_noise_strengths = (single_gate_noise, double_gate_noise)
-readout_error_probability = 5e-3
+readout_error_probability = 0.0
 
 
-sweet_spot = (2, 1)
-qpu_name_OPT = 'ibm_miami' 
+sweet_spot = (3, 1)
 threeway_no_of_shots = 2048
 
 '''

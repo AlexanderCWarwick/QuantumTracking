@@ -1,5 +1,5 @@
 import numpy as np
-#from plotting.plotting_baseprob import energy_landscape
+from plotting.plotting_baseprob import energy_landscape
 from problem.similarity import get_KNN_matrix, get_RBF_matrix
 from problem.track_generation import construct_toytracks
 from classical_algs.brute_force import ising_optimisation
@@ -24,7 +24,7 @@ def toy_track_generation(track_hits : int, x : np.ndarray) -> tuple[list[float],
     
     
     
-def sim_matrices_calculation(x, track0, track1):
+def sim_matrices_calculation(x, track0, track1, similarity_type : str):
     '''
     Similarity matrices to be calculated are
     - KNN. Here nearneighb_n is k.
@@ -35,9 +35,11 @@ def sim_matrices_calculation(x, track0, track1):
     
     nearneighb_n = 3                       #Number of nearest neighbours to consider in the KNN matrix
     hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.                                                   
-    
-    KNN_matrix, nbrs = get_KNN_matrix(hit_coords, nearneighb_n)                      #nbrs only needed for graph visualisation.
-    RBF_matrix = get_RBF_matrix(hit_coords)
+    if similarity_type == 'KNN':
+        KNN_matrix, nbrs = get_KNN_matrix(hit_coords, nearneighb_n)             #nbrs only needed for graph visualisation.
+        return KNN_matrix
+    elif similarity_type == 'RBF':
+        return get_RBF_matrix(hit_coords)
     
     #number_of_hits = len(RBF_matrix)
     #hit_coords_dict = {i: tuple(hit_coords[i]) for i in range(number_of_hits)}          #Hit coordinates needed for plotting graph representations.
@@ -46,27 +48,16 @@ def sim_matrices_calculation(x, track0, track1):
     #plot_base.graphrep(knn_G, x, hit_coords_dict, knn_edges, None, 'KNN')
     #plot_base.graphrep(rbf_G, x, hit_coords_dict, rbf_edges, edge_contrasts, 'RBF')
     
-    return KNN_matrix, RBF_matrix
 
-
-
-def exhaustive_method_ari_check(KNN_gs_configs, RBF_gs_configs, true_gs):
-    ari_check_list = {'KNN' : {},
-                          'RBF' : {}}
-    for gs_config in KNN_gs_configs:
+def exhaustive_method_ari_check(gs_configs, true_gs):
+    for gs_config in gs_configs:
         ari = ari_check(true_gs, np.array([gs_config]))[0]
-        ari_check_list['KNN'][tuple(gs_config.astype(int))] = ari
         print(f'ARI check from exhaustive KNN GS search: {gs_config} -> {ari:.4f}')
-        
-    for gs_config in RBF_gs_configs:
-            ari = ari_check(true_gs, np.array([gs_config]))[0]
-            ari_check_list['RBF'][tuple(gs_config.astype(int))] = ari
-            print(f'ARI check from exhaustive RBF GS search: {gs_config} -> {ari:.4f}')
             
-            
-                
 
-def exhaustive_ising_method(true_gs : float, RBF_matrix : np.ndarray[float], KNN_matrix : np.ndarray[float], lambda_bal : float) -> tuple[float, float]:
+def exhaustive_ising_method(true_gs : float, 
+                            lambda_bal : float,
+                            similarity_matrix : np.ndarray[float]) -> tuple[float, float]:
     '''
     Brute force ising landscape method.
     
@@ -75,16 +66,18 @@ def exhaustive_ising_method(true_gs : float, RBF_matrix : np.ndarray[float], KNN
     This configuration is for N=3 (6 hits in total) = 000111 or 111000.
     '''
     
-    KNN_energies, KNN_gs_energy, KNN_gs_configs, RBF_energies, RBF_gs_energy, RBF_gs_configs = ising_optimisation(len(RBF_matrix), lambda_bal, KNN_matrix, RBF_matrix)
-    #energy_landscape(lambda_bal, KNN_energies, RBF_energies) 
+    energies, gs_energy, gs_configs = ising_optimisation(len(similarity_matrix), lambda_bal, similarity_matrix)
+    energy_landscape(lambda_bal, energies) 
     
-    exhaustive_method_ari_check(KNN_gs_configs, RBF_gs_configs, true_gs)
+    exhaustive_method_ari_check(gs_configs, true_gs)
     
-    return KNN_gs_energy, RBF_gs_energy
+    return gs_energy
 
 
 
-def generate_toyproblem_params(hits : int, lambda_bal : float, similarity_type : str):
+def generate_toyproblem_params(hits : int, 
+                               lambda_bal : float, 
+                               similarity_type : str):
     '''
     Generates:
     - the tracks and the truth labels.
@@ -98,13 +91,10 @@ def generate_toyproblem_params(hits : int, lambda_bal : float, similarity_type :
     x = np.linspace(0,1,hits)         #Positions of detectors
                 
     track0, track0_truthlabels, track1, track1_truthlabels = toy_track_generation(hits, x)
-    KNN_matrix, RBF_matrix = sim_matrices_calculation(x, track0, track1)
+    true_gs = np.array(np.concatenate([track0_truthlabels, track1_truthlabels]))
     
-    true_groundstate = np.array(np.concatenate([track0_truthlabels, track1_truthlabels]))
+    similarity_matrix = sim_matrices_calculation(x, track0, track1, similarity_type)
+    true_gs_energy = exhaustive_ising_method(true_gs, lambda_bal, similarity_matrix)
+    return similarity_matrix, true_gs, true_gs_energy
     
-    KNN_true_gs_energy, RBF_true_gs_energy = exhaustive_ising_method(true_groundstate, RBF_matrix, KNN_matrix, lambda_bal)
-    
-    if similarity_type == 'KNN':
-        return KNN_matrix, true_groundstate, KNN_true_gs_energy
-    elif similarity_type == 'RBF':
-        return RBF_matrix, true_groundstate, RBF_true_gs_energy
+        

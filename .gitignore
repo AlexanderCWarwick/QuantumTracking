@@ -6,6 +6,4 @@ __pycache__/
 *.pyc
 
 #Bookeeping files
-jobs.log
-last_job.txt
-Metric_data_history.txt
+history/

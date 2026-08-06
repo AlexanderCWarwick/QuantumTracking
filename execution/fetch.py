@@ -26,7 +26,6 @@ def fetch(params, lambda_bal, service):
                                                    lambda_bal,
                                                    threeway_no_of_shots
                                                            )
-    job_metrics = job.metrics()
     runtime = job.usage()                   #runtime is how long the qpu took to execute the job. #Is not time from when job created to finished.
                                                                     
     real_metric_results['config'] = config
@@ -35,5 +34,5 @@ def fetch(params, lambda_bal, service):
     real_metric_results['runtime'] = runtime
     real_metric_results['gsp'] = gsp
     
-    return real_metric_results, counts
+    return real_metric_results, counts, job_id
 

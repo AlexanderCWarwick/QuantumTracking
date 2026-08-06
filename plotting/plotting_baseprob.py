@@ -93,31 +93,24 @@ def graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
     plt.show()
 
 
-def energy_landscape(lambda_bal, KNN_energies, RBF_energies): 
+def energy_landscape(lambda_bal, energies): 
     '''
-    ENergy landscape plots for both the KNN and the RBF. 
-    Each similarity matrix gets two plots:
+    Energy landscape plots for chosen similarity matrix. 
+    Two plots:
     1. 2^N states and their energies (all ordered by energy).
     2. 10 lowest energy states to view groundstate degeneracy.
     '''
     
-    fig, ax = plt.subplots(2, 2, figsize=(10,6))  
-    ax[0,0].plot(np.sort(KNN_energies), color='orange')
-    ax[0,0].set_title('KNN all states')
+    fig, ax = plt.subplots(2, 1, figsize=(10,6))  
+    ax[0].plot(np.sort(energies), color='orange')
+    ax[0].set_title('All state energies')
     
-    ax[0,1].plot(np.sort(RBF_energies), color='red')
-    ax[0,1].set_title('RBF all states')
-    
-    ax[1,0].plot(np.sort(KNN_energies)[:10], color='orange')
-    ax[1,0].set_title('KNN lowest 10 energy states')
-    ax[1,0].set_xlabel('Rank')
-    
-    ax[1,1].plot(np.sort(RBF_energies)[:10], color='red')
-    ax[1,1].set_title('RBF lowest 10 energy states')
-    ax[1,1].set_xlabel('Rank')
+    ax[1].plot(np.sort(energies)[:10], color='orange')
+    ax[1].set_title('KNN lowest 10 energy states')
     
     fig.suptitle(f'Bruteforce Ising Energy landscapes for lambda={lambda_bal}')
     fig.supylabel('Energy')
+    fig.supxlabel('Rank')
     plt.tight_layout()
     plt.show()
     

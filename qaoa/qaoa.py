@@ -1,16 +1,15 @@
 import numpy as np
 
-from qiskit import transpile
 from qiskit.circuit import Parameter
 from qiskit_aer import AerSimulator
 
 from noise.add_noisemodel import make_noise_model
 from circuits.qaoa_circuit import build_qaoa_circuit, bind_params
-from analysis.counts_analysis import get_counts_data, energy_data_plot
+from analysis.counts_analysis import get_counts_data#, energy_data_plot
 from analysis.metric_data import metric_stats
-from plotting.qaoa_energy_plots import top_ten_states
+#from plotting.qaoa_energy_plots import top_ten_states
 from qaoa.q_ising_energy import run_qaoa
-
+from circuits.transpiler import transpile_circuit
 
 from time import perf_counter
 
@@ -71,8 +70,7 @@ def qaoa_results(W : np.ndarray[float],
                  noise_strengths : tuple[np.float64, np.float64],
                  readout_prob : float,
                  restarts : int,
-                 qpu_name : str,
-                 service) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
+                 backend) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
     '''
     Build the generalised circuit wih parameters gamma and beta (for each layer). Each time we generate parameter values
     e.g. iterating through points in the grid search or adaptive optimiser finds a new parameter set, we bind them to the circuit.
@@ -94,24 +92,19 @@ def qaoa_results(W : np.ndarray[float],
     sim_backend = define_sim_backend(noise_strengths, 
                                     readout_prob)
     
-    hardware_backend = define_hardware_backend(qpu_name,
-                                               service)
-    
     
     gamma = [Parameter(f'g{i+1}') for i in range(p)]
     beta = [Parameter(f'b{i+1}') for i in range(p)]
     ata_circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
-    transpiled_circuit = transpile(
-                                ata_circuit,
-                                backend=hardware_backend
-                                )
-    
-    print_circuit_data(qpu_name, ata_circuit, transpiled_circuit)
+    transpiled_circuit = transpile_circuit(ata_circuit,
+                                    backend=backend)
+
+    print_circuit_data(backend.name, ata_circuit, transpiled_circuit)
 
 
     best_seed_energy = np.inf
     best_seed_gammas, best_seed_betas = None, None
-    
+
     for seed in range(seed_lim):
         '''
         Within each iteration (seed), each restart (warm or random) finds:
@@ -164,13 +157,9 @@ def qaoa_results(W : np.ndarray[float],
 
 def define_sim_backend(noise_strengths,
                     readout_prob):
-    
     '''
-    Define two backends:
-    1. Simulator backend -> Used for computing the measurement counts when optimising. Can be with or without noise.
-    2. Hardware backend -> Used for transpiling the all-to-all (ata) circuit according to the qpu that we want to target.
+    Simulator backend -> Used for computing the measurement counts when optimising. Can be with or without noise.
     '''
-    
     if noise_strengths == (0, 0) and readout_prob == 0:
         sim_backend = AerSimulator()
     else:
@@ -180,12 +169,6 @@ def define_sim_backend(noise_strengths,
         sim_backend = AerSimulator(noise_model=noise_model)
     
     return sim_backend
-
-def define_hardware_backend(qpu_name,
-                            service):
-    hardware_backend = service.backend(qpu_name)
-    return hardware_backend
-
 
 
 def print_circuit_data(qpu_name,
