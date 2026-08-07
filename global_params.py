@@ -1,22 +1,23 @@
-mode = 1
+mode = 2
 
 experiment_option = 'class'
 lambda_bal = 0.3
 similarity_type = 'KNN'
 
-no_of_shots =  10
+no_of_shots = 2048
 seed_lim = 5
 restarts = 5           
 
 
-single_gate_noise = 0.0                       
+single_gate_noise = 1e-3                       
 double_gate_noise = 5 * single_gate_noise
 dep_noise_strengths = (single_gate_noise, double_gate_noise)
-readout_error_probability = 0.0
+readout_error_probability = 1e-2
 
 
 sweet_spot = (3, 1)
 threeway_no_of_shots = 2048
+job_repeats = 3
 
 '''
 Parameter descriptions:
@@ -56,10 +57,9 @@ readout_error_probability -> Readout error probability. Same for all qubit measu
 sweet_spot
 (N, p) sweet spot to test in the three way comparison.
 
-qpu_name_OPT
-Name of the qpu that user wants to optimise to. If the user wants to test real hardware (mode = '3-COMP') then this is forced to 
-whichever QPU is the least busy.
-
 threeway_no_of_shots
 Number of shots to use on the real hardware jobs. 
+
+job_repeats
+Number of jobs to put into each submitted batch.
 '''

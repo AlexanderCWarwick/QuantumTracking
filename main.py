@@ -4,8 +4,8 @@ from global_params import (sweet_spot,
                             readout_error_probability,
                             dep_noise_strengths)
 from qiskit_ibm_runtime import QiskitRuntimeService
-from execution import run_experiment
-from execution.submit_job import submit_job
+from execution.run_experiment import run_experiment
+from execution.run_threeway_comparison import run_threeway_comparison
 
 def main():
     service = QiskitRuntimeService(instance="Warwick-flex")
@@ -13,13 +13,13 @@ def main():
                                 operational=True)       #Same for both modes        
     
     if mode == 1:
-        run_experiment.run_experiment(experiment_option, backend, sweet_spot, None)
+        run_experiment(experiment_option, backend, sweet_spot, None)
         
     elif mode == 2:
         if dep_noise_strengths == (0, 0) or readout_error_probability == 0:
             raise ValueError('Depolarisation strengths and readout error must both be non-zero') 
-        
-        submit_job(backend)
+        else:
+            run_threeway_comparison(backend, service)
                   
     else:
         raise ValueError('Unknown Mode')
