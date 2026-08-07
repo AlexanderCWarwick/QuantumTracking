@@ -5,8 +5,8 @@ lambda_bal = 0.3
 similarity_type = 'KNN'
 
 no_of_shots = 2048
-seed_lim = 5
-restarts = 5           
+seed_lim = 3
+restarts = 4           
 
 
 single_gate_noise = 1e-3                       
@@ -15,8 +15,8 @@ dep_noise_strengths = (single_gate_noise, double_gate_noise)
 readout_error_probability = 1e-2
 
 
-sweet_spot = (3, 1)
-threeway_no_of_shots = 2048
+sweet_spot = (5, 1)
+threeway_no_of_shots = 5000
 job_repeats = 3
 
 '''

@@ -75,7 +75,7 @@ def plot_threeway_metrics(sweet_spot : tuple[int, int],
         
 
         if metric == 'gsp':
-            ax[i].set_ylim(0, 1.2)
+            ax[i].set_ylim(0, max(means)+0.1)
             ax[i].axhline(y=baseline_gsp, 
                           color='black',
                         linestyle='--',
