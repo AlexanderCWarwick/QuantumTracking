@@ -51,7 +51,7 @@ def run_experiment(option, backend, sweet_spot, params):
             Here the sweet_spot is irrelevant since real hardware is not needed in mode=1. 
             The variables fixed_hits and layers can be chosen here.
             '''
-            fixed_hits = 3
+            fixed_hits = 4
             layers = np.arange(1, 4)
             params = generate_toyproblem_params(sweet_spot[0], lambda_bal, similarity_type)
             

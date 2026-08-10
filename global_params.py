@@ -1,6 +1,6 @@
-mode = 2
+mode = 1
 
-experiment_option = 'class'
+experiment_option = 'depth'
 lambda_bal = 0.3
 similarity_type = 'KNN'
 
@@ -18,7 +18,6 @@ readout_error_probability = 1e-2
 sweet_spot = (3, 1)
 threeway_no_of_shots = 2048
 job_repeats = 3
-
 '''
 Parameter descriptions:
 mode -> Should take two values:
