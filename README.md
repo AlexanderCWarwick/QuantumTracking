@@ -81,7 +81,7 @@ $$
 The constraint we place on the system is that the best configuration is the one that minimises the 'energy'. We develop an Ising-style Hamiltonian objective which admits the configuration spin sequence. Crucially, the Hamiltonian depends on the similarity matrix $W_{ij}$ in the same way as the magnetic coupling matrix does in the magnetism forumlation of the Ising model. 
 
 $$
-H = -\sum_{i<j} W_{ij} z_i z_j + \lambda \left(\sum_i z_i\right)^2 \qquad (1)
+H = -\sum_{i<j} W_{ij} z_i z_j + \lambda \left(\sum_i z_i\right)^2
 $$
 
 Because we force $W$ to be symmetric, the Hamiltonian is symmetric about flipping the signs of all spins in any sequence. This means that each energy level, whether we use the KNN or RBF matrix, will be at least two-fold degeneracy. Crucially, there are two degenerate groundstate configurations.
@@ -96,7 +96,7 @@ Naively, we can find the system ground state by a brute force search. Each bitst
 
 ## Week 3 - Classical Benchmark and Metrics
 
-The exhaustive brute force method from Week 2 works well for small values of N. If $N=12$ then there are only $2^{N} = 4096$ possible cluster configurations, but this expoential growth severely caps performance. Even at $N=20$, there would be over one million possible configurations! 
+The exhaustive brute force method from Week 2 works well for small values of N. If $N=12$ then there are only $2^{12} = 4096$ possible cluster configurations, but this expoential growth severely caps performance. Even at $N=20$, there would be over one million possible configurations! 
 
 We now implement and compare three new and targeted approaches to finding the best clustering for our simple tracking problem. These will serve as our classical baselines that we will compare with later quantum-based algorithms.
 
@@ -136,16 +136,16 @@ A comprehensive review of QAOA can be found in Blekos et al. [2](#ref2).
 
 
 ### Choosing tuning parameters
-If we have chosen to run a $p$ layer QAOA, we write our tuning parameters as $\boldsymbol{\gamma}$, $\boldsymbol_{\beta}$ where both are vectors for the p cost and p mixer layers respectively. In total we have $2p$ tuning parameters to optimise for.
+If we have chosen to run a $p$ layer QAOA, we write our tuning parameters as $\boldsymbol{\gamma}$, $\boldsymbol{\beta}$ where both are vectors for the p cost and p mixer layers respectively. In total we have $2p$ tuning parameters to optimise for.
 
-Before we can actually run the circuit, we need to chose $\boldsymbol{\gamma}$, $\boldsymbol_{\beta}$ to assign to cost and mixer layers respectively. In Week 4, we optimise for their values with a simple grid search in the $2p$-dimensional parameter space. In this project, I restrict the search domain $\gamma_{i} \in [0, 2\pi)$ and $\beta_{i} \in [0, \pi)$ for all $i$. 
+Before we can actually run the circuit, we need to chose $\boldsymbol{\gamma}$, $\boldsymbol{\beta}$ to assign to cost and mixer layers respectively. In Week 4, we optimise for their values with a simple grid search in the $2p$-dimensional parameter space. In this project, I restrict the search domain $\gamma_{i} \in [0, 2\pi)$ and $\beta_{i} \in [0, \pi)$ for all $i$. 
 
-The primary drawback of the Grid Search is that it is non-adaptive; it tests fixed points in the parameter space instead of using previous results to find a better region to test. In addition, using nested `for` loops over a uniformly $K$ spaced grid, adding more QAOA layers increases the Grid Search domain as $K^(2p)$. Hence it is hugely profitable to replace Grid Search with an adaptive optimiser if we are going to explore the effetc of adding more layers. Many such strategies exist and our choice is explored in Week 5.
+The primary drawback of the Grid Search is that it is non-adaptive; it tests fixed points in the parameter space instead of using previous results to find a better region to test. In addition, using nested `for` loops over a uniformly $K$ spaced grid, adding more QAOA layers increases the Grid Search domain as $K^{(2p)}$. Hence it is hugely profitable to replace Grid Search with an adaptive optimiser if we are going to explore the effetc of adding more layers. Many such strategies exist and our choice is explored in Week 5.
 
 ### QAOA as a Hybrid Algorithm
-QAOA is actually implemented as a hybrid quantum-classical algorithm. This means that parts of the QAOA workflow where quantum computation isn't suitable are delegated to a classical computer. While the quantum computer runs the circuits and returns the sampled probability distribution, the classical computer will perform the $\boldsymbol{\gamma}$, $\boldsymbol_{\beta}$ parameter optimisation. Optimisation is **not** carried out on a quantum computer. Pictorially, a typical QAOA workflow looks like this:
+QAOA is actually implemented as a hybrid quantum-classical algorithm. This means that parts of the QAOA workflow where quantum computation isn't suitable are delegated to a classical computer. While the quantum computer runs the circuits and returns the sampled probability distribution, the classical computer will perform the $\boldsymbol{\gamma}$, $\boldsymbol{\beta}$ parameter optimisation. Optimisation is **not** carried out on a quantum computer. Pictorially, a typical QAOA workflow looks like this:
 
-![QAOA_hybrid_workflow](assets/Images/QAOA_hybrid_worklow.png)
+![QAOA_hybrid_workflow](assets/rm_images/QAOA_hybrid_worklow.png)
 
 *Hybrid workflow of QAOA with p layers. 
 Reproduced from Figure 3 of Blekos et al. [2](#ref2), licensed under CC BY 4.0.*
@@ -213,7 +213,7 @@ Importantly, so far we have used a simulator to sample the resultant circuit pro
 
 Throughout the study all variables are kept the same:
 - Similarity Matrix Type
-- \lambda
+- $\lambda$
 - A fixed point in the problem size parameter space $(N, p)$
 - The circuit
 
