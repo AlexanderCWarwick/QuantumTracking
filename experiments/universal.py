@@ -49,7 +49,8 @@ def quantum_scan(params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], 
 
 def classical_scan(classical_algs : dict, 
                    params : tuple[np.ndarray[np.ndarray[float]], np.ndarray[int], float],
-                   lambda_bal : float) -> dict:
+                   lambda_bal : float,
+                   classical_alg_loops : int) -> dict:
     '''
     Classical scan over all listed algorithms in dictionary classical_algs. Symmetric with quantum_scan.
     '''
@@ -57,8 +58,6 @@ def classical_scan(classical_algs : dict,
                          'ari' : [],
                          'runtime' : [],
                          'conv_frac' : []} for alg_name in classical_algs}
-    
-    classical_alg_loops = 10         #How many times to run each classical algorithm to obtain metric statistics.
     
     for alg_name, alg in classical_algs.items():
         means, errors = alg(*params, lambda_bal, classical_alg_loops)

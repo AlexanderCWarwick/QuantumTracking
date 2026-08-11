@@ -59,6 +59,7 @@ def make_noise_model(single_dep_noise_strength : float,
     
     noisemodel = add_depolarizing_noise(single_dep_noise_strength, double_dep_noise_strength)
     noisemodel = add_readout_error(noisemodel, readout_prob)
+    #noisemodel = add_T1_T2_error(noisemodel, 1e-3, 1e-3, 1e-7, 1e-7)
     
     
     return noisemodel

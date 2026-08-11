@@ -54,7 +54,6 @@ def run_experiment(mode, option, backend, sweet_spot, params):
             from global_params import depth_hits, depth_layers
             
             params = generate_toyproblem_params(depth_hits, lambda_bal, similarity_type, graph_switch)
-            print(params)
             depth_scan(params,
                         similarity_type,
                         lambda_bal,
@@ -126,13 +125,14 @@ def run_experiment(mode, option, backend, sweet_spot, params):
         Result is a table for all classical methods, and another for all qaoa optimisers.
         '''
         
-        from global_params import uni_hits, uni_layers
+        from global_params import uni_hits, uni_layers, classical_loops
         
         params = generate_toyproblem_params(uni_hits, lambda_bal, similarity_type, graph_switch)
                 
         classical_results = classical_scan(classical_algs, 
                                            params, 
-                                           lambda_bal)
+                                           lambda_bal,
+                                           classical_loops)
         tp.print_benchmark_table(uni_hits, 
                                  similarity_type, 
                                  lambda_bal, 

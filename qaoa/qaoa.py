@@ -1,4 +1,5 @@
 import numpy as np
+from global_params import gamma_range, beta_range
 
 from qiskit.circuit import Parameter
 from qiskit_aer import AerSimulator
@@ -32,8 +33,6 @@ def qaoa_pipeline(W : np.ndarray,
     Two algorithms for this tweaking are used: Grid Search (see Week 4) and COBYLA minimisation. (Week 5) we move forward from Grid Search 
     p=1 circuit to COBYLA p >= 1.
     '''
-    gamma_range = (0, 2*np.pi)
-    beta_range = (0, np.pi)
     
     backend.set_options(seed_simulator=seed)                #Sets the seed to fix sampling output.         
                     

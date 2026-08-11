@@ -1,4 +1,5 @@
 import numpy as np
+from global_params import intersection_allowed, track_noise
 from plotting.plotting_baseprob import energy_landscape
 from problem.similarity import get_KNN_matrix, get_RBF_matrix
 from problem.track_generation import construct_toytracks
@@ -7,16 +8,16 @@ from classical_algs.ari import ari_check
 import plotting.plotting_baseprob as plot_base
 
 
-def toy_track_generation(track_hits : int, x : np.ndarray) -> tuple[list[float], list[int], list[float], list[int]]:
+def toy_track_generation(track_hits : int, 
+                         x : np.ndarray, 
+                         sigma_noise : float,
+                         intersection_allowed : bool) -> tuple[list[float], list[int], list[float], list[int]]:
     '''
     Make toy tracks. All construction takes place in the track_generation.py file. 
     First source of noise is introduced : hit signal noise.
     
     Intersecting particle tracks are far more complicated to deal with. Toggled by intersection_allowed boolean.
     '''
-    
-    intersection_allowed = False            #Control whether particles tracks intersect
-    sigma_noise = 1e-2                      #External noise 
     
     track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
     
@@ -110,7 +111,7 @@ def generate_toyproblem_params(hits : int,
     np.random.seed(45)                  #Fixed random seed. Same for every number of track hits
     x = np.linspace(0,1,hits)         #Positions of detectors
                 
-    track0, track0_truthlabels, track1, track1_truthlabels = toy_track_generation(hits, x)
+    track0, track0_truthlabels, track1, track1_truthlabels = toy_track_generation(hits, x, track_noise, intersection_allowed)
     true_gs = np.array(np.concatenate([track0_truthlabels, track1_truthlabels]))
     
     similarity_matrix = sim_matrices_calculation(x, track0, track1, similarity_type, graph_switch)

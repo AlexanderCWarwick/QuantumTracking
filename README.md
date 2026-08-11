@@ -27,7 +27,7 @@ The project will run for 8 weeks. Each week developing an optimisation toolset a
 - [Week 6 - Adding Noise](#week-6---adding-noise)
 - [Week 7/8 - Real Hardware Comparison](#week-7/8---real-hardware-comparison)
     - [Three-way Scan](#three-way-scan)
-- [Implementation](#implementation)
+- [Further Notes on Implementation](#implementation)
 - [References](#references)
 
 ---
@@ -55,7 +55,7 @@ RBF matrices are continuous and depends on the distance between hits, $d(i,j)$. 
 The RBF formula uses an exponential with values taken between $0$ and $1$. The standard deviation parameter $\sigma$ models the leaniency over which compatibility applies.
 
 $$
-W_{ij} = \exp\bigl(-\frac{d(i,j)^2}{(2\sigma^2)}\bigr)
+W_{ij} = \exp\bigl(-\frac{d(i,j)^2}{2\sigma^2}\bigr)
 $$
    
 The smaller the hit seperation, the greater their RBF correlation. These matrices are square and can alternatively be viewed as a weighted, undirected graph network, each node corresponding to a hit. An edge between nodes $i$ and $j$ is weighted by the compatibility encoded in $ij$th entry of the similarity matrix, $W_{ij}$. This was acheived using the `networkx` package, please see [implementation](#implementation).
@@ -81,7 +81,7 @@ $$
 The constraint we place on the system is that the best configuration is the one that minimises the 'energy'. We develop an Ising-style Hamiltonian objective which admits the configuration spin sequence. Crucially, the Hamiltonian depends on the similarity matrix $W_{ij}$ in the same way as the magnetic coupling matrix does in the magnetism forumlation of the Ising model. 
 
 $$
-H = -\sum_{i<j} W_{ij} z_i z_j + \lambda \left(\sum_i z_i\right)^2
+H = -\sum_{i<j} W_{ij} z_i z_j + \lambda \bigl(\sum_i z_i\bigr)^2
 $$
 
 Because we force $W$ to be symmetric, the Hamiltonian is symmetric about flipping the signs of all spins in any sequence. This means that each energy level, whether we use the KNN or RBF matrix, will be at least two-fold degeneracy. Crucially, there are two degenerate groundstate configurations.
@@ -120,7 +120,7 @@ A successful run should return an REE of 0, and ARI of 1. Performance of the sim
 
 ## Week 4 - Building the QAOA!
 
-We have formulated and compared four classical baseline algorithms. In our small scale problem Simulated Annealing and Spectral Clustering perform brilliantly compared to Greedy Clustering, both returning the correct clusterings at the cost of slightly slower overall runtimes. Now we turn to formulating a simple quantum algorithm to tackle our problem! Implementation is done all via [Qiskit](https://www.ibm.com/quantum/qiskit).
+We have formulated and compared four classical baseline algorithms. In our small scale problem Simulated Annealing and Spectral Clustering perform brilliantly compared to Greedy Clustering, both returning the correct clusterings at the cost of slightly slower overall runtimes. Now we turn to formulating a simple quantum algorithm to tackle our problem! Implementation is done via [Qiskit](https://www.ibm.com/quantum/qiskit).
 
 
 Our approach relies on the well-known Quantum Approximation Optimisation Algorithm (QAOA). Established by Farhi et al. [1](#ref1) in 2014, QAOA was applied to the [MaxCut Problem](https://en.wikipedia.org/wiki/Maximum_cut) and is closely related to the Quantum Adiabatic Algorithm.
@@ -140,7 +140,7 @@ If we have chosen to run a $p$ layer QAOA, we write our tuning parameters as $\b
 
 Before we can actually run the circuit, we need to chose $\boldsymbol{\gamma}$, $\boldsymbol{\beta}$ to assign to cost and mixer layers respectively. In Week 4, we optimise for their values with a simple grid search in the $2p$-dimensional parameter space. In this project, I restrict the search domain $\gamma_{i} \in [0, 2\pi)$ and $\beta_{i} \in [0, \pi)$ for all $i$. 
 
-The primary drawback of the Grid Search is that it is non-adaptive; it tests fixed points in the parameter space instead of using previous results to find a better region to test. In addition, using nested `for` loops over a uniformly $K$ spaced grid, adding more QAOA layers increases the Grid Search domain as $K^{(2p)}$. Hence it is hugely profitable to replace Grid Search with an adaptive optimiser if we are going to explore the effetc of adding more layers. Many such strategies exist and our choice is explored in Week 5.
+The primary drawback of the Grid Search is that it is non-adaptive; it tests fixed points in the parameter space instead of using previous results to find a better region to test. In addition, using nested `for` loops over a uniformly $K$ spaced grid, adding more QAOA layers increases the Grid Search domain as $K^{2p}$. Hence it is hugely profitable to replace Grid Search with an adaptive optimiser if we are going to explore the effetc of adding more layers. Many such strategies exist and our choice is explored in Week 5.
 
 ### QAOA as a Hybrid Algorithm
 QAOA is actually implemented as a hybrid quantum-classical algorithm. This means that parts of the QAOA workflow where quantum computation isn't suitable are delegated to a classical computer. While the quantum computer runs the circuits and returns the sampled probability distribution, the classical computer will perform the $\boldsymbol{\gamma}$, $\boldsymbol{\beta}$ parameter optimisation. Optimisation is **not** carried out on a quantum computer. Pictorially, a typical QAOA workflow looks like this:
@@ -158,7 +158,7 @@ A wide range of other gradient-free methods are available that would also work i
 
 
 ### Depth, Scale and Universal Scans
-Having chosen a new optimiser, we can now explore how QAOA performance changes when we change the problem **scale** $N$ for a fixed $p$, or circuit **depth** $p$ for a fixed $N$, without relying on the expensive runtime of a Grid Search. Note however that because of QAOA's hybrid nature the runtime can be split into classical runtime and quantum runtime, here we simply measure the total algorithm runtime. All performance metric results are given as distributions, rather than single anecdotal points, computing the mean and standard deviation to give a more representative finding. This requires iteration over different random seeds set in the backend through `backend.set_options(..., seed_simulator=(seed), ...)`, see `qaoa.qaoa.qaoa_pipeline`. See [Implementation](#implementation).
+Having chosen a new optimiser, we can now explore how QAOA performance changes when we change the problem **scale** $N$ for a fixed $p$, or circuit **depth** $p$ for a fixed $N$, without relying on the expensive runtime of a Grid Search. Note however that because of QAOA's hybrid nature the runtime can be split into classical runtime and quantum runtime, here we simply measure the total algorithm runtime. All performance metric results are given as distributions, rather than single anecdotal points, computing the mean and standard deviation to give a more representative finding. This requires iteration over different random seeds set in the backend through `backend.set_options(..., seed_simulator=(seed), ...)`, see `qaoa.qaoa.qaoa_pipeline`. 
 
 We also introduce a new performance metric: Groundstate Probability (GSP). Given the number of shots, we compute an estimate of the probability of obtaining the groundstate upon measurement.
 
@@ -219,17 +219,39 @@ Throughout the study all variables are kept the same:
 
 The fourth item is very importance. Across all three backends, we run the same transpiled circuit, with the same $N$, $p$, $\mathbf{\gamma}$ and $\mathbf{\beta}$. Crucially, **this circuit is run only once**. This transpiled circuit is first optimised via the noisy simulator, which returns the best $2p$ tuning parameters $\mathbf{\gamma}$ and $\mathbf{\beta}$, and then run once on each backend. This is because, as per the discussion above, we cannot optimise on real hardware, and so we should only run the circuit once. To keep the experiment controlled, we also do this for both clean and noisy simulators. In order to take advantage of the warm restarts, I choose to optimise using the depth scan, by fixing $N$ and iterating until $p$ is reached. 
 
+---
 
-## Implementation
-
-#### Problem Construction and Data collection
+## Further Notes on Implementation
 
 Across this project, [NumPy](https://numpy.org/) and [Matplotlib](https://matplotlib.org/) have been used extensively in data collection and visualisation. 
 
-In addition, graphical similarity matrix visualisation as heatmaps and graphs was implemented using matplotlibs `imshow` function and the `networkx` package respectively. 
+#### Weeks 1-3
+- Construction of two linear tracks controlled with noise parameter track_noise and intersection boolean intersection_allowed.
+- Graphical similarity matrix visualisation as heatmaps and graphs was implemented using matplotlibs `imshow` function and the `networkx` package respectively. 
 
+- Classical benchmark algorithms implemented in `classical/classical_benchmarks.py`. Each has nearly identical handling functions but because of SA convergence trace and convergence fraction output, I decided coding each individually would be best for clarity.
+- Averages are obtained through a `for` loop over `classical_loop` for each algorithm. Dictionary methods are employed to store algorithm results. 
 
- 
+1. Greedy clustering - iterate through all pairs of hits such that they are in different tracks. Local decisions based o the chosen $W$.
+2. Spectral Clustering - implemented using `sklearn.cluster.SpectralClustering` method with `no_of_clusters = 2` and   `affinity = 'precomputed'`. Note a warm-up run is included to balance the runtime comparison.
+3. Simulated Annealing - Cooling scheme is exponential, with base = $0.999$. Pertubation of the current state is performed using single bit built-in XOR `^` function.
+
+#### Weeks 4-6
+- Rotation angle inputs into $R_{ZZ}$ and $R_{X}$ are multiplied by 2 to cancel Qiskit $\frac{1}{2}$ convention. 
+- Qiskit `Parameter` object is used to build the generalised circuit then assign specific **$\boldsymbol{\gamma}$, $\boldsymbol{\beta}$** values during their optimisation. 
+- Iteration flow to obtain QAOA metric data: `seed_lim` $\to$ `restarts`. The best restart is obtained based on a simple energy comparison: the lowest energy obtained by the COBYLA search is that seed's best estimate for $\boldsymbol{\gamma}$, $\boldsymbol{\beta}$. 
+- After Week 5, I tweaked the iteration flow to include one warm restart. In the depth scan, when optimisaing on a $p$-layer circuit, the first restart will use the best previous $(p-1)$-layer circuit parameters. Hence the warm-restart gets a head start on the optimisation, whereas the other restarts are regular random selection from the search domain.
+- All types of noise added to the `NoiseModel` object are implemented as functions in `noise/add_noisemodel.py`. For my study I added readout and depolarisation channels, however the option to add a T1/T2 error is available, (uncomment line 62 and probably adjust input parameters).
+
+#### Weeks 7-8
+- Code is further split using `mode` conditional. 
+- Normal Week 5 depth, scale and universal experiments can be carried out by setting `mode = 1` and selecting the desired experiment type with string variable `experiment_option`. 
+- `mode = 2` performs the Week 7/8 threeway scan. Since the pre-optimisation is carried out with a default depth scan, `experiment_option` is overwritten to `'depth'`.
+- After pre-optimisation and single-run circuits on the clean and noisy simulators in `execution/run_sim_threeway.py`, real hardware job submission takes place using `execution/submit.py` followed by `execution/fetch.py`.
+- Job submission is done using an Qiskit Batch session with `sampler = Sampler(mode=batch)`, with import `from qiskit_ibm_runtime import Batch, SamplerV2 as Sampler`. Each batch contains `job_repeats = 3` jobs. 
+
+---
+
 ## References
 <a id="ref1"></a>
 [1] E. Farhi, J. Goldstone and S. Gutmann, 
