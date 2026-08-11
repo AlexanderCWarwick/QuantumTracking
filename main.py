@@ -13,7 +13,7 @@ def main():
                                 operational=True)       #Same for both modes        
     
     if mode == 1:
-        run_experiment(experiment_option, backend, sweet_spot, None)
+        run_experiment(mode, experiment_option, backend, sweet_spot, None)
         
     elif mode == 2:
         if dep_noise_strengths == (0, 0) or readout_error_probability == 0:

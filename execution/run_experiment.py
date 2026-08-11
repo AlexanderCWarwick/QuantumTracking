@@ -9,8 +9,8 @@ from experiments.universal import quantum_scan, classical_scan
 from experiments.scale import scale_scan
 from experiments.depth import depth_scan
 
-from global_params import (mode, 
-                           similarity_type,
+from global_params import (similarity_type,
+                           graph_switch,
                            lambda_bal,
                            no_of_shots,
                            seed_lim,
@@ -19,7 +19,7 @@ from global_params import (mode,
                            readout_error_probability)
     
     
-def run_experiment(option, backend, sweet_spot, params):
+def run_experiment(mode, option, backend, sweet_spot, params):
     #Names of the classical algorithms used.
     classical_algs = {'Greedy' : cb.greedy_results, 
                       'Spectral Clustering': cb.spectral_results, 
@@ -51,15 +51,15 @@ def run_experiment(option, backend, sweet_spot, params):
             Here the sweet_spot is irrelevant since real hardware is not needed in mode=1. 
             The variables fixed_hits and layers can be chosen here.
             '''
-            fixed_hits = 4
-            layers = np.arange(1, 4)
-            params = generate_toyproblem_params(sweet_spot[0], lambda_bal, similarity_type)
+            from global_params import depth_hits, depth_layers
             
+            params = generate_toyproblem_params(depth_hits, lambda_bal, similarity_type, graph_switch)
+            print(params)
             depth_scan(params,
                         similarity_type,
                         lambda_bal,
-                        fixed_hits,
-                        layers,
+                        depth_hits,
+                        np.array(depth_layers),
                         no_of_shots,
                         seed_lim,
                         restarts,
@@ -79,14 +79,15 @@ def run_experiment(option, backend, sweet_spot, params):
             To ensure a warm restart is used (p>1) then layers is set so the maximum is sweet_spot[1].
             '''
             fixed_hits = sweet_spot[0]
-            layers = np.arange(1, sweet_spot[1]+1)
-                    
+            layers = np.arange(1, sweet_spot[1]+1)      #Layers range is always pushed up 1 to use warm restarts.
+            from global_params import threeway_no_of_shots      #Optimisation and job submission use the same number of shots.
+            
             gamma, beta, ss_gammas, ss_betas, ata_circuit = depth_scan(params,                      
                                                                         similarity_type,
                                                                         lambda_bal,
                                                                         fixed_hits,
                                                                         layers,
-                                                                        no_of_shots,
+                                                                        threeway_no_of_shots,
                                                                         seed_lim,
                                                                         restarts,
                                                                         dep_noise_strengths,
@@ -100,13 +101,13 @@ def run_experiment(option, backend, sweet_spot, params):
     
     elif option == 'scale':
         #Scaling Scan fixes p varies N.
-        hits_array = np.array([3,4])
-        fixed_p = 1
+        from global_params import scale_hits, scale_layers
         
         scale_scan(similarity_type,
+                   graph_switch,
                             lambda_bal,
-                            hits_array,
-                            fixed_p,
+                            np.array(scale_hits),
+                            scale_layers,
                             no_of_shots,
                             seed_lim,
                             restarts,
@@ -125,16 +126,14 @@ def run_experiment(option, backend, sweet_spot, params):
         Result is a table for all classical methods, and another for all qaoa optimisers.
         '''
         
-        #For a fixed N and p, compare all algorithms in one table.
-        hits = 3
-        layers = 1
+        from global_params import uni_hits, uni_layers
         
-        params = generate_toyproblem_params(hits, lambda_bal, similarity_type)
+        params = generate_toyproblem_params(uni_hits, lambda_bal, similarity_type, graph_switch)
                 
         classical_results = classical_scan(classical_algs, 
                                            params, 
                                            lambda_bal)
-        tp.print_benchmark_table(hits, 
+        tp.print_benchmark_table(uni_hits, 
                                  similarity_type, 
                                  lambda_bal, 
                                  classical_results)
@@ -142,8 +141,8 @@ def run_experiment(option, backend, sweet_spot, params):
                 
         quantum_results, counts = quantum_scan(params,
                                         lambda_bal,
-                                        hits,
-                                        layers,
+                                        uni_hits,
+                                        uni_layers,
                                         no_of_shots,
                                         seed_lim,
                                         restarts,
@@ -154,8 +153,8 @@ def run_experiment(option, backend, sweet_spot, params):
         
         tp.print_quantum_table(similarity_type,
                                  lambda_bal,
-                                 hits,
-                                 layers, 
+                                 uni_hits,
+                                 uni_layers, 
                                  quantum_results,
                                  dep_noise_strengths,
                                  readout_error_probability, 

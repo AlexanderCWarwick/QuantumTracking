@@ -7,7 +7,7 @@ from noise.add_noisemodel import make_noise_model
 from circuits.qaoa_circuit import build_qaoa_circuit, bind_params
 from analysis.counts_analysis import get_counts_data#, energy_data_plot
 from analysis.metric_data import metric_stats
-#from plotting.qaoa_energy_plots import top_ten_states
+from plotting.qaoa_energy_plots import top_ten_states
 from qaoa.q_ising_energy import run_qaoa
 from circuits.transpiler import transpile_circuit
 
@@ -35,7 +35,7 @@ def qaoa_pipeline(W : np.ndarray,
     gamma_range = (0, 2*np.pi)
     beta_range = (0, np.pi)
     
-    backend.set_options(seed_simulator=seed)                #To be used if the Aersimulator backend is used.         
+    backend.set_options(seed_simulator=seed)                #Sets the seed to fix sampling output.         
                     
     best_gammas, best_betas, best_runtime, best_energy = optimiser(W, 
                                                                 circuit, 
@@ -138,7 +138,7 @@ def qaoa_results(W : np.ndarray[float],
         
         #energy_data_plot(best_counts, W, lambda_bal, true_groundstate_energy)
         
-        #top_ten_states(best_counts, true_groundstate)
+        top_ten_states(best_counts, true_groundstate)
         
         _, best_rel_energy, best_ari, gs_prob = get_counts_data(best_counts,
                                                                 W, true_groundstate, true_groundstate_energy, lambda_bal,
@@ -174,6 +174,11 @@ def define_sim_backend(noise_strengths,
 def print_circuit_data(qpu_name,
                        ata_circuit,
                        t_circuit):
+    
+    '''
+    List of the ideal vs transpiled circuit properties. Can verify the inflated gate count and circuit depth.
+    The qpu chosen (the least busy), is also given.
+    '''
     
     print(f'QPU: {qpu_name}')
     print(f'All-to-all circuit gate count = {sum(list(ata_circuit.count_ops().values()))}')

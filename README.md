@@ -5,22 +5,17 @@
 This project investigates the application of quantum optimization algorithms to the problem of particle tracking in high-energy physics experiments. Such solutions are invaluable in high-energy particle experiments, such as the [LHCb](https://home.cern/science/experiments/lhcb/) experiment at [CERN](https://home.cern/), as they can be used to identify and characterize final-state particles. 
 A quantum based optimization method may offer an alternative to established classical approaches in the case of such combinatorially complex problems.
 Critically, this project does not seek algorithms that find an unknown answer to the tracking problem. We construct a simplfied problem for which the answer is known, allowing comparison of the different optimisation methods. 
-Instead, the aim is to:
+The project's objectives are:
+
 - Learn the principles of QAOA optimisation.
-- Learn whether a quantum approach might be valueable in solving this specific combinatorial problem.
 - Compare the performance of well-established classical methods against a quantum based algorithm.
+- Learn whether a quantum approach might be valueable in solving this specific combinatorial problem.
+- Analyse differences in performance between a noisy quantum simulator and real hardware.
 
 The project will run for 8 weeks. Each week developing an optimisation toolset and building the combinartorial complexity of the problem. We begin with a classical formulation of a simplified particle tracking simulation. Then, once the classical approach is clear, we will move to studying quantum approaches, implementing simple quantum optimisation algorithms such as the Quantum Approximate Optimization Algorithm (QAOA) or quantum variational circuits applied to combinatorial optimisation problems.
 
-## Prerequisites 
-- Python version 3.12.0 or higher
-
-![LHCb Proton Tracks](assets/Images/ProtonCollisionTracks.jpg)
-
-*Image from LHCb experiment, CERN.*
-
 ## Table of Contents
-
+- [Prerequisites](#prerequisites)
 - [Week 1 - Setting the Problem Up](#week-1---introduction)
 - [Week 2 - Brute Force Eenrgy Groundstate Search](#week-2---classical-methods)
     - [Energy Landscape](#energy-landscape)
@@ -32,8 +27,14 @@ The project will run for 8 weeks. Each week developing an optimisation toolset a
 - [Week 6 - Adding Noise](#week-6---adding-noise)
 - [Week 7/8 - Real Hardware Comparison](#week-7/8---real-hardware-comparison)
     - [Three-way Scan](#three-way-scan)
+- [Implementation](#implementation)
+- [References](#references)
 
 ---
+
+## Prerequisites 
+- Python version 3.12.0 or higher
+
 
 ## Week 1 - Setting the Problem Up
 
@@ -57,7 +58,7 @@ $$
 W_{ij} = \exp\bigl(-\frac{d(i,j)^2}{(2\sigma^2)}\bigr)
 $$
    
-The smaller the hit seperation, the greater their RBF correlation. 
+The smaller the hit seperation, the greater their RBF correlation. These matrices are square and can alternatively be viewed as a weighted, undirected graph network, each node corresponding to a hit. An edge between nodes $i$ and $j$ is weighted by the compatibility encoded in $ij$th entry of the similarity matrix, $W_{ij}$. This was acheived using the `networkx` package, please see [implementation](#implementation).
 
 ---
 
@@ -80,7 +81,7 @@ $$
 The constraint we place on the system is that the best configuration is the one that minimises the 'energy'. We develop an Ising-style Hamiltonian objective which admits the configuration spin sequence. Crucially, the Hamiltonian depends on the similarity matrix $W_{ij}$ in the same way as the magnetic coupling matrix does in the magnetism forumlation of the Ising model. 
 
 $$
-H = -\sum_{i<j} W_{ij} z_i z_j + \lambda \left(\sum_i z_i\right)^2 \tag_{1}
+H = -\sum_{i<j} W_{ij} z_i z_j + \lambda \left(\sum_i z_i\right)^2 \qquad (1)
 $$
 
 Because we force $W$ to be symmetric, the Hamiltonian is symmetric about flipping the signs of all spins in any sequence. This means that each energy level, whether we use the KNN or RBF matrix, will be at least two-fold degeneracy. Crucially, there are two degenerate groundstate configurations.
@@ -113,7 +114,7 @@ Numerical performance analysis of each algorithm is realised through the followi
 2. Runtime
 3. Adjusted Random Index (ARI)
 
-A successful run should return an REE of 0, and ARI of 1. Performance of the simulated annelaing (SA) algorithm can also be measured by the convergence success ratio. If we run the algorithm $m$ times, seeing as we know the true groundstates and their energies, we can test how many times, $n$, SA successfully converged to the true groundstate. The success fraction is $\frac_{n}{m}$.
+A successful run should return an REE of 0, and ARI of 1. Performance of the simulated annelaing (SA) algorithm can also be measured by the convergence success ratio. If we run the algorithm $m$ times, seeing as we know the true groundstates and their energies, we can test how many times, $n$, SA successfully converged to the true groundstate. The success fraction is $\frac{n}{m}$.
 
 ---
 
@@ -122,102 +123,32 @@ A successful run should return an REE of 0, and ARI of 1. Performance of the sim
 We have formulated and compared four classical baseline algorithms. In our small scale problem Simulated Annealing and Spectral Clustering perform brilliantly compared to Greedy Clustering, both returning the correct clusterings at the cost of slightly slower overall runtimes. Now we turn to formulating a simple quantum algorithm to tackle our problem! Implementation is done all via [Qiskit](https://www.ibm.com/quantum/qiskit).
 
 
-Our approach relies on the well-known Quantum Approximation Optimisation Algorithm (QAOA). Established by [Farhi et al.](https://arxiv.org/abs/1411.4028) in 2014, QAOA was applied to the [MaxCut Problem](https://en.wikipedia.org/wiki/Maximum_cut) and is closely related to the Quantum Adiabatic Algorithm.
+Our approach relies on the well-known Quantum Approximation Optimisation Algorithm (QAOA). Established by Farhi et al. [1](#ref1) in 2014, QAOA was applied to the [MaxCut Problem](https://en.wikipedia.org/wiki/Maximum_cut) and is closely related to the Quantum Adiabatic Algorithm.
 
 This and following weeks are dedicated to building up the complexity of our QAOA. Beginning with the simplest case, using Qiskit's simulator `AerSimulator`, generalising to multi-layered circuits (Week 5) as well as implementing noise models (Week 6) to improve realism. To gain familiarity with QAOA, I used a simplified MaxCut problem as this weeks starting point, see MaxCutExmaple.py, using a simple grid search parameter optimisation. Once I had implemented a working QAOA MaxCut solution, I adapted it to the particle tracking problem. 
-Seeing as QAOA is at the heart of this project, I have given an overview below.
-
-
-### QAOA - An overview 
 
 QAOA uses quantum mechanics to build up an optimal solution using **tuning parameters**. The biggest departure from classical algorithms, like those discussed above, lies in how the current 'state' moves in through the energy landscape. 
 In a system of N hits, we have $2^N$ possible configurations. 
 The Simulated Annealing state will move through configuration space step-by-step based on both an energy criterion and a cooling scheme. 
-QAOA takes a fundamentally different approach. The QAOA state is described by a statevector with $2^N$ amplitudes, one for each configuration. Upon measuring the statevector we collapse it to a single confiugration. Which state we observe is determined by a probability distribution function (PDF) that depends directly on the squared magnitudes of the complex statevector amplitudes.
+QAOA takes a fundamentally different approach. The state is described by a vector with $2^N$ amplitudes, one for each configuration. Upon measuring the statevector we collapse it to a single confiugration. Which state we observe is determined by a probability distribution function (PDF) that depends directly on the squared magnitudes of the complex statevector amplitudes.
 Our job as the QAOA circuit designer is to malnipulate the statevector, using a careful arrangement of quantum gates and tuning parameters, so that the probability of observing the desirable low-energy configuration is amplified, whereas higher energy configurations are suppressed.
+A comprehensive review of QAOA can be found in Blekos et al. [2](#ref2). 
 
-How is this careful arrangement of gates and tuning parameters acheived? Each hit corresponds to one qubit. Measuring in the Z-basis, a $|0\rangle$ assigns the hit in group 0, and |1\rangle assigns to group 1. Preparing our quantum system in the $|00\ldots0\rangle$, we proceed in layers:
-
-#### Hadamard Layer 
-We begin by applying a Hadamard gate to every qubit. This puts the statevector into a uniform superposition where the statevector PDF is a uniform distribution: 
-
-$$ 
-|+\rangle^{\otimes N} = \frac{1}{\sqrt{2^N}} \sum_{x \in \{0,1\}^N} |x\rangle. 
-$$
-
-The probability of measuring any confiugraiton is the same value of $\frac{1}{2^N}$. At this point measuring the state wouldn't do us any good! We need to construct a way of building a more favourable PDF.
-
-#### Cost Layer - The Cost Hamiltonian
-Recall the classical Hamiltonian from Week 2, which I denote $H_{c}$. This Hamiltonian defines our energy landscape so it makes sense to also use it in the QAOA. However we must tranlate from classical variables into quantum (unitary) operators as such:
-
-$$
-H_{c} = - \sum_{i < j} W_{ij} Z_{i} Z_{j} + \lambda \bigl(\sum_{i} Z_{i}\bigr)^2 = \sum_{i<j} J_{ij} Z_{i} Z_{j}
-\tag{1}
-$$
-
-where $J = 2\lambda - W$ defines an effective coupling matrix between spins. $H_{c}$ is the Cost Hamiltonian. Being constructed purely of independent $Z$ operators, each particle track configuration is an eigenstate. Crucially this means the energy landscape is encoded in the this Hamiltonian. 
-
-Implementing Eq. (1) into the QAOA is acheived through a series of parameterised two-qubit $R_{ZZ}$ gates, which capture the pairwise qubit interactions. Mathematically $R_{ZZ}$ take the form 
-
-$$
-\exp\left(-i\gamma J_{ij}\left(Z_{i} Z_{j}\right)\right),
-$$
-
-for rotation angle $2\gamma$. The phases of like spins ($|00\rangle$ and $|11\rangle$) are rotated equal and oppositely to opposing spins ($|10\rangle$ and $|01\rangle$). 
-Now we are in a position to construct a cost layer with tuning parameter $\gamma$. We apply an $R_{ZZ}$ gate to all compatible hits as give by the similarity matrix $W_{ij}$. The effect of this is to multiply each amplitude $a(z)$, for all configurations z, by a phase factor that depends on the configuration energy, $E(z)$. Concretely each amplitude shifts as:
-
-$$
-a(z) \rightarrow a(z) \exp\left(-i \gamma E\left(z \right)\right).
-$$
-
-This operation does not change the configuration probability distribution. Instead, each complex amplitude is rotated by an angle $\gamma E\left(z\right)$. The angle of rotation is proportional the configuration energy. 
-All we have done is written each configuration's energy into the corresponding amplitudes phase, setting up the mixer layer.
-
-
-#### Mixer Layer - The Mixer Hamiltonian
-The Cost Layer alone will not produce anything computationally useful. It encodes configuration energies to amplitudes. We need a way of changing these amplitudes to increase the probability of getting the lowest-energy configuration.
-
-The Mixer Layer is also based a Hamiltonian function called the Mixer Hamiltonian, $H_{M}$, taking the form
-
-$$
-H_{M} = \sum_{i} X_{i}.
-$$
-
-The reasoning behind using this form is that we can use **interference**, (and also because $H_{M}$ and $H_{C}$ do not commute).
-Implementing this requires single-qubit R_{X} gates which rotates each qubit by an angle $2 \beta$. This $\beta$ is our other tuning parameter. 
-The effect of the mixer layer is to blend amplitudes using interference. Specifically, amplitudes can flow between configurations that differ by exactly one bit. For example, the amplitudes of $|000\rangle$ can interact and mix with that of $|001\rangle$, $|010\rangle$ and $|100\rangle$. The amplitude 'flow' means that similar phases tend to constructively interfere while opposing phases tend to destructively interfere, based on the vector-like geometry of complex numbers. 
-
-Which amplitudes are amplified and suppressed depends on the energy-dependent relative phases encoded in the Cost Layer through $\gamma$, and on the strength of the amplitude mixing controlled by $\beta$ in the Mixer Layer. This is where we must optimise for $\gamma$ and $\beta$. Neither Cost or Mixer Layer can act alone, and poorly selected tuning parameter values will inevitably damage the delicate interplay between these operations.
-
-Following the mixer layer we can now perform measurment on each qubit and ideally observe the lowest energy configuration.
-
-### Multi-layered QAOA
-The QAOA circuit consisting of:
-
-$$
-|\psi(\gamma, \beta)\rangle = U_{M}(\beta) U_{C}(\gamma) |\psi_{0}\rangle
-$$
-
-can be generalised to $p$ cost+mixer layers.
-
-$$
-|\psi(\boldsymbol{\gamma}, \boldsymbol{\beta})\rangle = \prod_{k=1}^{p} U_M(\beta_k) U_C(\gamma_k) |\psi_0\rangle
-$$
-
-Where now we have $2p$ tuning parameters. The benefit of adding more layers is expressivity, the more fine-tuned we can make the QAOA the more flexible we can make our final state and potentially concentrate more probability on desirable configurations. However, as we shall explore in week 6, in the current NISQ era of quantum computing, we encounter a lot of noise, creating a noise vs expressivity tradeoff. 
 
 ### Choosing tuning parameters
-Before we can actually run the circuit, we need to chose the tuning parameters $\boldsymbol{\gamma}$, $\boldsymbol_{\beta}$ to assign to cost and mixer layer gates. In Week 4, we optimise for their values with a simple grid search in the $2p$-dimensional parameter space. In this project I restrict the search domain $\gamma_{i} \in [0, 2\pi)$ and $\beta_{i} \in [0, \pi)$ for all $i$. 
+If we have chosen to run a $p$ layer QAOA, we write our tuning parameters as $\boldsymbol{\gamma}$, $\boldsymbol_{\beta}$ where both are vectors for the p cost and p mixer layers respectively. In total we have $2p$ tuning parameters to optimise for.
+
+Before we can actually run the circuit, we need to chose $\boldsymbol{\gamma}$, $\boldsymbol_{\beta}$ to assign to cost and mixer layers respectively. In Week 4, we optimise for their values with a simple grid search in the $2p$-dimensional parameter space. In this project, I restrict the search domain $\gamma_{i} \in [0, 2\pi)$ and $\beta_{i} \in [0, \pi)$ for all $i$. 
+
 The primary drawback of the Grid Search is that it is non-adaptive; it tests fixed points in the parameter space instead of using previous results to find a better region to test. In addition, using nested `for` loops over a uniformly $K$ spaced grid, adding more QAOA layers increases the Grid Search domain as $K^(2p)$. Hence it is hugely profitable to replace Grid Search with an adaptive optimiser if we are going to explore the effetc of adding more layers. Many such strategies exist and our choice is explored in Week 5.
 
 ### QAOA as a Hybrid Algorithm
-
-Above in Week 4 I explained the structure of the QAOA machinery. But QAOA is actually implemented as a hybrid quantum-classical algorithm. This means that parts of the QAOA workflow where a quantum computation isn't suitable are delegated to a classical computer. While the quantum computer runs the circuits and returns the sampled probability distribution, the classical computer will perform the $\boldsymbol{\gamma}$, $\boldsymbol_{\beta}$ parameter optimisation. Optimisation is **not** carried out on a quantum computer. The algorithm workflow looks like this:
+QAOA is actually implemented as a hybrid quantum-classical algorithm. This means that parts of the QAOA workflow where quantum computation isn't suitable are delegated to a classical computer. While the quantum computer runs the circuits and returns the sampled probability distribution, the classical computer will perform the $\boldsymbol{\gamma}$, $\boldsymbol_{\beta}$ parameter optimisation. Optimisation is **not** carried out on a quantum computer. Pictorially, a typical QAOA workflow looks like this:
 
 ![QAOA_hybrid_workflow](assets/Images/QAOA_hybrid_worklow.png)
 
 *Hybrid workflow of QAOA with p layers. 
-Reproduced from Figure 3 of [Blekos et al.](https://arxiv.org/abs/2306.09198), licensed under CC BY 4.0.*
+Reproduced from Figure 3 of Blekos et al. [2](#ref2), licensed under CC BY 4.0.*
 
 ---
 
@@ -227,7 +158,7 @@ A wide range of other gradient-free methods are available that would also work i
 
 
 ### Depth, Scale and Universal Scans
-Having chosen a new optimiser, we can now explore how QAOA performance changes when we change the problem **scale** $N$, and QAOA circuit **depth** $p$, without relying on the expensive runtime of a Grid Search. We can also compare QAOA performance to the previous classical algorithms implemented in Week 3 using the same metrics: REE, ARI and runtime. Note however that because of QAOA's hybrid nature the runtime can be split into classical runtime and quantum runtime, here we simply measure the total algorithm runtime. All performance metric results are given as distributions, rather than single anecdotal points, computing the mean and standard deviation to give a more representative finding. 
+Having chosen a new optimiser, we can now explore how QAOA performance changes when we change the problem **scale** $N$ for a fixed $p$, or circuit **depth** $p$ for a fixed $N$, without relying on the expensive runtime of a Grid Search. Note however that because of QAOA's hybrid nature the runtime can be split into classical runtime and quantum runtime, here we simply measure the total algorithm runtime. All performance metric results are given as distributions, rather than single anecdotal points, computing the mean and standard deviation to give a more representative finding. This requires iteration over different random seeds set in the backend through `backend.set_options(..., seed_simulator=(seed), ...)`, see `qaoa.qaoa.qaoa_pipeline`. See [Implementation](#implementation).
 
 We also introduce a new performance metric: Groundstate Probability (GSP). Given the number of shots, we compute an estimate of the probability of obtaining the groundstate upon measurement.
 
@@ -235,10 +166,13 @@ $$
 \mathrm{GSP} = \frac{n_{\mathrm{GS}_{1}} + n_{\mathrm{GS}_{2}}}{N_{\mathrm{shots}}}
 $$
 
-where $n_{\mathrm{GS}_{1}$ and $n_{\mathrm{GS}_{2}}$ are the number of times each degenerate groundstate is sampled. This GSP metric is only applicable to the QAOA, but is mathematically similar to the convergence fraction we used in when studying SA. Please see Week 6 below for a plot of my results.
+where both $n_{\mathrm{GS}}$ values are the number of times each true degenerate groundstate was sampled. This GSP metric is only applicable to the QAOA, but is mathematically similar to the convergence fraction we used in when studying SA. Please see Week 6 below for a plot of my results.
 
-To provide an complete comparison between all classical and quantum algorithms, I also implemented a **Universal** Scan for fixed $N$ and $p$. The output table is a clear way to view the differences between each algorithm. 
-**Importantly**, we should not expect QAOA to 'win'. 
+To provide an complete comparison between all classical and quantum algorithms, I also implemented a **Universal** Scan for fixed $(N,p)$. The output table is a clean way to view performance discrepencies between classical and quantum methods. 
+
+
+![CleanDepthScan](assets/plots/DepthScan_N10.png)
+*Example depth scan for $N=10$. Run on a noiseless simulator, results abide the expectation that more layers provides the means for a more expressive solution, hence the increase in ARI and GSP, and corresponding decrease in REE. Averages taken over 5 different seeds, see [Implementation](#implementation).
 
 ---
 
@@ -248,20 +182,62 @@ This week we implement a basic noise model using Qiskit's `NoiseModel` object, a
 Other models of quantum noise can be added including T1/T2 error and readout error to make the simulator more realistic and will be considered later in Week 7/8 when we actually use real hardware.
 
 
-### Scale Scan: Clean vs Noisy
-
-### Depth Scan: Clean vs Noisy
-
-
-
 ## Week 7/8 - Real Hardware Comparison
-We have created a noisy simulator using Qiskit's `AerSimulator`, and we have compared it to our classical benchmarks in the universal scan. But how accurately does it compare to real quantum hardware? Seeing as we are using Qiskit, we can execute our circuit using IBM's Quantum Porcessing Units (QPUs) through the [IBM Quantum Platform](https://www.ibm.com/quantum?utm_content=SRCWW&p1=Search&p4=318569543695&p5=e&p9=194522864622&gclid=6bf19520fd951efefb05ff591a3581b2&gclsrc=3p.ds&msclkid=6bf19520fd951efefb05ff591a3581b2). Running a quantum circuitry on a QPU introduces hardware constraints that were absent in our idealised simulated circuit. Limited connectivity between qubits meaning a two-qubit operation between two arbitrary qubits cannot be performed directly between them. To account for connectivity overhead we transpile our ideal circuit, through Qiskit's `transpile` function. Mapping the logical qubits and gates in our idealised circuit to the physical qubits and native gates used by the real QPU, we taylor our circuit to a specific QPU architecture.
-This transpiled circuit can infact be very different from the original circuit, potentially increasing depth and gate count substantially, thereby increasing exposure to noise. The table below highlights the effect of transpilation.
+We have created a noisy simulator using Qiskit's `AerSimulator`, and we have compared it to our classical benchmarks in the universal scan. But how accurately does it compare to real quantum hardware? Seeing as we are using Qiskit, we can execute our circuit using IBM's Quantum Porcessing Units (QPUs) through the [IBM Quantum Platform](https://www.ibm.com/quantum?utm_content=SRCWW&p1=Search&p4=318569543695&p5=e&p9=194522864622&gclid=6bf19520fd951efefb05ff591a3581b2&gclsrc=3p.ds&msclkid=6bf19520fd951efefb05ff591a3581b2). 
 
-### Table summarising ideal vs transpiled circuit differcnes.
+Running a quantum circuitry on a QPU introduces hardware constraints that were absent in our idealised simulated circuit. Limited connectivity between qubits meaning a two-qubit operation between two arbitrary qubits cannot be performed directly between them. To account for connectivity overhead we transpile our ideal circuit, through Qiskit's `transpile` function. Mapping the logical qubits and gates in our idealised circuit to the physical qubits and basis gates used by the real QPU, we taylor our circuit to a specific QPU architecture. 
+Different QPUs are built from different sets of basis gates, called native gates. Vitally, cost layer $R_{ZZ}$ gates are not a basis gate for any QPU available. Therefore, when we transpile our all-to-all circuit every $R_{ZZ}$ is decomposed into the equivalent progression of simpler quantum gates, $CNOT \to R_{Z} \to CNOT$. This hardware constraint is important since we must build our noise model around the native gate set. 
 
+Our transpiled circuit can be considerably different from the original circuit, potentially increasing depth and gate count substantially, thereby increasing exposure to noise. The table below highlights this effect for a $N=6$ qubit circuit when transpiled around the IBM_miami QPU. Please see IBM_miami's [connectivity map](https://quantum.cloud.ibm.com/computers).
+
+| Circuit Property | Ideal Circuit | Transpiled Circuit |
+|:-----------------|--------------:|-------------------:|
+| Number of qubits | 6 | 6 |
+|Total Gate Count| 33 | 249 |
+|Circuit Depth| 12 | 173 |
+|Connectivity| All-to-All | Limited Coupling (Map) |
 
 Importantly, the deliverable for Weeks 7 and 8 is the difference between noisy simulator and real hardware: does the noise model I built actually predict what real hardware does? We can analyse this difference through a three-way scan. A discrepency between the results can tell us which physical effects our noisy model doesn't factor in.
 
-### Three-way Scan
+### Three-way Scan 
+The threeway scan is a primary result of this project, where we compare performance between three different backends: 
+1. Clean simulator
+2. Noisy simulator
+3. Real Hardware
 
+Importantly, so far we have used a simulator to sample the resultant circuit probability distirbution and optimised our parameters using the adaptive COBYLA method. Here we are investgating real hardware. If we were to carry out the same restart and seed iteration from used in Weeks 5 and 6, we would burn through our QPU processing-time budget instantly. This is because Scipy's `minimize` function will call the circuit many times as it tries to minimise our Hamiltonian. Therefore, we do not optimise on hardware!!! 
+
+---
+
+### Week 8 Experiment
+
+Throughout the study all variables are kept the same:
+- Similarity Matrix Type
+- \lambda
+- A fixed point in the problem size parameter space $(N, p)$
+- The circuit
+
+The fourth item is very importance. Across all three backends, we run the same transpiled circuit, with the same $N$, $p$, $\mathbf{\gamma}$ and $\mathbf{\beta}$. Crucially, **this circuit is run only once**. This transpiled circuit is first optimised via the noisy simulator, which returns the best $2p$ tuning parameters $\mathbf{\gamma}$ and $\mathbf{\beta}$, and then run once on each backend. This is because, as per the discussion above, we cannot optimise on real hardware, and so we should only run the circuit once. To keep the experiment controlled, we also do this for both clean and noisy simulators. In order to take advantage of the warm restarts, I choose to optimise using the depth scan, by fixing $N$ and iterating until $p$ is reached. 
+
+
+## Implementation
+
+#### Problem Construction and Data collection
+
+Across this project, [NumPy](https://numpy.org/) and [Matplotlib](https://matplotlib.org/) have been used extensively in data collection and visualisation. 
+
+In addition, graphical similarity matrix visualisation as heatmaps and graphs was implemented using matplotlibs `imshow` function and the `networkx` package respectively. 
+
+
+ 
+## References
+<a id="ref1"></a>
+[1] E. Farhi, J. Goldstone and S. Gutmann, 
+[*A Quantum Approximate Optimization Algorithm*](https://arxiv.org/abs/1411.4028),
+arXiv:1411.4028 (2014).
+
+<a id="ref2"></a>
+[2] K. Blekos, D. Brand, A. Ceschini, C.-H. Chou, R.-H. Li, K. Pandya and A. Summer, 
+[*A Review on Quantum Approximate Optimization Algorithm and its Variants*](https://arxiv.org/abs/2306.09198), 
+*Physics Reports*, **1068**, 1–66 (2024). 
+https://doi.org/10.1016/j.physrep.2024.03.002

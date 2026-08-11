@@ -1,4 +1,5 @@
 from global_params import (similarity_type,
+                           graph_switch,
                            sweet_spot,
                            lambda_bal,
                            job_repeats,
@@ -6,7 +7,6 @@ from global_params import (similarity_type,
                            dep_noise_strengths,
                            threeway_no_of_shots)
 import numpy as np
-import matplotlib.pyplot as plt
 from analysis import threeway_data_analysis
 from experiments.run_sim_threeway import sim_run
 from problem.generatesystem import generate_toyproblem_params
@@ -31,7 +31,7 @@ def run_threeway_comparison(backend, service):
     p = sweet_spot[1]
     #params = (similarity_matrix, true_groundstate, true_groundstate_energy)
     #Can include before the depth_scan call since params doesn't change with p.
-    params = generate_toyproblem_params(n, lambda_bal, similarity_type)
+    params = generate_toyproblem_params(n, lambda_bal, similarity_type, graph_switch)
         
     threeway_comp = {'clean' : {'error' : {'depolar' : (0,0), 'readout' : 0}, 'results' : None},
                      
@@ -85,8 +85,9 @@ def run_threeway_comparison(backend, service):
         file.write(f'{backend.name}\n')
         file.write(f'{job_ids}\n')
         file.write('\n')
-        
-    path = 'history/experiment_history.npz'
+    
+    
+    path = 'history/experiment_history.npz'                             
     try:
         with np.load(path, allow_pickle=True) as data:
             history = data['history'].item()
@@ -106,7 +107,7 @@ def run_threeway_comparison(backend, service):
                                 'backend': backend.name,
                                 'threeway_comp': threeway_comp})
                             
-    np.savez(path, history=history)
+    np.savez(path, history=history)         #Upload job data to the history.
     
     summary_statistics = threeway_data_analysis.threeway_data_analysis(threeway_comp)
     threeway_data_analysis.plot_threeway_metrics(sweet_spot,

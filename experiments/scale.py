@@ -6,6 +6,7 @@ from plotting.scan_plots import scaling_scan_metric_scatter
 from plotting.table_print import print_quantum_table
     
 def scale_scan(similarity_type : str,
+               graph_switch : bool,
                    lambda_bal : float,
                    hits_array : np.ndarray[int],
                    fixed_p : int,
@@ -35,7 +36,7 @@ def scale_scan(similarity_type : str,
     warm_restart = None    
     
     for hits in hits_array:
-        params = generate_toyproblem_params(hits, lambda_bal, similarity_type)
+        params = generate_toyproblem_params(hits, lambda_bal, similarity_type, graph_switch)
          
         for optimiser_name, optimiser in qaoa_optimisers.items():
             means, errors, _, _, _, _, _, _ = qaoa_results(*params, 

@@ -94,7 +94,7 @@ def depth_scan_metric_scatter(similarity_type : str,
             f'2-qubit gate noise: {float(noise_strengths[1])}\n'
             f'Readout error: {readout_prob}')
 
-    fig.text(0.82, 0.85,
+    fig.text(0.82, 0.66,
             info,
             ha='center',
             va='top',
