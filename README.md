@@ -42,7 +42,7 @@ We create a simple toy data set with which we can build example similarity matri
 
 The simplest tracking problem, requiring some level of optimisation, is two non-intersecting tracks in 2-dimensional space. We construct this system so that we have $N=6$ equally spaced detectors on the interval $[0,1]$ as shown. External noise is modelled as a Gaussian for each hit. Later on in the project we will want to test the effect of varying $N$ on our slected algorithms.
 
-![2D track setup](assets/plots/ClassicalPlots/Toytracks_12.png)
+![2D track setup](assets/plots/ClassicalPlots/TrueTracks_12.png)
 
 The similarity matrix elements $W_{ij}$ quantify the compatibility or correlation between hits i and j. The more correlated two hits, the more likely it is that they correspond to the same particle track. Intuitively, a simialrity matrix should be symmetric. 
 In this project, two main types used are:
@@ -81,7 +81,7 @@ $$
 The constraint we place on the system is that the best configuration is the one that minimises the 'energy'. We develop an Ising-style Hamiltonian objective which admits the configuration spin sequence. Crucially, the Hamiltonian depends on the similarity matrix $W_{ij}$ in the same way as the magnetic coupling matrix does in the magnetism forumlation of the Ising model. 
 
 $$
-H = -\sum_{i<j} W_{ij} z_i z_j + \lambda \bigl(\sum_i z_i\bigr)^2
+H = -\sum_{i<j} W_{ij} z_i z_j + \lambda (\sum_i z_i)^2
 $$
 
 Because we force $W$ to be symmetric, the Hamiltonian is symmetric about flipping the signs of all spins in any sequence. This means that each energy level, whether we use the KNN or RBF matrix, will be at least two-fold degeneracy. Crucially, there are two degenerate groundstate configurations.
@@ -145,7 +145,7 @@ The primary drawback of the Grid Search is that it is non-adaptive; it tests fix
 ### QAOA as a Hybrid Algorithm
 QAOA is actually implemented as a hybrid quantum-classical algorithm. This means that parts of the QAOA workflow where quantum computation isn't suitable are delegated to a classical computer. While the quantum computer runs the circuits and returns the sampled probability distribution, the classical computer will perform the $\boldsymbol{\gamma}$, $\boldsymbol{\beta}$ parameter optimisation. Optimisation is **not** carried out on a quantum computer. Pictorially, a typical QAOA workflow looks like this:
 
-![QAOA_hybrid_workflow](assets/rm_images/QAOA_hybrid_worklow.png)
+![QAOA_hybrid_workflow](assets/rm_images/QAOA_hybrid_workflow.png)
 
 *Hybrid workflow of QAOA with p layers. 
 Reproduced from Figure 3 of Blekos et al. [2](#ref2), licensed under CC BY 4.0.*
