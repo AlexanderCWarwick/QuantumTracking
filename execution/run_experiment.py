@@ -128,7 +128,6 @@ def run_experiment(mode, option, backend, sweet_spot, params):
         from global_params import uni_hits, uni_layers, classical_loops
         
         params = generate_toyproblem_params(uni_hits, lambda_bal, similarity_type, graph_switch)
-                
         classical_results = classical_scan(classical_algs, 
                                            params, 
                                            lambda_bal,

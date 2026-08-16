@@ -35,7 +35,7 @@ def scaling_scan_metric_scatter(similarity_type : str,
     info = (f'1-qubit gate noise: {float(noise_strengths[0])}\n'
             f'2-qubit gate noise: {float(noise_strengths[1])}\n'
             f'Readout error: {readout_prob}')
-
+    '''
     fig.text(0.9, 0.9,
             info,
             ha='center',
@@ -44,7 +44,7 @@ def scaling_scan_metric_scatter(similarity_type : str,
                     facecolor='white',
                     edgecolor='black',
                     alpha=0.8))
-    
+    '''
     fig.supxlabel('($N$) Hits')
     fig.supylabel('Metric value')
     fig.suptitle(f'QAOA Scale Scan ($ p={p}, W={similarity_type}, λ={lambda_bal}$) ', x=0.4, fontsize=13)
@@ -93,7 +93,7 @@ def depth_scan_metric_scatter(similarity_type : str,
     info = (f'1-qubit gate noise: {float(noise_strengths[0])}\n'
             f'2-qubit gate noise: {float(noise_strengths[1])}\n'
             f'Readout error: {readout_prob}')
-
+    '''
     fig.text(0.82, 0.66,
             info,
             ha='center',
@@ -102,10 +102,11 @@ def depth_scan_metric_scatter(similarity_type : str,
                     facecolor='white',
                     edgecolor='black',
                     alpha=0.8))
+    '''
     
     fig.supxlabel('($p$) Layers')
     fig.supylabel('Metric value')
     fig.suptitle(f'QAOA Depth Scan Hits ($ N={2*hits}, W={similarity_type}, λ={lambda_bal}$) ', x=0.4, fontsize=13)
 
     plt.tight_layout()
-    plt.savefig(f'assets/plots/DepthScan_N{2*hits}')
+    plt.savefig(f'assets/plots/DepthScan_N{2*hits}_{lambda_bal}')

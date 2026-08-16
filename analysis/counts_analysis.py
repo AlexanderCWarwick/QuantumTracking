@@ -4,7 +4,7 @@ from classical_algs.ari import ari_check
 from classical_algs.ising import ising_energy
 from plotting.qaoa_energy_plots import plot_energy_hist
 
-def get_groundstate_prob(best_counts, true_groundstate, no_of_shots):
+def get_groundstate_prob(best_counts, true_groundstate):
     '''
     Returns the sample probability of measuring the groundstate configuration.
     
@@ -13,7 +13,9 @@ def get_groundstate_prob(best_counts, true_groundstate, no_of_shots):
     '''
     gs1_counts = best_counts.get(''.join(true_groundstate[::-1].astype(str)), 0)            
     gs2_counts = best_counts.get(''.join((true_groundstate^1)[::-1].astype(str)), 0)
-    return (gs1_counts + gs2_counts) / no_of_shots
+    total_counts = sum(best_counts.values())
+    
+    return (gs1_counts + gs2_counts) / total_counts
 
         
 def get_counts_data(best_counts, 
@@ -31,7 +33,7 @@ def get_counts_data(best_counts,
     best_config = best_config[::-1]                                 #Qiskit endian correction. Reverses configuration order (not inverting)
 
     best_config = np.array(list(best_config), dtype=int)            #Convert string to numpy array of integers.
-    groundstate_prob = get_groundstate_prob(best_counts, true_groundstate, no_of_shots)
+    groundstate_prob = get_groundstate_prob(best_counts, true_groundstate)
     
     best_config_energy = ising_energy(W, best_config, lambda_bal)
     

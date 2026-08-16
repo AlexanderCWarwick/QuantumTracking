@@ -20,7 +20,8 @@ def toy_track_generation(track_hits : int,
     '''
     
     track0, track0_truthlabels, track1, track1_truthlabels = construct_toytracks(x, track_hits, sigma_noise, intersection_allowed)
-    
+    from plotting.plotting_baseprob import true_toytracks
+    #true_toytracks(x, track0, track1, intersection_allowed)
     return track0, track0_truthlabels, track1, track1_truthlabels
     
     
@@ -35,8 +36,9 @@ def sim_matrices_calculation(x, track0, track1, similarity_type : str, graph_plo
     KNN nearest neighbours is by default 3.
     '''
     
-    nearneighb_n = 3                       #Number of nearest neighbours to consider in the KNN matrix
-    hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.                                                   
+    from global_params import nearneighb_n, rbf_sigma
+    hit_coords = np.column_stack([np.concatenate([x, x]),np.concatenate([track0, track1])])         #2D array of hit coordinates.   
+                                                    
     if similarity_type == 'KNN':
         knn_matrix, nbrs = get_KNN_matrix(hit_coords, nearneighb_n)             #nbrs only needed for graph visualisation.
         
@@ -45,7 +47,7 @@ def sim_matrices_calculation(x, track0, track1, similarity_type : str, graph_plo
 
         return knn_matrix
     elif similarity_type == 'RBF':
-        rbf_matrix = get_RBF_matrix(hit_coords)
+        rbf_matrix = get_RBF_matrix(hit_coords, rbf_sigma)
         
         if graph_plot_switch:
             plot_rbf_matrix(x, hit_coords, rbf_matrix)
@@ -70,14 +72,19 @@ def plot_rbf_matrix(x, hit_coords, rbf_matrix):
     
 
 def exhaustive_method_ari_check(gs_configs, true_gs):
+    '''
+    Checks that the predicted groundstate from the brute force method are the true track GS labels.
+    Effectively checks that λ is a good value to use for the analysis.
+    If there are ground state tracks that are not 0...01...1 or 1...10...0 then the values of λ is bad.
+    '''
     for gs_config in gs_configs:
         ari = ari_check(true_gs, np.array([gs_config]))[0]
-        print(f'ARI check from exhaustive KNN GS search: {gs_config} -> {ari:.4f}')
-            
+        print(f'ARI check from exhaustive GS search: {gs_config} -> {ari:.4f}')
 
 def exhaustive_ising_method(true_gs : float, 
                             lambda_bal : float,
-                            similarity_matrix : np.ndarray[float]) -> tuple[float, float]:
+                            similarity_matrix : np.ndarray[float],
+                            similarity_type : str) -> tuple[float, float]:
     '''
     Brute force ising landscape method.
     
@@ -87,7 +94,7 @@ def exhaustive_ising_method(true_gs : float,
     '''
     
     energies, gs_energy, gs_configs = ising_optimisation(len(similarity_matrix), lambda_bal, similarity_matrix)
-    energy_landscape(lambda_bal, energies) 
+    #energy_landscape(len(similarity_matrix), lambda_bal, energies, similarity_type)
     
     exhaustive_method_ari_check(gs_configs, true_gs)
     
@@ -107,15 +114,15 @@ def generate_toyproblem_params(hits : int,
     Executes the brute force ising energy search for the true groundstate.
     Shouldn't be run for large N.
     '''
-    
-    np.random.seed(45)                  #Fixed random seed. Same for every number of track hits
+    from global_params import track_seed
+    np.random.seed(track_seed)                  #Fixed random seed. Same for every number of track hits
     x = np.linspace(0,1,hits)         #Positions of detectors
                 
     track0, track0_truthlabels, track1, track1_truthlabels = toy_track_generation(hits, x, track_noise, intersection_allowed)
     true_gs = np.array(np.concatenate([track0_truthlabels, track1_truthlabels]))
     
     similarity_matrix = sim_matrices_calculation(x, track0, track1, similarity_type, graph_switch)
-    true_gs_energy = exhaustive_ising_method(true_gs, lambda_bal, similarity_matrix)
+    true_gs_energy = exhaustive_ising_method(true_gs, lambda_bal, similarity_matrix, similarity_type)
     return similarity_matrix, true_gs, true_gs_energy
     
         

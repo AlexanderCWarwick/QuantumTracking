@@ -25,7 +25,7 @@ Then do a multi-ran comparison of clean, noisy and real-hardware. This is done u
 We optimise to find the qaoa gamma/beta parameters using the noisy simulator.
 We use these same params in all three approaches (and with fixed global params, W, λ, etc in global_params)
 '''
-def run_threeway_comparison(backend, service):
+def run_threeway_comparison(mode, backend, service):
     
     n = sweet_spot[0]
     p = sweet_spot[1]
@@ -40,7 +40,7 @@ def run_threeway_comparison(backend, service):
                     'real' : {'results' : None}}
 
 
-    gamma, beta, ss_gammas, ss_betas, ata_circuit = run_experiment('depth', backend, sweet_spot, params)
+    gamma, beta, ss_gammas, ss_betas, ata_circuit = run_experiment(mode, 'depth', backend, sweet_spot, params)
 
     circuit = bind_params(ata_circuit, gamma, beta, ss_gammas, ss_betas, p)
     t_circuit = transpile_circuit(circuit, backend)
@@ -117,5 +117,6 @@ def run_threeway_comparison(backend, service):
                                                  readout_error_probability,
                                                 dep_noise_strengths,
                                                  summary_statistics)
+    
     
     

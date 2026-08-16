@@ -1,4 +1,3 @@
-         
 def print_real_quantum_table(similarity_type : str,
                              lambda_bal : float,
                              N : int,
@@ -17,7 +16,7 @@ def print_real_quantum_table(similarity_type : str,
                 f'{'GS Prob':<25}')
     
     print(f'Parameters : sim_matrix={similarity_type}, λ={lambda_bal}')
-    print(f'Backend = {qpu_name}')
+    print(f'Backend = {qpu_name}, Batch Repeats = {repeats}')
     print(header)
     print('-' * len(header))
     

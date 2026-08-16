@@ -1,37 +1,41 @@
 from numpy import pi
 mode = 1
 
-experiment_option = 'depth'
+experiment_option = 'scale'
 
-depth_hits = 3
-depth_layers = range(1, 4) 
+depth_hits = 6
+depth_layers = range(1, 3) 
 
-scale_hits = range(3,6)
+scale_hits = range(3,7)
 scale_layers = 2
 
-uni_hits = 3
+uni_hits = 5
 uni_layers = 1
 
+track_seed = 45
 intersection_allowed = False            
-track_noise = 1e-2                      
+track_noise = 1e-2           
+
+nearneighb_n = 3
+rbf_sigma = 0.3          
 lambda_bal = 0.3
 similarity_type = 'KNN'
-graph_switch = True
+graph_switch = False
 classical_loops = 10
 
-no_of_shots = 4096
-seed_lim = 5
-restarts = 5           
+no_of_shots = 5000
+seed_lim = 3
+restarts = 4           
 gamma_range = (0, 2*pi)
-beta_range = (0, pi)
+beta_range = (0, 2*pi)
 
-single_gate_noise = 0                       
+single_gate_noise = 1e-3                       
 double_gate_noise = 5 * single_gate_noise
 dep_noise_strengths = (single_gate_noise, double_gate_noise)
-readout_error_probability = 0
+readout_error_probability = 1e-2
 
-sweet_spot = (3, 1)
-threeway_no_of_shots = 2048
+sweet_spot = (4, 1)
+threeway_no_of_shots = 10000
 job_repeats = 3
 
 '''

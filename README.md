@@ -171,8 +171,8 @@ where both $n_{\mathrm{GS}}$ values are the number of times each true degenerate
 To provide an complete comparison between all classical and quantum algorithms, I also implemented a **Universal** Scan for fixed $(N,p)$. The output table is a clean way to view performance discrepencies between classical and quantum methods. 
 
 
-![CleanDepthScan](assets/plots/DepthScan_N10.png)
-*Example depth scan for $N=10$. Run on a noiseless simulator, results abide the expectation that more layers provides the means for a more expressive solution, hence the increase in ARI and GSP, and corresponding decrease in REE. Averages taken over 5 different seeds, see [Implementation](#implementation).
+![CleanDepthScan](assets/plots/N8_Noise0.png)
+*Example Scale scan for $p=2$. Run on a noiseless simulator, results abide the expectation that more layers provides the means for a more expressive solution without the counterbalance of noise. Hence the increase in ARI and GSP, and corresponding decrease in REE. Averages taken over 5 different seeds, see [Implementation](#implementation).
 
 ---
 

@@ -6,7 +6,6 @@ from global_params import (sweet_spot,
 from qiskit_ibm_runtime import QiskitRuntimeService
 from execution.run_experiment import run_experiment
 from execution.run_threeway_comparison import run_threeway_comparison
-
 def main():
     service = QiskitRuntimeService(instance="Warwick-flex")
     backend = service.least_busy(simulator=False,       #Chosen backend is least busy
@@ -19,7 +18,7 @@ def main():
         if dep_noise_strengths == (0, 0) or readout_error_probability == 0:
             raise ValueError('Depolarisation strengths and readout error must both be non-zero') 
         else:
-            run_threeway_comparison(backend, service)
+            run_threeway_comparison(mode, backend, service)
                   
     else:
         raise ValueError('Unknown Mode')

@@ -1,6 +1,8 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from global_params import gamma_range, beta_range
 
+from qiskit.visualization import plot_histogram
 from qiskit.circuit import Parameter
 from qiskit_aer import AerSimulator
 
@@ -97,6 +99,7 @@ def qaoa_results(W : np.ndarray[float],
     ata_circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
     transpiled_circuit = transpile_circuit(ata_circuit,
                                     backend=backend)
+   
 
     print_circuit_data(backend.name, ata_circuit, transpiled_circuit)
 
@@ -134,15 +137,10 @@ def qaoa_results(W : np.ndarray[float],
             best_seed_energy = seed_energy
             best_seed_gammas, best_seed_betas = best_gammas, best_betas
             
-        
-        #energy_data_plot(best_counts, W, lambda_bal, true_groundstate_energy)
-        
-        top_ten_states(best_counts, true_groundstate)
-        
         _, best_rel_energy, best_ari, gs_prob = get_counts_data(best_counts,
                                                                 W, true_groundstate, true_groundstate_energy, lambda_bal,
                                                                 no_of_shots)
-        
+        print(f'best seed ari = {best_ari}')
         metrics_dict['rel_error'].append(best_rel_energy)
         metrics_dict['ari'].append(best_ari)
         metrics_dict['runtime'].append(runtime)
@@ -150,6 +148,9 @@ def qaoa_results(W : np.ndarray[float],
         
         print(f'Seed {seed + 1} / {seed_lim} complete: ({(perf_counter() - seed_start_time):.2f}s)')
         print('\n')
+        #energy_data_plot(best_counts, W, lambda_bal, true_groundstate_energy)
+                
+        #top_ten_states(best_counts, true_groundstate)
         
     return *metric_stats(metrics_dict), gamma, beta, best_seed_gammas, best_seed_betas, best_counts, ata_circuit
 
@@ -159,7 +160,7 @@ def define_sim_backend(noise_strengths,
     '''
     Simulator backend -> Used for computing the measurement counts when optimising. Can be with or without noise.
     '''
-    if noise_strengths == (0, 0) and readout_prob == 0:
+    if noise_strengths == (0.0, 0.0) and readout_prob == 0.0:
         sim_backend = AerSimulator()
     else:
         noise_model = make_noise_model(*noise_strengths, 
@@ -185,3 +186,4 @@ def print_circuit_data(qpu_name,
     
     print(f'Transpiled circuit gate count = {sum(list(t_circuit.count_ops().values()))}')
     print(f'Transpiled Depth = {t_circuit.depth()}')
+   

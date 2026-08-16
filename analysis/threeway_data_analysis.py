@@ -72,10 +72,11 @@ def plot_threeway_metrics(sweet_spot : tuple[int, int],
         ax[i].set_xticks(x)
         ax[i].set_xticklabels(names)
         ax[i].set_title(f'{metric} Comparison')
-        
 
         if metric == 'gsp':
-            ax[i].set_ylim(0, max(means)+0.1)
+            gsp_max = max(np.max(means + errors),
+                         baseline_gsp)
+            ax[i].set_ylim(0, gsp_max * 1.2)
             ax[i].axhline(y=baseline_gsp, 
                           color='black',
                         linestyle='--',
@@ -108,6 +109,13 @@ def plot_threeway_metrics(sweet_spot : tuple[int, int],
                 facecolor='white',
                 edgecolor='black',
                 alpha=0.8))
+    fig.text(
+        0.78, 0.73,
+        f'--  Uniform GSP baseline\n',
+        ha='left',
+        va='top',
+        fontsize=9
+    )
 
     plt.tight_layout(rect=[0, 0, 0.75, 0.95])
     plt.show()
