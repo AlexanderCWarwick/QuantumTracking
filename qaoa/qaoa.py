@@ -1,18 +1,20 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from global_params import gamma_range, beta_range
 
-from qiskit import transpile
+from qiskit.visualization import plot_histogram
 from qiskit.circuit import Parameter
 from qiskit_aer import AerSimulator
 
-from qiskit_ibm_runtime import QiskitRuntimeService
-
 from noise.add_noisemodel import make_noise_model
 from circuits.qaoa_circuit import build_qaoa_circuit, bind_params
-from analysis.counts_analysis import get_counts_data
+from analysis.counts_analysis import get_counts_data#, energy_data_plot
 from analysis.metric_data import metric_stats
-from time import perf_counter
-
+from plotting.qaoa_energy_plots import top_ten_states
 from qaoa.q_ising_energy import run_qaoa
+from circuits.transpiler import transpile_circuit
+
+from time import perf_counter
 
 def qaoa_pipeline(W : np.ndarray,  
                   lambda_bal : float,  
@@ -33,10 +35,8 @@ def qaoa_pipeline(W : np.ndarray,
     Two algorithms for this tweaking are used: Grid Search (see Week 4) and COBYLA minimisation. (Week 5) we move forward from Grid Search 
     p=1 circuit to COBYLA p >= 1.
     '''
-    gamma_range = (0, 2*np.pi)
-    beta_range = (0, np.pi)
     
-    backend.set_options(seed_simulator=seed)                #To be used if the Aersimulator backend is used.         
+    backend.set_options(seed_simulator=seed)                #Sets the seed to fix sampling output.         
                     
     best_gammas, best_betas, best_runtime, best_energy = optimiser(W, 
                                                                 circuit, 
@@ -70,7 +70,8 @@ def qaoa_results(W : np.ndarray[float],
                  warm_restart : np.ndarray[float],
                  noise_strengths : tuple[np.float64, np.float64],
                  readout_prob : float,
-                 restarts : int) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
+                 restarts : int,
+                 backend) -> tuple[np.ndarray[np.float64], np.ndarray[np.float64]]:
     '''
     Build the generalised circuit wih parameters gamma and beta (for each layer). Each time we generate parameter values
     e.g. iterating through points in the grid search or adaptive optimiser finds a new parameter set, we bind them to the circuit.
@@ -88,36 +89,24 @@ def qaoa_results(W : np.ndarray[float],
                'runtime' : [],
                'gsp' : []}
     
+    
+    sim_backend = define_sim_backend(noise_strengths, 
+                                    readout_prob)
+    
+    
     gamma = [Parameter(f'g{i+1}') for i in range(p)]
     beta = [Parameter(f'b{i+1}') for i in range(p)]
-    
-    
-    service = QiskitRuntimeService(instance='Warwick-flex')
-    
-    hardware_backend = service.backend('ibm_miami')
-    
-    if noise_strengths == (0, 0) and readout_prob == 0:
-        sim_backend = AerSimulator()
-    else:
-        noise_model = make_noise_model(*noise_strengths, 
-                                           readout_prob)
-        print(noise_model)
-        sim_backend = AerSimulator(noise_model=noise_model)
-    
-    
-    circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
-    transpiled_circuit = transpile(circuit,
-                                    backend=hardware_backend,
-                                    seed_transpiler=42,
-                                    optimization_level=1)
-    
-    print(f'All-to-all Circuit Depth = {circuit.depth()}')
-    print(f'Transpiled Depth = {transpiled_circuit.depth()}')
+    ata_circuit = build_qaoa_circuit(W, lambda_bal, gamma, beta, p)
+    transpiled_circuit = transpile_circuit(ata_circuit,
+                                    backend=backend)
+   
+
+    print_circuit_data(backend.name, ata_circuit, transpiled_circuit)
 
 
     best_seed_energy = np.inf
     best_seed_gammas, best_seed_betas = None, None
-    
+
     for seed in range(seed_lim):
         '''
         Within each iteration (seed), each restart (warm or random) finds:
@@ -148,20 +137,53 @@ def qaoa_results(W : np.ndarray[float],
             best_seed_energy = seed_energy
             best_seed_gammas, best_seed_betas = best_gammas, best_betas
             
-        
-        #energy_data_plot(best_counts, W, lambda_bal, true_groundstate_energy)
-        
-        #top_ten_states(best_counts, true_groundstate)
-        
         _, best_rel_energy, best_ari, gs_prob = get_counts_data(best_counts,
                                                                 W, true_groundstate, true_groundstate_energy, lambda_bal,
                                                                 no_of_shots)
-        
+        print(f'best seed ari = {best_ari}')
         metrics_dict['rel_error'].append(best_rel_energy)
         metrics_dict['ari'].append(best_ari)
         metrics_dict['runtime'].append(runtime)
         metrics_dict['gsp'].append(gs_prob)
+        
         print(f'Seed {seed + 1} / {seed_lim} complete: ({(perf_counter() - seed_start_time):.2f}s)')
         print('\n')
+        #energy_data_plot(best_counts, W, lambda_bal, true_groundstate_energy)
+                
+        #top_ten_states(best_counts, true_groundstate)
         
-    return *metric_stats(metrics_dict), best_seed_gammas, best_seed_betas
+    return *metric_stats(metrics_dict), gamma, beta, best_seed_gammas, best_seed_betas, best_counts, ata_circuit
+
+
+def define_sim_backend(noise_strengths,
+                    readout_prob):
+    '''
+    Simulator backend -> Used for computing the measurement counts when optimising. Can be with or without noise.
+    '''
+    if noise_strengths == (0.0, 0.0) and readout_prob == 0.0:
+        sim_backend = AerSimulator()
+    else:
+        noise_model = make_noise_model(*noise_strengths, 
+                                           readout_prob)
+        print(noise_model)
+        sim_backend = AerSimulator(noise_model=noise_model)
+    
+    return sim_backend
+
+
+def print_circuit_data(qpu_name,
+                       ata_circuit,
+                       t_circuit):
+    
+    '''
+    List of the ideal vs transpiled circuit properties. Can verify the inflated gate count and circuit depth.
+    The qpu chosen (the least busy), is also given.
+    '''
+    
+    print(f'QPU: {qpu_name}')
+    print(f'All-to-all circuit gate count = {sum(list(ata_circuit.count_ops().values()))}')
+    print(f'All-to-all Circuit Depth = {ata_circuit.depth()}')
+    
+    print(f'Transpiled circuit gate count = {sum(list(t_circuit.count_ops().values()))}')
+    print(f'Transpiled Depth = {t_circuit.depth()}')
+   

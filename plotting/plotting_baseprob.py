@@ -6,13 +6,15 @@ import networkx as nx
 def true_toytracks(x, track0, track1, intersection_allowed):
   
     plt.scatter(x, track0, c='blue', s=40, marker='o')
-    plt.scatter(x, track1, c='red', s=40, marker='o')
+    plt.scatter(x, track1, c='blue', s=40, marker='o')
     plt.xlim(-0.1, 1.1)
+    plt.xticks(x)
     plt.title(f'Particle track plot with intersection = {intersection_allowed}')
+    plt.title(f'Hit Coordinates')
     plt.grid(axis='x')
     plt.xlabel('Detector positions')
     plt.ylabel('y')
-    plt.savefig(f'plots/ClassicalPlots/TrueTracks_{len(np.concatenate([track0, track1]))}')
+    plt.savefig(f'assets/plots/ClassicalPlots/TrueTracks_{len(np.concatenate([track0, track1]))}')
     plt.show()
     
 ##############################################################################################################################
@@ -93,31 +95,25 @@ def graphrep(H, x, hit_coords_dict, edges, edge_contrasts, matrix_type):
     plt.show()
 
 
-def energy_landscape(lambda_bal, KNN_energies, RBF_energies): 
+def energy_landscape(hits, lambda_bal, energies, similarity_type): 
     '''
-    ENergy landscape plots for both the KNN and the RBF. 
-    Each similarity matrix gets two plots:
+    Energy landscape plots for chosen similarity matrix. 
+    Two plots:
     1. 2^N states and their energies (all ordered by energy).
     2. 10 lowest energy states to view groundstate degeneracy.
     '''
     
-    fig, ax = plt.subplots(2, 2, figsize=(10,6))  
-    ax[0,0].plot(np.sort(KNN_energies), color='orange')
-    ax[0,0].set_title('KNN all states')
+    fig, ax = plt.subplots(2, 1, figsize=(10,6))  
+    ax[0].plot(np.sort(energies), color='orange')
+    ax[0].set_title('All state energies')
     
-    ax[0,1].plot(np.sort(RBF_energies), color='red')
-    ax[0,1].set_title('RBF all states')
+    ax[1].plot(np.sort(energies)[:10], color='orange')
+    ax[1].set_title('Lowest 10 energy states')
     
-    ax[1,0].plot(np.sort(KNN_energies)[:10], color='orange')
-    ax[1,0].set_title('KNN lowest 10 energy states')
-    ax[1,0].set_xlabel('Rank')
-    
-    ax[1,1].plot(np.sort(RBF_energies)[:10], color='red')
-    ax[1,1].set_title('RBF lowest 10 energy states')
-    ax[1,1].set_xlabel('Rank')
-    
-    fig.suptitle(f'Bruteforce Ising Energy landscapes for lambda={lambda_bal}')
+    fig.suptitle(f'Bruteforce Ising Energy landscapes: N={hits}, λ={lambda_bal}, W={similarity_type}')
     fig.supylabel('Energy')
+    fig.supxlabel('Rank')
+    plt.savefig(f'assets/plots/ClassicalPlots/Ising_energy_landscapes_N{hits}_W{similarity_type}')
     plt.tight_layout()
     plt.show()
     

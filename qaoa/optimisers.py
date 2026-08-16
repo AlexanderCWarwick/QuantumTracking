@@ -1,13 +1,11 @@
 import numpy as np
 from time import perf_counter
 from scipy.optimize import minimize
-from itertools import product
 
 from qaoa.q_ising_energy import evaluate
     
         
 def expand_warm_start(warm_start, 
-                        p, 
                         gamma_range, 
                         beta_range, 
                         rng):
@@ -82,7 +80,7 @@ def cobyla(W,
     for restart_idx in range(restarts):
         if restart_idx == 0 and warm_restart is not None:
             #First restart = warm start, the rest callare normal random restarts.
-            x0 = expand_warm_start(warm_restart, p, gamma_range, beta_range, rng)
+            x0 = expand_warm_start(warm_restart, gamma_range, beta_range, rng)
         else:
             # Remaining restarts = random
             x0 = np.concatenate([rng.uniform(*gamma_range, p), rng.uniform(*beta_range, p)])
@@ -122,49 +120,3 @@ def cobyla(W,
     #optimiser_result_energies(final_energies, method, p, len(W))
 
     return best_result.x[:p], best_result.x[p:], seed_time, best_avg_energy
-    
-    
-def grid(W, 
-        circuit, 
-        backend,  
-        gamma, 
-        beta, 
-        lambda_bal, 
-        no_of_shots, 
-        _seed, 
-        p, 
-        gamma_lims, 
-        beta_lims, 
-        _warm_restart,
-        _restarts):
-        
-        '''
-        Basic iterative search in hypercuboid of 2p dimensional parameter space. 
-        seed is unused here but is needed for general optimiser call in qaoa function.
-        '''
-        
-        grid_counts = 10                                #Number of points along each parameter axes to sample from. In total 2*2p points.
-        gamma_range = np.linspace(*gamma_lims, grid_counts)
-        beta_range = np.linspace(*beta_lims, grid_counts)
-         
-        A = [gamma_range for _ in range(p)]
-        B = [beta_range for _ in range(p)]
-        #A and B are the subspaces of the parameter space A x B. 
-        
-        best_params = None
-        best_energy = np.inf
-        
-        grid_runtime_start = perf_counter()
-        
-        for param_state in product(*A, *B):
-            gamma_values = param_state[:p]
-            beta_values = param_state[p:]
-            state_avg_energy = evaluate(W, circuit,  backend,  gamma,  beta,  gamma_values, beta_values, lambda_bal,  no_of_shots, p)
-    
-            if state_avg_energy < best_energy:
-                best_params = param_state
-                best_energy = state_avg_energy
-                
-        grid_runtime = perf_counter() - grid_runtime_start
-        return best_params[:p], best_params[p:], grid_runtime, best_energy
-    

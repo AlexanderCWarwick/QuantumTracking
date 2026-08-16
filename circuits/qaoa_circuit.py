@@ -1,5 +1,4 @@
 from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
-
 def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
     '''
     Builds the p layer QAOA circuit using the generalised parameters. 
@@ -28,8 +27,8 @@ def build_qaoa_circuit(W, lambda_bal, gamma, beta, p):
 def bind_params(circuit, 
                 gamma, 
                 beta,
-                gamma_values, 
-                beta_values, 
+                gamma_values : float, 
+                beta_values : float, 
                 p):
     '''
     Binds parameter values to the gates as in build_qaoa_circuit.

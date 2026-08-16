@@ -101,3 +101,4 @@ def print_quantum_table(similarity_type : str,
                     f'{format_metric(metrics['gsp']):<20}')
         print('\n')            
             
+        
